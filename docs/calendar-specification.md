@@ -77,9 +77,17 @@ ScheduleItem と場所候補の関係を表す。
 
 - `candidatePlaceIds`: 1件以上の `Place` ID。候補が1件の場合も同じ構造を使う
 - `selection`: 現時点で選択された候補 ID の配列
-- `selectionCount`: 必要な選択数。未定を表現できる
+- `minSelections`: 選択する最小件数。未定の場合は `null`
+- `maxSelections`: 選択する最大件数。上限未定の場合は `null`
 
-単一候補、複数候補、複数候補から複数件を選ぶ場合、および選択数自体が未定の場合を扱う。画面上の候補選択は、選択結果そのものを確定する操作ではなく、**「この候補を選ぶ」という AI への指示**である。一時状態として保持し、元 JSON の `selection` を直接変更しない。AI がその指示を解釈して次版 JSON を生成し、ユーザーが承認して初めて確定する。
+単一候補、複数候補、複数候補から複数件を選ぶ場合、および選択数自体が未定の場合を扱う。選択数は次のように表現する。
+
+- 1箇所: `minSelections: 1`, `maxSelections: 1`
+- 1～2箇所: `minSelections: 1`, `maxSelections: 2`
+- 何箇所か未定: `minSelections: 1`, `maxSelections: null`
+- 完全未定: `minSelections: null`, `maxSelections: null`
+
+画面上の候補選択は、選択結果そのものを確定する操作ではなく、**「この候補を選ぶ」という AI への指示**である。一時状態として保持し、元 JSON の `selection` を直接変更しない。AI がその指示を解釈して次版 JSON を生成し、ユーザーが承認して初めて確定する。
 
 ### Transport
 
@@ -141,15 +149,16 @@ RioPlan は Preparation とは独立し、Rio の同行・預け先と持参品�
 Booking は予約と費用を管理する。
 
 - `id`: 安定 ID
-- `category`: `accommodation`（宿泊費）/ `transport`（交通費）/ `other`（その他）
+- `category`: `accommodation`（宿泊費）/ `transport`（交通費）/ `activity`（観光・チケット）/ `other`（その他）
 - `status`: 未予約、予約済み、変更・取消等を表す状態
 - `placeId` または `transportId`: 対象への参照
 - `amount`: 金額
 - `currency`: 通貨
 - `notes`: 予約番号、条件、連絡事項等の予約に関する備考
-- `aiInstructions`: 予約データの追加・変更等について AI に伝える指示
 
-費用は当初案どおり宿泊費、交通費、その他のカテゴリ別に集計でき、旅行全体の合計も算出できる。飲食を独立した Booking 費用カテゴリにはしない。集計値は個々の Booking を根拠に導出し、二重に正本を持たない。`notes` は採用済み予約情報の一部、`aiInstructions` は次版 JSON へ反映してほしい更新指示であり、両者を混在させない。
+費用は宿泊費、交通費、観光・チケット、その他のカテゴリ別に集計でき、旅行全体の合計も算出できる。飲食を独立した Booking 費用カテゴリにはしない。集計値は個々の Booking を根拠に導出し、二重に正本を持たない。
+
+`notes` は予約番号、条件、連絡事項等の正式な予約情報・備考として採用済み JSON に保持する。一方、「このホテルをキャンセルして別候補を探して」等の AI への指示は Booking の正式 JSON に含めない。Calendar 内部の一時状態として保持し、AI がその指示を反映した次の完全 JSON を生成した時点で消える。
 
 ## 4. 画面と更新境界
 
