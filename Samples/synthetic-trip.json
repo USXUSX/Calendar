@@ -1,0 +1,449 @@
+{
+  "id": "trip-setouchi-2027",
+  "title": "瀬戸内アートと港町の旅",
+  "dateRange": {
+    "start": "2027-05-14",
+    "end": "2027-05-16"
+  },
+  "summary": "海辺の景色とアートをゆっくり巡る、2泊3日の合成旅行プランです。",
+  "days": [
+    {
+      "id": "day-2027-05-14",
+      "date": "2027-05-14",
+      "title": "港に着いて、島へ渡る",
+      "scheduleItems": [
+        {
+          "id": "schedule-port-breakfast",
+          "dayId": "day-2027-05-14",
+          "order": 10,
+          "action": "港で朝食をとる",
+          "time": {
+            "mode": "fixed",
+            "start": "08:30",
+            "end": null,
+            "durationMinutes": 45
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [
+              "place-harbor-cafe"
+            ],
+            "selection": [
+              "place-harbor-cafe"
+            ],
+            "minSelections": 1,
+            "maxSelections": 1
+          }
+        },
+        {
+          "id": "schedule-island-art",
+          "dayId": "day-2027-05-14",
+          "order": 30,
+          "action": "島のアート施設を巡る",
+          "time": {
+            "mode": "range",
+            "start": "11:00",
+            "end": "15:30",
+            "durationMinutes": 180
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [
+              "place-art-museum",
+              "place-seaside-gallery",
+              "place-hill-studio"
+            ],
+            "selection": [],
+            "minSelections": 1,
+            "maxSelections": 2
+          }
+        },
+        {
+          "id": "schedule-dinner",
+          "dayId": "day-2027-05-14",
+          "order": 50,
+          "action": "夕食をとる",
+          "time": {
+            "mode": "undecided",
+            "start": null,
+            "end": null,
+            "durationMinutes": 90
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [
+              "place-seafood-table",
+              "place-garden-bistro"
+            ],
+            "selection": [],
+            "minSelections": 1,
+            "maxSelections": null
+          }
+        }
+      ],
+      "transportIds": [
+        "transport-ferry",
+        "transport-hotel-walk"
+      ]
+    },
+    {
+      "id": "day-2027-05-15",
+      "date": "2027-05-15",
+      "title": "海辺と古い町並みを歩く",
+      "scheduleItems": [
+        {
+          "id": "schedule-morning-walk",
+          "dayId": "day-2027-05-15",
+          "order": 10,
+          "action": "海辺を散歩する",
+          "time": {
+            "mode": "range",
+            "start": "08:00",
+            "end": "09:30",
+            "durationMinutes": 60
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [
+              "place-sunset-pier"
+            ],
+            "selection": [
+              "place-sunset-pier"
+            ],
+            "minSelections": 1,
+            "maxSelections": 1
+          }
+        },
+        {
+          "id": "schedule-old-town",
+          "dayId": "day-2027-05-15",
+          "order": 30,
+          "action": "古い町並みと喫茶店を巡る",
+          "time": {
+            "mode": "undecided",
+            "start": null,
+            "end": null,
+            "durationMinutes": 150
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [
+              "place-old-town",
+              "place-roastery",
+              "place-craft-shop"
+            ],
+            "selection": [],
+            "minSelections": null,
+            "maxSelections": null
+          }
+        }
+      ],
+      "transportIds": [
+        "transport-local-train"
+      ]
+    },
+    {
+      "id": "day-2027-05-16",
+      "date": "2027-05-16",
+      "title": "朝の市場と帰路",
+      "scheduleItems": [
+        {
+          "id": "schedule-market",
+          "dayId": "day-2027-05-16",
+          "order": 10,
+          "action": "朝市で買い物をする",
+          "time": {
+            "mode": "fixed",
+            "start": "09:00",
+            "end": null,
+            "durationMinutes": 75
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [
+              "place-morning-market"
+            ],
+            "selection": [
+              "place-morning-market"
+            ],
+            "minSelections": 1,
+            "maxSelections": 1
+          }
+        }
+      ],
+      "transportIds": [
+        "transport-airport-bus"
+      ]
+    }
+  ],
+  "transports": [
+    {
+      "id": "transport-ferry",
+      "dayId": "day-2027-05-14",
+      "order": 20,
+      "mode": "ferry",
+      "fromPlaceId": "place-main-port",
+      "toPlaceId": "place-island-port",
+      "time": {
+        "mode": "fixed",
+        "start": "09:40",
+        "end": "10:25",
+        "durationMinutes": 45
+      },
+      "bookingId": "booking-ferry"
+    },
+    {
+      "id": "transport-hotel-walk",
+      "dayId": "day-2027-05-14",
+      "order": 40,
+      "mode": "walk",
+      "fromPlaceId": "place-art-museum",
+      "toPlaceId": "place-bay-hotel",
+      "time": {
+        "mode": "undecided",
+        "start": null,
+        "end": null,
+        "durationMinutes": 25
+      },
+      "bookingId": null
+    },
+    {
+      "id": "transport-local-train",
+      "dayId": "day-2027-05-15",
+      "order": 20,
+      "mode": "train",
+      "fromPlaceId": "place-island-port",
+      "toPlaceId": "place-old-town",
+      "time": {
+        "mode": "range",
+        "start": "10:00",
+        "end": "11:00",
+        "durationMinutes": 32
+      },
+      "bookingId": null
+    },
+    {
+      "id": "transport-airport-bus",
+      "dayId": "day-2027-05-16",
+      "order": 20,
+      "mode": "bus",
+      "fromPlaceId": "place-morning-market",
+      "toPlaceId": "place-airport",
+      "time": {
+        "mode": "fixed",
+        "start": "11:20",
+        "end": "12:10",
+        "durationMinutes": 50
+      },
+      "bookingId": "booking-airport-bus"
+    }
+  ],
+  "places": [
+    {
+      "id": "place-main-port",
+      "name": "青凪港",
+      "category": "station",
+      "address": "香川県青凪市港町1-1",
+      "location": { "latitude": 34.351, "longitude": 134.046 },
+      "urls": [],
+      "rating": null
+    },
+    {
+      "id": "place-harbor-cafe",
+      "name": "波止場珈琲店",
+      "category": "restaurant",
+      "address": "香川県青凪市港町1-8",
+      "location": { "latitude": 34.349, "longitude": 134.049 },
+      "urls": [],
+      "rating": { "value": 3.58, "source": "食べログ", "observedAt": "2026-08-01" }
+    },
+    {
+      "id": "place-island-port",
+      "name": "光島港",
+      "category": "station",
+      "address": "香川県光島町港2",
+      "location": { "latitude": 34.458, "longitude": 133.995 },
+      "urls": [],
+      "rating": null
+    },
+    {
+      "id": "place-art-museum",
+      "name": "光島現代美術館",
+      "category": "attraction",
+      "address": "香川県光島町浜5-2",
+      "location": { "latitude": 34.463, "longitude": 133.987 },
+      "urls": [],
+      "rating": null
+    },
+    {
+      "id": "place-seaside-gallery",
+      "name": "潮風ギャラリー",
+      "category": "attraction",
+      "address": "香川県光島町浜7-4",
+      "location": { "latitude": 34.469, "longitude": 133.981 },
+      "urls": [],
+      "rating": null
+    },
+    {
+      "id": "place-hill-studio",
+      "name": "丘の上の工房",
+      "category": "attraction",
+      "address": "香川県光島町丘3-1",
+      "location": { "latitude": 34.476, "longitude": 133.991 },
+      "urls": [],
+      "rating": null
+    },
+    {
+      "id": "place-seafood-table",
+      "name": "島魚食堂 うみの庭",
+      "category": "restaurant",
+      "address": "香川県光島町本町4-7",
+      "location": { "latitude": 34.461, "longitude": 133.998 },
+      "urls": [],
+      "rating": { "value": 3.71, "source": "食べログ", "observedAt": "2026-08-01" }
+    },
+    {
+      "id": "place-garden-bistro",
+      "name": "庭園ビストロ 灯",
+      "category": "restaurant",
+      "address": "香川県光島町本町6-2",
+      "location": { "latitude": 34.466, "longitude": 134.002 },
+      "urls": [],
+      "rating": { "value": 3.52, "source": "食べログ", "observedAt": "2026-08-01" }
+    },
+    {
+      "id": "place-bay-hotel",
+      "name": "光島ベイホテル",
+      "category": "hotel",
+      "address": "香川県光島町湾岸8-1",
+      "location": { "latitude": 34.457, "longitude": 134.004 },
+      "urls": [],
+      "rating": { "value": 4.42, "source": "楽天トラベル", "observedAt": "2026-08-01" }
+    },
+    {
+      "id": "place-sunset-pier",
+      "name": "夕凪桟橋",
+      "category": "attraction",
+      "address": "香川県光島町海岸1",
+      "location": { "latitude": 34.451, "longitude": 134.012 },
+      "urls": [],
+      "rating": null
+    },
+    {
+      "id": "place-old-town",
+      "name": "青凪旧市街",
+      "category": "attraction",
+      "address": "香川県青凪市古町",
+      "location": { "latitude": 34.334, "longitude": 134.061 },
+      "urls": [],
+      "rating": null
+    },
+    {
+      "id": "place-roastery",
+      "name": "古町ロースタリー",
+      "category": "restaurant",
+      "address": "香川県青凪市古町2-3",
+      "location": { "latitude": 34.332, "longitude": 134.064 },
+      "urls": [],
+      "rating": { "value": 3.47, "source": "食べログ", "observedAt": "2026-08-01" }
+    },
+    {
+      "id": "place-craft-shop",
+      "name": "瀬戸内手仕事店",
+      "category": "other",
+      "address": "香川県青凪市古町2-8",
+      "location": { "latitude": 34.336, "longitude": 134.058 },
+      "urls": [],
+      "rating": null
+    },
+    {
+      "id": "place-morning-market",
+      "name": "青凪朝市",
+      "category": "attraction",
+      "address": "香川県青凪市市場通り1",
+      "location": { "latitude": 34.344, "longitude": 134.053 },
+      "urls": [],
+      "rating": null
+    },
+    {
+      "id": "place-airport",
+      "name": "青凪空港",
+      "category": "station",
+      "address": "香川県青凪市空港町100",
+      "location": { "latitude": 34.216, "longitude": 134.019 },
+      "urls": [],
+      "rating": null
+    }
+  ],
+  "preparation": {
+    "id": "preparation-setouchi-2027",
+    "packingDueDate": "2027-05-12",
+    "specialPreparations": [
+      { "id": "special-museum-ticket", "label": "美術館の日時指定券を確認", "completed": true, "order": 10 },
+      { "id": "special-seasickness", "label": "船酔い対策を準備", "completed": false, "order": 20 }
+    ],
+    "items": [
+      { "id": "prep-clothes", "label": "着替えを揃える", "completed": true, "order": 10 },
+      { "id": "prep-shoes", "label": "歩きやすい靴を用意", "completed": false, "order": 20 },
+      { "id": "prep-charger", "label": "充電器を入れる", "completed": false, "order": 30 }
+    ]
+  },
+  "rioPlan": {
+    "id": "rio-plan-setouchi-2027",
+    "careMode": "undecided",
+    "careDecisionDueDate": "2027-04-20",
+    "careDetails": "同伴の場合はフェリー会社へ事前確認。預ける場合はいつもの施設へ相談。",
+    "packingTemplate": "rio-standard-v1",
+    "packingItems": [
+      { "id": "rio-food", "label": "フード 3日分", "completed": false, "notNeeded": false, "order": 10 },
+      { "id": "rio-lead", "label": "予備リード", "completed": true, "notNeeded": false, "order": 20 },
+      { "id": "rio-raincoat", "label": "レインコート", "completed": false, "notNeeded": true, "order": 30 }
+    ]
+  },
+  "bookings": [
+    {
+      "id": "booking-hotel",
+      "category": "accommodation",
+      "status": "booked",
+      "placeId": "place-bay-hotel",
+      "transportId": null,
+      "amount": 52800,
+      "currency": "JPY",
+      "notes": "2泊・朝食付き。合成予約番号 ST-2027-0514。"
+    },
+    {
+      "id": "booking-ferry",
+      "category": "transport",
+      "status": "booked",
+      "placeId": null,
+      "transportId": "transport-ferry",
+      "amount": 4800,
+      "currency": "JPY",
+      "notes": "往路フェリー2名分。"
+    },
+    {
+      "id": "booking-museum",
+      "category": "activity",
+      "status": "pending",
+      "placeId": "place-art-museum",
+      "transportId": null,
+      "amount": 5200,
+      "currency": "JPY",
+      "notes": "日時指定枠の確定待ち。"
+    },
+    {
+      "id": "booking-airport-bus",
+      "category": "transport",
+      "status": "booked",
+      "placeId": null,
+      "transportId": "transport-airport-bus",
+      "amount": 2400,
+      "currency": "JPY",
+      "notes": "空港連絡バス2名分。"
+    },
+    {
+      "id": "booking-travel-insurance",
+      "category": "other",
+      "status": "booked",
+      "placeId": null,
+      "transportId": null,
+      "amount": 1800,
+      "currency": "JPY",
+      "notes": "合成旅行保険2名分。"
+    }
+  ]
+}
