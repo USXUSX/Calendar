@@ -17,9 +17,9 @@ assert_in_both() {
   grep -Fq "$expected" "$sample_file"
 }
 
-assert_in_both '/Users/us/Tools/Development/Calendar'
-assert_in_both '/Users/us/Tools/GoogleDrive/Calendar'
-assert_in_both '/Users/us/Tools/LocalData/Calendar'
+assert_in_both '/Users/us/Tools/Development/Calendar_Dev'
+assert_in_both '/Users/us/Tools/GoogleDrive/Calendar_GD'
+assert_in_both '/Users/us/Tools/LocalData/Calendar_Local'
 
 grep -Fq '"development"' "$sample_file"
 grep -Fq '"shared_references"' "$sample_file"
