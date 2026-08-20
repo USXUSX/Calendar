@@ -10,4 +10,4 @@ The intended future flow is:
 6. Open a Pull Request linked to the Issue.
 7. Merge only after approval.
 
-Until a GitHub remote and repository conventions are confirmed, this document defines direction only. Do not create external repositories, Issues, branches, or Pull Requests without user authorization.
+The repository remote is `USXUSX/Calendar`. Do not create Issues, branches, or Pull Requests without user authorization.
