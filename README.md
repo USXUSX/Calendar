@@ -28,4 +28,12 @@ Foundation only. No existing Calendar prototype has been migrated, and no applic
 
 Open this repository as the Codex project. Codex reads `AGENTS.md`, then follows this README and only the task-relevant links. Human contributors should also begin with `AGENTS.md` and check Git status before editing.
 
-No build or test command exists yet. Record commands here when the technology stack is selected.
+## Validation
+
+Run the dependency-free project discovery check:
+
+```sh
+sh Tests/project-discovery.test.sh
+```
+
+Add other build and test commands here when the technology stack is selected.
