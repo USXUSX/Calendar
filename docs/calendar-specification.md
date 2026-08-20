@@ -31,7 +31,6 @@ Calendar は旅行計画の完全 JSON を直接編集するエディターで�
 - `preparation`: `Preparation`
 - `rioPlan`: `RioPlan`
 - `bookings`: `Booking` の配列
-- `notes`: 旅行全体について AI に伝える指示メモ
 
 ### Day
 
@@ -42,7 +41,6 @@ Calendar は旅行計画の完全 JSON を直接編集するエディターで�
 - `title`: その日の見出し
 - `scheduleItems`: `ScheduleItem` の配列
 - `transportIds`: その日に表示する `Transport` への参照
-- `notes`: その日について AI に伝える指示メモ
 
 Day 内の表示順は配列位置だけに依存せず、各表示対象が持つ明示的な `order` で管理する。同じ Day に ScheduleItem と Transport を時系列表示する場合も `order` を使う。`order` は時刻とは独立しており、時刻未定の項目も配置できる。
 
@@ -56,7 +54,6 @@ Day 内の表示順は配列位置だけに依存せず、各表示対象が持�
 - `action`: 何をするかという「行動」
 - `time`: `TimeSpec`
 - `placeSelection`: `PlaceSelection`
-- `notes`: この予定について AI に伝える指示メモ
 
 「行動・時間・場所」は独立したフィールドとして保持する。たとえば「12:00に候補Aで昼食」を一つの文字列にまとめない。これにより、行動を維持したまま時刻だけを変更する、または場所候補だけを比較する操作を可能にする。
 
@@ -101,7 +98,6 @@ ScheduleItem と場所候補の関係を表す。
 - `toPlaceId`: 到着地点の Place ID
 - `time`: `TimeSpec`
 - `bookingId`: 予約情報がある場合の Booking ID
-- `notes`: この移動について AI に伝える指示メモ
 
 ### Place
 
@@ -178,6 +174,8 @@ Calendar は次を担わない。
 
 一時状態は画面を閉じる、AI に渡す、次版を却下する等のライフサイクルを定義し、採用済み JSON と混同しない。永続化方式はアプリケーション基盤の決定時に別途確定する。
 
+AI への指示メモは Trip、Day、ScheduleItem、Transport、Booking 等の正式 JSON フィールドには含めない。画面では対象オブジェクトと関連付けて表示できるが、Calendar 内部の一時状態として保持し、AI が指示を反映した次の完全 JSON を生成した時点で消える。Booking の `notes` は正式な予約情報・備考であり、この一時的な指示メモとは異なる。
+
 ## 5. 将来拡張: TripRecord と旅の記録
 
 将来 `TripRecord` を追加し、旅行後の実績を計画と分離して記録する。
@@ -199,7 +197,6 @@ Calendar は次を担わない。
 
 - 日付・時刻とタイムゾーンの具体的な表現
 - `range` の補助属性と検証規則
-- 選択数未定の JSON 表現
 - 一時状態の保存期間と破棄条件
 - 外部評価の取得・更新方法
 - TripRecord と写真メタデータの詳細構造
