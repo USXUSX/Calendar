@@ -30,10 +30,13 @@ Open this repository as the Codex project. Codex reads `AGENTS.md`, then follows
 
 ## Validation
 
-Run the dependency-free project discovery check:
+Run all dependency-free project checks:
 
 ```sh
-sh Tests/project-discovery.test.sh
+sh Tests/run.sh
 ```
 
-Add other build and test commands here when the technology stack is selected.
+The command validates committed JSON samples and runs every `Tests/*.test.sh`
+script. Pull requests to `main` run the same command in GitHub Actions, together
+with a diff consistency check. Add other build and test commands here when the
+technology stack is selected.
