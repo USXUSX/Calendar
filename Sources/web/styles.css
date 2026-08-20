@@ -22,24 +22,24 @@ a { color: inherit; }
 .brand { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; font-family: Georgia, "Yu Mincho", serif; font-weight: 700; font-size: 19px; letter-spacing: .02em; }
 .brand-mark { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: white; font-size: 16px; }
 .read-only-badge, .count-badge { padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink-soft); background: rgba(255,255,255,.55); font-size: 12px; font-weight: 700; letter-spacing: .06em; }
-.page-shell { width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: 54px 0 96px; }
+.page-shell { width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: 40px 0 72px; }
 .loading, .error-state { padding: 72px; text-align: center; }
 .eyebrow { margin: 0 0 8px; color: var(--coral); font-size: 11px; font-weight: 800; letter-spacing: .18em; }
 h1, h2, h3, h4, p { margin-top: 0; }
 h1, h2, h3 { font-family: Georgia, "Yu Mincho", serif; }
-.home-hero { padding: 34px 0 64px; max-width: 720px; }
+.home-hero { padding: 24px 0 42px; max-width: 720px; }
 .home-hero h1 { margin-bottom: 14px; font-size: clamp(38px, 6vw, 68px); line-height: 1.14; letter-spacing: -.04em; }
 .home-hero > p:last-child { color: var(--ink-soft); font-size: 17px; }
-.section-heading { display: flex; align-items: end; justify-content: space-between; margin-bottom: 20px; }
+.section-heading { display: flex; align-items: end; justify-content: space-between; margin-bottom: 14px; }
 .section-heading h2 { margin: 0; font-size: 27px; }
 .trip-card { display: grid; grid-template-columns: minmax(300px, .9fr) 1.2fr; background: var(--card); border: 1px solid var(--line); border-radius: 24px; overflow: hidden; box-shadow: var(--shadow); }
-.trip-card-art { min-height: 360px; position: relative; overflow: hidden; background: linear-gradient(180deg, #9ed3d1 0 48%, #5fa8a5 48% 100%); }
+.trip-card-art { min-height: 300px; position: relative; overflow: hidden; background: linear-gradient(180deg, #9ed3d1 0 48%, #5fa8a5 48% 100%); }
 .sun { position: absolute; width: 90px; height: 90px; top: 54px; right: 66px; border-radius: 50%; background: #f6c964; box-shadow: 0 0 0 18px rgba(246,201,100,.16); }
 .island { position: absolute; background: #386f61; border-radius: 50% 50% 12% 12%; transform: rotate(-5deg); }
 .island-one { width: 260px; height: 95px; left: -35px; bottom: 62px; }
 .island-two { width: 190px; height: 70px; right: -38px; bottom: 88px; background: #2b5a51; }
 .art-caption { position: absolute; left: 30px; top: 26px; font: 700 25px/1 Georgia, serif; letter-spacing: .08em; color: rgba(255,255,255,.88); }
-.trip-card-body { padding: clamp(30px, 5vw, 58px); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+.trip-card-body { padding: clamp(24px, 4vw, 42px); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
 .trip-date { color: var(--coral); font-size: 13px; font-weight: 800; letter-spacing: .06em; }
 .trip-card h3 { margin-bottom: 14px; font-size: clamp(27px, 3.4vw, 40px); line-height: 1.3; }
 .trip-card-body > p:not(.trip-date) { color: var(--ink-soft); }
@@ -55,24 +55,24 @@ h1, h2, h3 { font-family: Georgia, "Yu Mincho", serif; }
 .trip-stat { text-align: center; position: relative; z-index: 1; }
 .trip-stat strong { display: block; font: 700 48px/1 Georgia, serif; }
 .trip-stat span { font-size: 10px; letter-spacing: .18em; }
-.tabs { display: flex; gap: 4px; margin: 32px 0; padding: 5px; border-radius: 14px; background: #ebeae3; overflow-x: auto; }
+.tabs { display: flex; gap: 4px; margin: 22px 0; padding: 4px; border-radius: 14px; background: #ebeae3; overflow-x: auto; }
 .tab { min-width: 110px; flex: 1; padding: 10px 18px; border: 0; border-radius: 10px; background: transparent; color: var(--ink-soft); cursor: pointer; font-weight: 700; }
 .tab.active { background: var(--card); color: var(--ink); box-shadow: 0 4px 15px rgba(38,65,61,.08); }
-.day-section { padding: 28px 0 46px; border-bottom: 1px solid var(--line); }
-.day-heading { display: flex; gap: 18px; align-items: start; margin-bottom: 24px; }
+.day-section { padding: 20px 0 32px; border-bottom: 1px solid var(--line); }
+.day-heading { display: flex; gap: 14px; align-items: start; margin-bottom: 16px; }
 .day-heading > span { margin-top: 5px; padding: 4px 9px; border-radius: 5px; background: var(--coral); color: white; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
 .day-heading h3 { margin: 0; font-size: 25px; }
 .day-heading p { margin: 2px 0 0; color: var(--ink-soft); }
 .timeline { position: relative; }
 .timeline::before { content: ""; position: absolute; left: 133px; top: 20px; bottom: 20px; width: 1px; background: var(--line); }
-.timeline-entry { display: grid; grid-template-columns: 108px 50px 1fr; position: relative; margin-bottom: 18px; }
-.time-column { text-align: right; padding-top: 18px; }
+.timeline-entry { display: grid; grid-template-columns: 108px 50px 1fr; position: relative; margin-bottom: 12px; }
+.time-column { text-align: right; padding-top: 14px; }
 .time-column strong, .time-column span { display: block; }
 .time-column strong { font-size: 13px; }
 .time-column span { color: var(--ink-soft); font-size: 11px; }
-.timeline-dot { align-self: start; justify-self: center; width: 26px; height: 26px; margin-top: 17px; border-radius: 50%; display: grid; place-items: center; color: white; background: var(--coral); font-size: 10px; z-index: 1; }
+.timeline-dot { align-self: start; justify-self: center; width: 24px; height: 24px; margin-top: 13px; border-radius: 50%; display: grid; place-items: center; color: white; background: var(--coral); font-size: 10px; z-index: 1; }
 .transport-entry .timeline-dot { background: var(--teal); }
-.entry-card { padding: 20px 22px; border: 1px solid var(--line); border-radius: 15px; background: var(--card); }
+.entry-card { padding: 15px 18px; border: 1px solid var(--line); border-radius: 13px; background: var(--card); }
 .transport-entry .entry-card { background: var(--teal-soft); border-color: transparent; }
 .entry-kicker { margin-bottom: 6px; color: var(--ink-soft); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .entry-card h4 { margin: 0 0 8px; font-size: 18px; }
@@ -103,15 +103,15 @@ h1, h2, h3 { font-family: Georgia, "Yu Mincho", serif; }
 .place-index li:last-child { border-bottom: 0; }
 .place-index li > span { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: white; font-size: 9px; }
 .place-index strong, .place-index small { display: block; }.place-index strong { font-size: 12px; }.place-index small { color: var(--ink-soft); font-size: 9px; }
-.preparation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.prep-card { padding: 26px; border: 1px solid var(--line); border-radius: 20px; background: var(--card); box-shadow: 0 10px 28px rgba(38,65,61,.05); }
+.preparation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.prep-card { padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); box-shadow: none; }
 .booking-card { grid-column: 1 / -1; }
 .card-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; margin-bottom: 24px; }
 .card-heading h3 { margin: 0; font-size: 23px; }
 .deadline, .decision-alert { padding: 5px 9px; border-radius: 6px; background: var(--coral-soft); color: #9d3d2b; font-size: 10px; font-weight: 800; }
-.prep-card h4 { margin: 24px 0 8px; color: var(--ink-soft); font-size: 11px; letter-spacing: .08em; }
+.prep-card h4 { margin: 18px 0 6px; color: var(--ink-soft); font-size: 11px; letter-spacing: .08em; }
 .check-list { margin: 0; padding: 0; list-style: none; }
-.check-list li { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.check-list li { display: flex; align-items: center; gap: 9px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
 .check-list li.completed { color: var(--ink-soft); text-decoration: line-through; }.check-list em { margin-left: auto; font-size: 10px; font-style: normal; }
 .check-icon { width: 21px; height: 21px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; background: #eef0e9; color: var(--teal); font-size: 10px; font-weight: 800; }
 .decision-box { padding: 16px; border-left: 4px solid var(--coral); border-radius: 8px; background: var(--coral-soft); }
@@ -124,7 +124,7 @@ h1, h2, h3 { font-family: Georgia, "Yu Mincho", serif; }
 .booking-list { margin-top: 20px; }.booking-list article { display: flex; justify-content: space-between; gap: 20px; padding: 14px 0; border-top: 1px solid var(--line); }.booking-list article > div:last-child { text-align: right; }
 .booking-list span, .booking-list small, .booking-list strong { display: block; }.booking-list span, .booking-list small { color: var(--ink-soft); font-size: 10px; }.booking-list small { margin-top: 3px; }.booking-list strong { font-size: 13px; }
 .status { display: inline-block; margin-top: 5px; padding: 2px 6px; border-radius: 5px; background: var(--teal-soft); color: var(--teal); font-size: 9px; font-style: normal; }.status.pending { background: #f7ead0; color: #77571a; }
-.notes-empty { max-width: 700px; margin: 50px auto; padding: 56px; text-align: center; border: 1px solid var(--line); border-radius: 22px; background: var(--card); }
+.notes-empty { max-width: 700px; margin: 36px auto; padding: 44px; text-align: center; border: 1px solid var(--line); border-radius: 18px; background: var(--card); }
 .notes-icon { width: 54px; height: 54px; margin: 0 auto 18px; display: grid; place-items: center; border-radius: 50%; background: var(--coral-soft); color: var(--coral); font-size: 22px; }.notes-empty h3 { font-size: 25px; }.notes-empty > p:not(.eyebrow) { color: var(--ink-soft); }
 .boundary-note { margin-top: 28px; padding: 14px; border-radius: 9px; background: #f0efe9; text-align: left; }.boundary-note strong, .boundary-note span { display: block; }.boundary-note strong { font-size: 11px; }.boundary-note span { color: var(--ink-soft); font-size: 11px; }
 
