@@ -9,6 +9,8 @@ sample_file="$repo_root/Samples/project-locations.json"
 test -f "$guidance_file"
 test -f "$sample_file"
 
+/usr/bin/python3 -m json.tool "$sample_file" >/dev/null
+
 assert_in_both() {
   expected=$1
   grep -Fq "$expected" "$guidance_file"
