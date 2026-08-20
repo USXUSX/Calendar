@@ -20,6 +20,7 @@ Foundation only. No existing Calendar prototype has been migrated, and no applic
 - `docs/project-structure.md`: boundaries and information flow
 - `docs/workflow.md`: future Issue-to-PR workflow
 - `docs/decisions.md`: confirmed architectural decisions
+- `docs/calendar-specification.md`: confirmed Calendar data and AI-assisted update specification
 - `Sources/`: application source code when implementation starts
 - `Tests/`: automated tests and test guidance
 - `Samples/`: synthetic, non-sensitive examples safe to commit
