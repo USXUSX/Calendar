@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# Editors and local tooling
+.idea/
+.vscode/
+*.swp
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies, builds, coverage, and caches
+node_modules/
+.next/
+dist/
+build/
+coverage/
+.cache/
+.tmp/
+tmp/
+
+# Runtime and local data must live under /Users/us/Tools/LocalData/Calendar
+data/
+runtime/
+logs/
