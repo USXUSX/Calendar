@@ -24,7 +24,8 @@ grep -Fq 'class="itinerary-row' "$app_file"
 grep -Fq 'data-map-day=' "$app_file"
 grep -Fq 'categoryFilter("map", draftState.mapCategory)' "$app_file"
 grep -Fq 'カレンダー</a>' "$app_file"
-grep -Fq 'コメント <span class="draft-count"' "$app_file"
+grep -Fq 'data-comment-count' "$app_file"
+grep -Fq 'function commentCount()' "$app_file"
 grep -Fq 'formatDateRange' "$app_file"
 grep -Fq '<header class="home-header"><h1>カレンダー</h1><time>2026/8/21（金）</time></header>' "$app_file"
 grep -Fq 'class="trip-summary"><h1>' "$app_file"
@@ -37,6 +38,12 @@ grep -Fq '.page-shell { width: calc(100vw - 24px); max-width: none;' "$style_fil
 grep -Fq 'class="top-controls"' "$app_file"
 grep -Fq '.trip-summary h1 { font-size: 27px; }' "$style_file"
 grep -Fq '.itinerary-row { grid-template-columns: 98px 84px minmax(0,1fr);' "$style_file"
+grep -Fq '.itinerary-row { grid-template-columns: 88px 72px minmax(0,1fr);' "$style_file"
+grep -Fq 'class="candidate-check"' "$app_file"
+grep -Fq '.entry-time { border-right: 1px solid var(--line); }' "$style_file"
+grep -Fq '.entry-classification { border-left: 0; border-right: 1px solid var(--line); }' "$style_file"
+grep -Fq '.page-shell, .page-shell * { font-family: inherit; }' "$style_file"
+grep -Fq '.page-shell { width: calc(100% - 24px); }' "$style_file"
 if grep -Fq 'class="row-action"' "$app_file"; then
   printf '%s\n' 'Per-row action buttons must not appear in the browse-first UI.' >&2
   exit 1

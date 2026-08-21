@@ -595,3 +595,33 @@ body[data-page="home"] .trip-line span { color: #365452; font-weight: 700; }
   body[data-page="home"] .page-shell { width: calc(100vw - 24px); }
   body[data-page="home"] .calendar-cell { min-height: 86px; }
 }
+
+/* Issue #20: align shared device-review spacing and itinerary readability. */
+.page-shell { width: calc(100% - 24px); }
+.page-shell, .page-shell * { font-family: inherit; }
+.bottom-nav .tab { font-size: 16px; }
+.draft-count { margin-left: 4px; font-size: inherit; }
+.entry-time { border-right: 1px solid var(--line); }
+.entry-time span { color: #53605d; font-size: 16px; font-weight: 800; }
+.entry-classification { border-left: 0; border-right: 1px solid var(--line); }
+.day-toggle { grid-template-columns: 180px minmax(0,1fr) auto; }
+.day-toggle > .day-label { color: var(--ink); font-size: 21px; }
+.day-toggle .day-number { color: var(--day-color); font: inherit; font-weight: 800; }
+.day-toggle .day-date { color: var(--ink); }
+.day-copy strong { font-size: 20px; }
+.day-copy small { color: #365452; font-size: 18px; font-weight: 600; }
+.itinerary-row { grid-template-columns: 88px 72px minmax(0,1fr); }
+.entry-detail { font-size: 18px !important; }
+.candidate-chip { align-items: center; gap: 9px; padding-left: 0; }
+.candidate-chip input { position: absolute; opacity: 0; pointer-events: none; }
+.candidate-check { width: 22px; height: 22px; display: grid; place-items: center; flex: 0 0 22px; box-sizing: border-box; border: 2px solid #65736f; border-radius: 4px; background: #fff; color: #fff; font-size: 15px; line-height: 1; }
+.candidate-chip.selected { color: var(--ink); }
+.candidate-chip.selected .candidate-check { border-color: var(--teal); background: var(--teal); }
+.candidate-chip:focus-within .candidate-check { outline: 3px solid color-mix(in srgb, var(--teal) 28%, transparent); outline-offset: 2px; }
+
+@media (max-width: 820px) {
+  .page-shell { width: calc(100% - 24px); }
+  .trip-summary { padding-inline: 12px; }
+  .day-toggle { grid-template-columns: 180px minmax(0,1fr) auto; }
+  .itinerary-row { grid-template-columns: 88px 72px minmax(0,1fr); gap: 10px; }
+}

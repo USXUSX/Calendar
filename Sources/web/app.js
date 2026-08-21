@@ -151,7 +151,7 @@ function itineraryEntry(entry, placesById) {
     <div class="row-main"><strong>${escapeHtml(title)}</strong>${entry.summary ? `<p>${escapeHtml(entry.summary)}</p>` : ""}${confirmedPlace ? "" : `<div class="candidate-inline">${candidates.map((place) => {
         const checked = selected.has(place.id);
         const atMaximum = selection.maxSelections !== null && selected.size >= selection.maxSelections;
-        return `<label class="candidate-chip ${checked ? "selected" : ""}"><input type="checkbox" data-place-selection="${escapeHtml(entry.id)}" data-place-id="${escapeHtml(place.id)}" ${checked ? "checked" : ""} ${!checked && atMaximum ? "disabled" : ""}><span>${escapeHtml(place.name)}</span>${placeRating(place)}</label>`;
+        return `<label class="candidate-chip ${checked ? "selected" : ""}"><input type="checkbox" data-place-selection="${escapeHtml(entry.id)}" data-place-id="${escapeHtml(place.id)}" ${checked ? "checked" : ""} ${!checked && atMaximum ? "disabled" : ""}><span class="candidate-check" aria-hidden="true">${checked ? "✓" : ""}</span><span>${escapeHtml(place.name)}</span>${placeRating(place)}</label>`;
       }).join("")}</div>`}${entry.details?.length ? `<p class="entry-detail">${escapeHtml(entry.details[0])}</p>` : ""}</div>
   </article>`;
 }
@@ -165,7 +165,7 @@ function renderItinerary(trip, placesById) {
       const visibleEntries = entries.filter((entry) => draftState.itineraryCategory === "all" || entryCategory(entry, placesById) === draftState.itineraryCategory);
       const collapsed = draftState.collapsedDays.has(day.id);
       return `<section class="day-section" id="${escapeHtml(day.id)}" style="--day-color: var(--day-${dayIndex % 5 + 1})">
-        <div class="day-heading"><button type="button" class="day-toggle" data-toggle-day="${escapeHtml(day.id)}" aria-expanded="${!collapsed}"><span>第${dayIndex + 1}日 ${escapeHtml(formatDate(day.date))}（${weekdayFormatter.format(localDate(day.date))}）</span><span class="day-copy"><strong>${escapeHtml(day.title)}</strong><small>${escapeHtml(day.routeSummary || "")}</small></span><b aria-hidden="true">${collapsed ? "⌄" : "⌃"}</b></button></div>
+        <div class="day-heading"><button type="button" class="day-toggle" data-toggle-day="${escapeHtml(day.id)}" aria-expanded="${!collapsed}"><span class="day-label"><strong class="day-number">第${dayIndex + 1}日</strong> <span class="day-date">${escapeHtml(formatDate(day.date))}（${weekdayFormatter.format(localDate(day.date))}）</span></span><span class="day-copy"><strong>${escapeHtml(day.title)}</strong><small>${escapeHtml(day.routeSummary || "")}</small></span><b aria-hidden="true">${collapsed ? "⌄" : "⌃"}</b></button></div>
         <div class="itinerary-list" ${collapsed ? "hidden" : ""}>${visibleEntries.map((entry) => itineraryEntry(entry, placesById)).join("")}</div>
       </section>`;
     }).join("")}</div>
@@ -254,6 +254,10 @@ function renderPreparation(trip, placesById) {
 function draftCount() {
   const notes = [...draftState.instructions.values()].filter((value) => value.trim()).length;
   return draftState.preparation.size + draftState.rioPacking.size + draftState.placeSelections.size + notes;
+}
+
+function commentCount() {
+  return [...draftState.instructions.values()].filter((value) => value.trim()).length;
 }
 
 function instructionTargetLabel(trip, key, placesById) {
@@ -407,7 +411,7 @@ function renderTrip(trip) {
       <button id="tab-itinerary" class="tab active" role="tab" aria-selected="true" aria-controls="panel-itinerary" data-tab="itinerary">旅程</button>
       <button id="tab-map" class="tab" role="tab" aria-selected="false" aria-controls="panel-map" data-tab="map">地図</button>
       <button id="tab-preparation" class="tab" role="tab" aria-selected="false" aria-controls="panel-preparation" data-tab="preparation">準備</button>
-      <button id="tab-notes" class="tab" role="tab" aria-selected="false" aria-controls="panel-notes" data-tab="notes">コメント <span class="draft-count" data-draft-count>${draftCount()}</span></button>
+      <button id="tab-notes" class="tab" role="tab" aria-selected="false" aria-controls="panel-notes" data-tab="notes">コメント${commentCount() ? ` <span class="draft-count" data-comment-count>${commentCount()}</span>` : ""}</button>
     </nav>
     ${renderItinerary(trip, placesById)}
     ${renderMap(trip)}
@@ -543,7 +547,7 @@ function setupTripInteractions(app, trip) {
     if (!key) return;
     if (event.target.value.trim()) draftState.instructions.set(key, event.target.value);
     else draftState.instructions.delete(key);
-    app.querySelectorAll("[data-draft-count]").forEach((item) => { item.textContent = draftCount(); });
+    app.querySelectorAll("[data-comment-count]").forEach((item) => { item.textContent = commentCount(); });
     app.querySelectorAll("[data-reset-draft]").forEach((item) => { item.disabled = draftCount() === 0; });
     const updateCount = app.querySelector("[data-update-count]");
     const copyButton = app.querySelector("[data-copy-update]");
