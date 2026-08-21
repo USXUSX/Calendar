@@ -52,3 +52,9 @@ python3 -m http.server 4173
 
 Open `http://localhost:4173/Sources/web/`. The preview is local and read-only;
 it does not publish or connect to external services.
+
+## Device review
+
+The fixed GitHub Pages review URL and the manual deployment procedure are
+documented in [`docs/review-deployment.md`](docs/review-deployment.md). Review
+deployments publish only the static web UI and committed synthetic sample data.
