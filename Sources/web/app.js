@@ -14,6 +14,7 @@ const draftState = {
   mapDay: "all",
   mapCategory: "all",
   pendingTripComment: "",
+  editingCommentKey: null,
 };
 
 const targetKey = (type, id) => `${type}:${id}`;
@@ -247,7 +248,8 @@ function renderPreparation(trip, placesById) {
           const transport = transportsById.get(booking.transportId);
           const transportName = transport ? `${transportLabels[transport.mode] ?? transport.mode} ${placesById.get(transport.fromPlaceId).name} → ${placesById.get(transport.toPlaceId).name}` : null;
           const bookingName = target?.name ?? transportName ?? "予約";
-          return `<div class="booking-row" role="row"><span class="booking-check" aria-label="${booking.reserved ? "予約済み" : "未予約"}">${booking.reserved ? "✓" : "○"}</span><time>${escapeHtml(formatDate(booking.targetDate))}</time><span>${categoryLabels[booking.category]}</span><div role="cell"><strong>${escapeHtml(bookingName)}</strong><small class="official-note">${escapeHtml(booking.notes)}</small></div><b>${moneyFormatter.format(booking.amount)}</b>${aiTargetButton("booking", booking.id, bookingName)}</div>`;
+          const importantNote = booking.reserved ? "" : booking.notes;
+          return `<div class="booking-row" role="row"><span class="booking-check" aria-label="${booking.reserved ? "予約済み" : "未予約"}">${booking.reserved ? "✓" : "○"}</span><time>${escapeHtml(formatDate(booking.targetDate))}</time><span class="booking-category">${categoryLabels[booking.category]}</span><div class="booking-content" role="cell"><strong>${escapeHtml(bookingName)}</strong>${importantNote ? `<small class="official-note">${escapeHtml(importantNote)}</small>` : ""}</div><b class="booking-amount">${moneyFormatter.format(booking.amount)}</b>${aiTargetButton("booking", booking.id, bookingName)}</div>`;
         }).join("")}</div>
         <div class="cost-summary"><div><span>費用合計</span><strong>${moneyFormatter.format(total)}</strong></div><div class="cost-breakdown">${totals}</div></div>
       </section>
@@ -374,11 +376,18 @@ function updateMaterialText(trip, materials) {
 }
 
 function renderNotes(trip, placesById) {
+  const comments = [...draftState.instructions.entries()].filter(([, value]) => value.trim()).map(([key, value]) => {
+    const editing = draftState.editingCommentKey === key;
+    const body = editing
+      ? `<textarea data-instruction-key="${escapeHtml(key)}" aria-label="コメントを編集" autofocus>${escapeHtml(value)}</textarea>`
+      : `<button type="button" class="comment-text" data-edit-comment="${escapeHtml(key)}">${escapeHtml(value)}</button>`;
+    return `<article><span>${escapeHtml(instructionTargetLabel(trip, key, placesById))}</span><div class="comment-body">${body}<button type="button" class="cancel-comment" data-cancel-comment="${escapeHtml(key)}">取消</button></div></article>`;
+  }).join("");
   return `<div class="tab-panel" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" hidden>
     <section class="comments-workspace">
       <h2>コメント</h2>
       <p class="copy-status" data-copy-status role="status"></p>
-      <div class="comment-list">${[...draftState.instructions.entries()].filter(([, value]) => value.trim()).map(([key, value]) => `<article><span>${escapeHtml(instructionTargetLabel(trip, key, placesById))}</span><div class="comment-body"><textarea data-instruction-key="${escapeHtml(key)}" aria-label="コメントを編集">${escapeHtml(value)}</textarea><button type="button" data-cancel-comment="${escapeHtml(key)}">取消</button></div></article>`).join("") || `<p class="empty-line">未処理のコメントはありません</p>`}</div>
+      <div class="comment-list">${comments || `<p class="empty-line">未処理のコメントはありません</p>`}</div>
       <div class="trip-comment"><label><span>旅行全体へのコメントを追加</span><textarea data-new-trip-comment placeholder="コメントを入力">${escapeHtml(draftState.pendingTripComment)}</textarea></label><button type="button" data-add-trip-comment ${draftState.pendingTripComment.trim() ? "" : "disabled"}>追加</button></div>
     </section>
   </div>`;
@@ -472,7 +481,14 @@ function setupTripInteractions(app, trip) {
     const cancelledComment = event.target.closest("[data-cancel-comment]");
     if (cancelledComment) {
       draftState.instructions.delete(cancelledComment.dataset.cancelComment);
+      if (draftState.editingCommentKey === cancelledComment.dataset.cancelComment) draftState.editingCommentKey = null;
       rerender();
+    }
+    const editableComment = event.target.closest("[data-edit-comment]");
+    if (editableComment) {
+      draftState.editingCommentKey = editableComment.dataset.editComment;
+      rerender();
+      app.querySelector(`[data-instruction-key="${CSS.escape(draftState.editingCommentKey)}"]`)?.focus();
     }
     if (event.target.closest("[data-add-trip-comment]")) {
       const value = draftState.pendingTripComment.trim();

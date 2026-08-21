@@ -78,6 +78,14 @@ grep -Fq 'data-tab="map"' "$web_dir/app.js"
 grep -Fq 'data-tab="preparation"' "$web_dir/app.js"
 grep -Fq 'data-tab="notes"' "$web_dir/app.js"
 grep -Fq 'fetch(SAMPLE_URL' "$web_dir/app.js"
+grep -Fq 'editingCommentKey' "$web_dir/app.js"
+grep -Fq 'data-edit-comment' "$web_dir/app.js"
+grep -Fq 'class="booking-content"' "$web_dir/app.js"
+grep -Fq 'body { font-size: 17px; }' "$web_dir/styles.css"
+if grep -Fq '<textarea data-instruction-key="${escapeHtml(key)}" aria-label="コメントを編集">' "$web_dir/app.js"; then
+  printf '%s\n' 'Comment textarea is still always visible.' >&2
+  exit 1
+fi
 
 if grep -Eq 'method:[[:space:]]*"(POST|PUT|PATCH|DELETE)|XMLHttpRequest|WebSocket|localStorage|sessionStorage|https?://' "$web_dir/app.js"; then
   printf '%s\n' 'Read-only UI contains a write, persistence, or external-service path.' >&2
