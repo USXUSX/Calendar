@@ -498,3 +498,31 @@ body { font-size: 17px; }
   .booking-amount { grid-column: 4; margin-top: 4px; text-align: left !important; }
   .booking-row .row-action { grid-column: 5; grid-row: 1; }
 }
+
+/* PR #16 review: use the full device width and keep navigation fixed. */
+.page-shell { width: calc(100vw - 24px); max-width: none; padding-top: 78px; }
+body[data-page="home"] .page-shell { padding-top: 14px; }
+.trip-summary { position: fixed; inset: 0 0 auto; z-index: 25; min-height: 64px; padding: 10px max(12px, calc((100vw - 1120px) / 2)); border-bottom: 1px solid var(--line); background: rgba(247,245,239,.98); }
+.day-switcher { top: 64px; width: 100%; justify-content: flex-start; gap: 18px; padding: 10px 4px 8px; }
+.day-switcher button { padding: 7px 10px; }
+.category-filter { width: 100%; justify-content: flex-start; gap: 12px; padding: 0 4px; }
+.category-filter button { padding: 8px 10px; }
+.preparation-grid, .comments-workspace { width: 100%; max-width: none; }
+.booking-row { position: relative; }
+.day-toggle { border-left-width: 8px; background: color-mix(in srgb, var(--day-color) 8%, transparent); }
+.map-day-heading { border-left-width: 8px; background: color-mix(in srgb, var(--day-color) 8%, transparent); }
+.row-action { opacity: 0; pointer-events: none; }
+.itinerary-row:hover .row-action, .itinerary-row:focus-within .row-action,
+.day-heading:hover .row-action, .day-heading:focus-within .row-action,
+.card-heading:hover .row-action, .card-heading:focus-within .row-action,
+.booking-row:hover .row-action, .booking-row:focus-within .row-action,
+.row-action:focus-visible { opacity: 1; pointer-events: auto; }
+
+@media (max-width: 820px) {
+  .page-shell { width: calc(100vw - 16px); }
+  .trip-summary { padding-inline: 8px; }
+  .day-switcher { gap: 12px; overflow-x: auto; }
+  .category-filter { gap: 8px; overflow-x: auto; }
+  .booking-row { grid-template-columns: 28px 64px 104px minmax(0,1fr) 92px; }
+  .booking-row .row-action { position: absolute; right: 0; }
+}
