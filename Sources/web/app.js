@@ -7,15 +7,24 @@ const draftState = {
   rioPacking: new Map(),
   placeSelections: new Map(),
   instructions: new Map(),
+  openInstructionFields: new Set(),
 };
 
 const targetKey = (type, id) => `${type}:${id}`;
 
-function instructionField(type, id, label) {
+function instructionField(type, id, label, collapsible = false) {
   const key = targetKey(type, id);
+  const value = draftState.instructions.get(key) ?? "";
+  const expanded = !collapsible || draftState.openInstructionFields.has(key);
+  if (collapsible) {
+    return `<div class="instruction-control ${expanded ? "expanded" : ""}">
+      <button type="button" class="instruction-toggle" data-instruction-toggle="${escapeHtml(key)}" aria-expanded="${expanded ? "true" : "false"}">${value.trim() ? "変更メモ（入力済み）" : expanded ? "変更メモを閉じる" : "変更メモ"}<small>一時・未送信</small></button>
+      ${expanded ? `<label class="instruction-field"><span class="visually-hidden">AIへの指示メモ</span><textarea rows="2" data-instruction-key="${escapeHtml(key)}" placeholder="${escapeHtml(label)}">${escapeHtml(value)}</textarea></label>` : ""}
+    </div>`;
+  }
   return `<label class="instruction-field">
     <span>AIへの指示メモ <small>一時・未送信</small></span>
-    <textarea rows="2" data-instruction-key="${escapeHtml(key)}" placeholder="${escapeHtml(label)}">${escapeHtml(draftState.instructions.get(key) ?? "")}</textarea>
+    <textarea rows="2" data-instruction-key="${escapeHtml(key)}" placeholder="${escapeHtml(label)}">${escapeHtml(value)}</textarea>
   </label>`;
 }
 
@@ -137,7 +146,7 @@ function itineraryEntry(entry, placesById) {
         <div class="entry-kicker">移動 · ${escapeHtml(transportLabels[entry.mode] ?? entry.mode)}</div>
         <h4>${escapeHtml(from.name)} → ${escapeHtml(to.name)}</h4>
         <p>${escapeHtml(from.address)} から ${escapeHtml(to.address)}</p>
-        ${instructionField("transport", entry.id, "例：この移動を一本遅い便に変更して")}
+        ${instructionField("transport", entry.id, "例：この移動を一本遅い便に変更して", true)}
       </div>
     </article>`;
   }
@@ -161,7 +170,7 @@ function itineraryEntry(entry, placesById) {
         return `<label class="candidate-row selectable ${checked ? "selected" : ""}"><input type="checkbox" data-place-selection="${escapeHtml(entry.id)}" data-place-id="${escapeHtml(place.id)}" ${checked ? "checked" : ""} ${!checked && atMaximum ? "disabled" : ""}><span class="choice-mark" aria-hidden="true">${checked ? "✓" : ""}</span><span class="candidate-copy"><strong>${escapeHtml(place.name)}</strong><span>${escapeHtml(place.address)}</span></span>${placeRating(place)}</label>`;
       }).join("")}</div>
       <p class="selection-guidance ${belowMinimum ? "error" : ""}">${belowMinimum ? `あと${selection.minSelections - selected.size}件選択してください` : selection.maxSelections !== null && selected.size >= selection.maxSelections ? "選択できる上限です" : "候補の選択はAIへの指示として一時保存されます"}</p>
-      ${instructionField("scheduleItem", entry.id, "例：この予定を午後に移して")}
+      ${instructionField("scheduleItem", entry.id, "例：この予定を午後に移して", true)}
     </div>
   </article>`;
 }
@@ -175,7 +184,7 @@ function renderItinerary(trip, placesById) {
         ...transports.map((item) => ({ ...item, kind: "transport" })),
       ].sort((a, b) => a.order - b.order);
       return `<section class="day-section">
-        <div class="day-heading"><span>DAY ${index + 1}</span><div><h3>${escapeHtml(formatDate(day.date))}</h3><p>${escapeHtml(day.title)}</p>${instructionField("day", day.id, "例：この日は移動を少なめにして")}</div></div>
+        <div class="day-heading"><span>DAY ${index + 1}</span><div><h3>${escapeHtml(formatDate(day.date))}</h3><p>${escapeHtml(day.title)}</p>${instructionField("day", day.id, "例：この日は移動を少なめにして", true)}</div></div>
         <div class="timeline">${entries.map((entry) => itineraryEntry(entry, placesById)).join("")}</div>
       </section>`;
     }).join("")}
@@ -264,16 +273,34 @@ function draftCount() {
   return draftState.preparation.size + draftState.rioPacking.size + draftState.placeSelections.size + notes;
 }
 
-function renderNotes(trip) {
-  const labels = {
-    trip: "旅行全体",
-    day: "日程",
-    scheduleItem: "予定",
-    transport: "移動",
-    preparation: "妻の準備",
-    rioPlan: "Rioの予定",
-    booking: "予約",
-  };
+function instructionTargetLabel(trip, key, placesById) {
+  const [type, id] = key.split(":");
+  if (type === "trip") return `旅行全体：${trip.title}`;
+  if (type === "day") {
+    const day = trip.days.find((item) => item.id === id);
+    return day ? `日程：${formatDate(day.date)} ${day.title}` : "日程";
+  }
+  if (type === "scheduleItem") {
+    const item = trip.days.flatMap((day) => day.scheduleItems).find((candidate) => candidate.id === id);
+    return item ? `予定：${item.action}` : "予定";
+  }
+  if (type === "transport") {
+    const transport = trip.transports.find((item) => item.id === id);
+    if (transport) return `移動：${placesById.get(transport.fromPlaceId)?.name ?? "出発地"} → ${placesById.get(transport.toPlaceId)?.name ?? "到着地"}`;
+    return "移動";
+  }
+  if (type === "booking") {
+    const booking = trip.bookings.find((item) => item.id === id);
+    const transport = trip.transports.find((item) => item.id === booking?.transportId);
+    const transportName = transport ? `${placesById.get(transport.fromPlaceId)?.name ?? "出発地"} → ${placesById.get(transport.toPlaceId)?.name ?? "到着地"}` : null;
+    return `予約：${placesById.get(booking?.placeId)?.name ?? transportName ?? "予約項目"}`;
+  }
+  if (type === "preparation") return "妻の準備：パッキング・特別準備";
+  if (type === "rioPlan") return "Rioの予定：同行・預け先と持参品";
+  return "関連項目";
+}
+
+function renderNotes(trip, placesById) {
   const notes = [...draftState.instructions.entries()].filter(([, value]) => value.trim());
   return `<div class="tab-panel" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" hidden>
     <section class="notes-workspace">
@@ -281,7 +308,7 @@ function renderNotes(trip) {
       ${instructionField("trip", trip.id, "例：全体をゆったりした旅程にして")}
       <div class="instruction-summary">
         <h4>入力済みメモ</h4>
-        ${notes.length ? `<ul>${notes.map(([key, value]) => `<li><span>${escapeHtml(labels[key.split(":")[0]] ?? "関連項目")}</span><p>${escapeHtml(value)}</p></li>`).join("")}</ul>` : "<p>各画面で入力したメモがここに表示されます。</p>"}
+        ${notes.length ? `<ul>${notes.map(([key, value]) => `<li><span>${escapeHtml(instructionTargetLabel(trip, key, placesById))}</span><p>${escapeHtml(value)}</p></li>`).join("")}</ul>` : "<p>各画面で入力したメモがここに表示されます。</p>"}
       </div>
       <div class="boundary-note"><strong>一時状態について</strong><span>採用済みJSONや予約の正式メモは変更しません。AI送信・完全JSON生成・採用はこの段階では行いません。</span></div>
     </section>
@@ -306,7 +333,7 @@ function renderTrip(trip) {
     ${renderItinerary(trip, placesById)}
     ${renderMap(trip)}
     ${renderPreparation(trip, placesById)}
-    ${renderNotes(trip)}`;
+    ${renderNotes(trip, placesById)}`;
 }
 
 function activateTab(name, updateHistory = true) {
@@ -343,7 +370,16 @@ function setupTripInteractions(app, trip) {
       draftState.rioPacking.clear();
       draftState.placeSelections.clear();
       draftState.instructions.clear();
+      draftState.openInstructionFields.clear();
       rerender();
+    }
+    const instructionToggle = event.target.closest("[data-instruction-toggle]");
+    if (instructionToggle) {
+      const key = instructionToggle.dataset.instructionToggle;
+      if (draftState.openInstructionFields.has(key)) draftState.openInstructionFields.delete(key);
+      else draftState.openInstructionFields.add(key);
+      rerender();
+      if (draftState.openInstructionFields.has(key)) app.querySelector(`[data-instruction-key="${CSS.escape(key)}"]`)?.focus();
     }
   });
 
