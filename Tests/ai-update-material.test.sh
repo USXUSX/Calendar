@@ -17,7 +17,7 @@ grep -Fq 'data-copy-update' "$app_file"
 grep -Fq 'navigator.clipboard.writeText' "$app_file"
 grep -Fq '一時状態は保持されています' "$app_file"
 grep -Fq 'class="official-note"' "$app_file"
-grep -Fq 'materials.length ? "" : "disabled"' "$app_file"
+grep -Fq 'function updateMaterialText(trip, materials)' "$app_file"
 
 python3 - "$sample_file" <<'PY'
 import json

@@ -29,12 +29,22 @@ grep -Fq 'categoryFilter("map", draftState.mapCategory)' "$app_file"
 grep -Fq 'カレンダー</a>' "$app_file"
 grep -Fq 'コメント <span class="draft-count"' "$app_file"
 grep -Fq 'formatDateRange' "$app_file"
+grep -Fq '<header class="home-header"><h1>カレンダー</h1><time>2026/8/21（金）</time></header>' "$app_file"
+grep -Fq 'class="trip-summary"><h1>' "$app_file"
+grep -Fq 'data-new-trip-comment' "$app_file"
+grep -Fq 'data-add-trip-comment' "$app_file"
+grep -Fq '<h3>リオ　${trip.rioPlan.careMode' "$app_file"
 grep -Fq '.bottom-nav { left: 0; bottom: 0; width: 100%;' "$style_file"
 grep -Fq '.check-list li.completed { color: var(--ink-soft); text-decoration: none;' "$style_file"
 grep -Fq 'Calendar は旅行計画の閲覧を主目的とする' "$spec_file"
 
 if grep -Eq '候補件数|件選択中|あと[0-9]+件選択してください|変更メモ|SYNTHETIC TRIP|AI UPDATE MATERIAL|PREPARATION|RIO PLAN|BOOKING' "$app_file"; then
   printf '%s\n' 'Browse-first UI still exposes verbose selection or instruction labels.' >&2
+  exit 1
+fi
+
+if grep -Fq '更新材料をコピー</button>' "$app_file"; then
+  printf '%s\n' 'Comment screen must not expose a persistent update-material copy button.' >&2
   exit 1
 fi
 

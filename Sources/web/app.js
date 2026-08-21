@@ -13,6 +13,7 @@ const draftState = {
   itineraryCategory: "all",
   mapDay: "all",
   mapCategory: "all",
+  pendingTripComment: "",
 };
 
 const targetKey = (type, id) => `${type}:${id}`;
@@ -104,8 +105,9 @@ function renderHome(trip) {
     cells.push(`<div class="calendar-cell ${inTrip ? "trip-span" : ""}"><span>${day}</span>${startsTrip ? `<a href="./trip.html?id=${encodeURIComponent(trip.id)}">${escapeHtml(trip.title)}</a>` : ""}</div>`);
   }
   return `
+    <header class="home-header"><h1>カレンダー</h1><time>2026/8/21（金）</time></header>
     <section class="calendar-panel" aria-labelledby="calendar-title">
-      <div class="month-heading"><h1 id="calendar-title">${year}年${month + 1}月</h1></div>
+      <div class="month-heading"><button type="button" aria-label="前月">‹</button><h2 id="calendar-title">${year}年${month + 1}月</h2><button type="button" aria-label="翌月">›</button></div>
       <div class="calendar-weekdays">${["日", "月", "火", "水", "木", "金", "土"].map((day) => `<span>${day}</span>`).join("")}</div>
       <div class="month-grid">${cells.join("")}</div>
     </section>
@@ -235,8 +237,7 @@ function renderPreparation(trip, placesById) {
         ${preparationChecklist([...trip.preparation.tasks].sort((a, b) => a.order - b.order))}
       </section>
       ${trip.rioPlan.applicable === false ? "" : `<section class="prep-card rio-card">
-        <div class="card-heading"><h3>リオ</h3>${aiTargetButton("rioPlan", trip.rioPlan.id, "リオ")}</div>
-        <div class="care-setting"><strong>リオ　${trip.rioPlan.careMode === "leave" ? "預ける" : "同行"}</strong></div>
+        <div class="card-heading"><h3>リオ　${trip.rioPlan.careMode === "leave" ? "預ける" : "同行"}</h3>${aiTargetButton("rioPlan", trip.rioPlan.id, "リオ")}</div>
         ${rioChecklist(rioItems)}
       </section>`}
       <section class="prep-card booking-card">
@@ -373,14 +374,12 @@ function updateMaterialText(trip, materials) {
 }
 
 function renderNotes(trip, placesById) {
-  const materials = updateMaterials(trip, placesById);
   return `<div class="tab-panel" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" hidden>
     <section class="comments-workspace">
       <h2>コメント</h2>
       <p class="copy-status" data-copy-status role="status"></p>
-      <div class="comment-list">${[...draftState.instructions.entries()].filter(([, value]) => value.trim()).map(([key, value]) => `<article><div><span>${escapeHtml(instructionTargetLabel(trip, key, placesById))}</span><button type="button" data-cancel-comment="${escapeHtml(key)}">取消</button></div><textarea data-instruction-key="${escapeHtml(key)}" aria-label="コメントを編集">${escapeHtml(value)}</textarea></article>`).join("") || `<p class="empty-line">未処理のコメントはありません</p>`}</div>
-      <label class="trip-comment"><span>旅行全体へのコメント</span><textarea data-instruction-key="trip:${escapeHtml(trip.id)}" placeholder="コメントを追加">${escapeHtml(draftState.instructions.get(`trip:${trip.id}`) || "")}</textarea></label>
-      <div class="comment-actions"><button type="button" class="copy-materials" data-copy-update ${materials.length ? "" : "disabled"}>更新材料をコピー</button><button type="button" class="quiet-button" data-reset-draft ${materials.length ? "" : "disabled"}>すべて取り消す</button></div>
+      <div class="comment-list">${[...draftState.instructions.entries()].filter(([, value]) => value.trim()).map(([key, value]) => `<article><span>${escapeHtml(instructionTargetLabel(trip, key, placesById))}</span><div class="comment-body"><textarea data-instruction-key="${escapeHtml(key)}" aria-label="コメントを編集">${escapeHtml(value)}</textarea><button type="button" data-cancel-comment="${escapeHtml(key)}">取消</button></div></article>`).join("") || `<p class="empty-line">未処理のコメントはありません</p>`}</div>
+      <div class="trip-comment"><label><span>旅行全体へのコメントを追加</span><textarea data-new-trip-comment placeholder="コメントを入力">${escapeHtml(draftState.pendingTripComment)}</textarea></label><button type="button" data-add-trip-comment ${draftState.pendingTripComment.trim() ? "" : "disabled"}>追加</button></div>
     </section>
   </div>`;
 }
@@ -399,10 +398,7 @@ function renderAiPanel(trip) {
 function renderTrip(trip) {
   document.title = `${trip.title} | Calendar`;
   const placesById = new Map(trip.places.map((place) => [place.id, place]));
-  return `<section class="trip-summary">
-      <div><h1>${escapeHtml(trip.title)}</h1><p>${escapeHtml(formatDateRange(trip.dateRange))}</p></div>
-      <span>${trip.days.length}日間</span>
-    </section>
+  return `<section class="trip-summary"><h1>${escapeHtml(trip.title)}</h1><p>${escapeHtml(formatDateRange(trip.dateRange))}</p></section>
     <nav class="tabs bottom-nav" aria-label="旅行詳細">
       <a class="tab" href="./index.html">カレンダー</a>
       <button id="tab-itinerary" class="tab active" role="tab" aria-selected="true" aria-controls="panel-itinerary" data-tab="itinerary">旅程</button>
@@ -478,6 +474,12 @@ function setupTripInteractions(app, trip) {
       draftState.instructions.delete(cancelledComment.dataset.cancelComment);
       rerender();
     }
+    if (event.target.closest("[data-add-trip-comment]")) {
+      const value = draftState.pendingTripComment.trim();
+      if (value) draftState.instructions.set(targetKey("trip", trip.id), value);
+      draftState.pendingTripComment = "";
+      rerender();
+    }
     if (event.target.closest("[data-reset-draft]")) {
       draftState.preparation.clear();
       draftState.rioPacking.clear();
@@ -521,6 +523,12 @@ function setupTripInteractions(app, trip) {
   });
 
   app.addEventListener("input", (event) => {
+    if (event.target.dataset.newTripComment !== undefined) {
+      draftState.pendingTripComment = event.target.value;
+      const addButton = app.querySelector("[data-add-trip-comment]");
+      if (addButton) addButton.disabled = !event.target.value.trim();
+      return;
+    }
     const key = event.target.dataset.instructionKey;
     if (!key) return;
     if (event.target.value.trim()) draftState.instructions.set(key, event.target.value);
