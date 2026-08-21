@@ -1,8 +1,8 @@
 {
   "project": "Calendar",
   "locations": {
-    "development": "/Users/us/Tools/Development/Calendar",
-    "shared_references": "/Users/us/Tools/GoogleDrive/Calendar",
-    "private_local_data": "/Users/us/Tools/LocalData/Calendar"
+    "development": "/Users/us/Tools/Development/Calendar_Dev",
+    "shared_references": "/Users/us/Tools/GoogleDrive/Calendar_GD",
+    "private_local_data": "/Users/us/Tools/LocalData/Calendar_Local"
   }
 }

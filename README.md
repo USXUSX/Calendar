@@ -10,9 +10,9 @@ The first dependency-free, read-only web prototype is implemented from a synthet
 
 | Role | Location | Authority |
 | --- | --- | --- |
-| Development | `/Users/us/Tools/Development/Calendar` | Git-managed source, confirmed specifications, tests, Issues, and PRs |
-| Shared references | `/Users/us/Tools/GoogleDrive/Calendar` | Reference documents, screenshots, and Chat/Work handoffs |
-| Private local data | `/Users/us/Tools/LocalData/Calendar` | Non-shared inputs, runtime data, caches, and temporary data |
+| Development | `/Users/us/Tools/Development/Calendar_Dev` | Git-managed source, confirmed specifications, tests, Issues, and PRs |
+| Shared references | `/Users/us/Tools/GoogleDrive/Calendar_GD` | Reference documents, screenshots, and Chat/Work handoffs |
+| Private local data | `/Users/us/Tools/LocalData/Calendar_Local` | Non-shared inputs, runtime data, caches, and temporary data |
 
 ## Repository map
 
