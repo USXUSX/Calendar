@@ -371,15 +371,12 @@
   ],
   "preparation": {
     "id": "preparation-setouchi-2027",
-    "packingDueDate": "2027-05-12",
-    "specialPreparations": [
-      { "id": "special-museum-ticket", "label": "美術館の日時指定券を確認", "completed": true, "order": 10 },
-      { "id": "special-seasickness", "label": "船酔い対策を準備", "completed": false, "order": 20 }
-    ],
-    "items": [
-      { "id": "prep-clothes", "label": "着替えを揃える", "completed": true, "order": 10 },
-      { "id": "prep-shoes", "label": "歩きやすい靴を用意", "completed": false, "order": 20 },
-      { "id": "prep-charger", "label": "充電器を入れる", "completed": false, "order": 30 }
+    "tasks": [
+      { "id": "prep-clothes", "label": "荷造り", "dueDate": "2027-05-12", "completed": true, "order": 10 },
+      { "id": "special-museum-ticket", "label": "美術館の日時指定券を確認", "dueDate": "2027-05-10", "completed": true, "order": 20 },
+      { "id": "special-seasickness", "label": "船酔い対策を準備", "dueDate": "2027-05-12", "completed": false, "order": 30 },
+      { "id": "prep-shoes", "label": "旅行用の靴を準備", "dueDate": "2027-05-11", "completed": false, "order": 40 },
+      { "id": "prep-charger", "label": "充電機器をまとめる", "dueDate": "2027-05-12", "completed": false, "order": 50 }
     ]
   },
   "rioPlan": {

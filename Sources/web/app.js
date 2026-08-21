@@ -7,25 +7,14 @@ const draftState = {
   rioPacking: new Map(),
   placeSelections: new Map(),
   instructions: new Map(),
-  openInstructionFields: new Set(),
+  aiPanelOpen: false,
+  aiTarget: null,
 };
 
 const targetKey = (type, id) => `${type}:${id}`;
 
-function instructionField(type, id, label, collapsible = false) {
-  const key = targetKey(type, id);
-  const value = draftState.instructions.get(key) ?? "";
-  const expanded = !collapsible || draftState.openInstructionFields.has(key);
-  if (collapsible) {
-    return `<div class="instruction-control ${expanded ? "expanded" : ""}">
-      <button type="button" class="instruction-toggle" data-instruction-toggle="${escapeHtml(key)}" aria-expanded="${expanded ? "true" : "false"}">${value.trim() ? "変更メモ（入力済み）" : expanded ? "変更メモを閉じる" : "変更メモ"}<small>一時・未送信</small></button>
-      ${expanded ? `<label class="instruction-field"><span class="visually-hidden">AIへの指示メモ</span><textarea rows="2" data-instruction-key="${escapeHtml(key)}" placeholder="${escapeHtml(label)}">${escapeHtml(value)}</textarea></label>` : ""}
-    </div>`;
-  }
-  return `<label class="instruction-field">
-    <span>AIへの指示メモ <small>一時・未送信</small></span>
-    <textarea rows="2" data-instruction-key="${escapeHtml(key)}" placeholder="${escapeHtml(label)}">${escapeHtml(value)}</textarea>
-  </label>`;
+function aiTargetButton(type, id, name, label = "AIへ変更を指示") {
+  return `<button type="button" class="row-action" data-ai-target-type="${escapeHtml(type)}" data-ai-target-id="${escapeHtml(id)}" data-ai-target-name="${escapeHtml(name)}" aria-label="${escapeHtml(`${name}：${label}`)}">…</button>`;
 }
 
 const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
@@ -139,14 +128,14 @@ function itineraryEntry(entry, placesById) {
   if (entry.kind === "transport") {
     const from = placesById.get(entry.fromPlaceId);
     const to = placesById.get(entry.toPlaceId);
+    const transportName = `${from.name} → ${to.name}`;
     return `<article class="timeline-entry transport-entry">
-      <div class="time-column"><strong>${escapeHtml(formatTime(entry.time))}</strong><span>${entry.time.durationMinutes}分</span></div>
+      <div class="time-column"><strong>${escapeHtml(formatTime(entry.time))}</strong><span>所要${entry.time.durationMinutes}分</span></div>
       <div class="timeline-dot" aria-hidden="true">↗</div>
       <div class="entry-card">
-        <div class="entry-kicker">移動 · ${escapeHtml(transportLabels[entry.mode] ?? entry.mode)}</div>
-        <h4>${escapeHtml(from.name)} → ${escapeHtml(to.name)}</h4>
+        <div class="entry-top"><div class="entry-kicker">移動 · ${escapeHtml(transportLabels[entry.mode] ?? entry.mode)}</div>${aiTargetButton("transport", entry.id, transportName)}</div>
+        <h4>${escapeHtml(transportName)}</h4>
         <p>${escapeHtml(from.address)} から ${escapeHtml(to.address)}</p>
-        ${instructionField("transport", entry.id, "例：この移動を一本遅い便に変更して", true)}
       </div>
     </article>`;
   }
@@ -155,39 +144,34 @@ function itineraryEntry(entry, placesById) {
   const adopted = new Set(selection.selection);
   const selected = draftState.placeSelections.get(entry.id) ?? adopted;
   const candidates = selection.candidatePlaceIds.map((id) => placesById.get(id));
-  const belowMinimum = selection.minSelections !== null && selected.size < selection.minSelections;
-  const limitText = selectionLabel(selection).replace("を予定", "を選択");
   return `<article class="timeline-entry schedule-entry">
-    <div class="time-column"><strong>${escapeHtml(formatTime(entry.time))}</strong><span>${entry.time.durationMinutes}分</span></div>
+    <div class="time-column"><strong>${escapeHtml(formatTime(entry.time))}</strong><span>所要${entry.time.durationMinutes}分</span></div>
     <div class="timeline-dot" aria-hidden="true">●</div>
     <div class="entry-card">
-      <div class="entry-kicker">行動 · <span class="time-mode ${entry.time.mode}">${modeLabels[entry.time.mode]}</span></div>
+      <div class="entry-top"><div class="entry-kicker">行動 · <span class="time-mode ${entry.time.mode}">${modeLabels[entry.time.mode]}</span></div>${aiTargetButton("scheduleItem", entry.id, entry.action)}</div>
       <h4>${escapeHtml(entry.action)}</h4>
-      <div class="candidate-summary"><span>場所候補 ${candidates.length}件 · ${escapeHtml(limitText)}</span><strong class="selection-count ${belowMinimum ? "invalid" : ""}">${selected.size}件選択中</strong></div>
       <div class="candidate-list">${candidates.map((place) => {
         const checked = selected.has(place.id);
         const atMaximum = selection.maxSelections !== null && selected.size >= selection.maxSelections;
         return `<label class="candidate-row selectable ${checked ? "selected" : ""}"><input type="checkbox" data-place-selection="${escapeHtml(entry.id)}" data-place-id="${escapeHtml(place.id)}" ${checked ? "checked" : ""} ${!checked && atMaximum ? "disabled" : ""}><span class="choice-mark" aria-hidden="true">${checked ? "✓" : ""}</span><span class="candidate-copy"><strong>${escapeHtml(place.name)}</strong><span>${escapeHtml(place.address)}</span></span>${placeRating(place)}</label>`;
       }).join("")}</div>
-      <p class="selection-guidance ${belowMinimum ? "error" : ""}">${belowMinimum ? `あと${selection.minSelections - selected.size}件選択してください` : selection.maxSelections !== null && selected.size >= selection.maxSelections ? "選択できる上限です" : "候補の選択はAIへの指示として一時保存されます"}</p>
-      ${instructionField("scheduleItem", entry.id, "例：この予定を午後に移して", true)}
     </div>
   </article>`;
 }
 
 function renderItinerary(trip, placesById) {
   return `<div class="tab-panel" id="panel-itinerary" role="tabpanel" aria-labelledby="tab-itinerary">
-    ${trip.days.map((day, index) => {
+    <div class="itinerary-grid">${trip.days.map((day, index) => {
       const transports = trip.transports.filter((item) => day.transportIds.includes(item.id));
       const entries = [
         ...day.scheduleItems.map((item) => ({ ...item, kind: "schedule" })),
         ...transports.map((item) => ({ ...item, kind: "transport" })),
       ].sort((a, b) => a.order - b.order);
       return `<section class="day-section">
-        <div class="day-heading"><span>DAY ${index + 1}</span><div><h3>${escapeHtml(formatDate(day.date))}</h3><p>${escapeHtml(day.title)}</p>${instructionField("day", day.id, "例：この日は移動を少なめにして", true)}</div></div>
+        <div class="day-heading"><span>DAY ${index + 1}</span><div><h3>${escapeHtml(formatDate(day.date))}</h3><p>${escapeHtml(day.title)}</p></div>${aiTargetButton("day", day.id, `${formatDate(day.date)} ${day.title}`)}</div>
         <div class="timeline">${entries.map((entry) => itineraryEntry(entry, placesById)).join("")}</div>
       </section>`;
-    }).join("")}
+    }).join("")}</div>
   </div>`;
 }
 
@@ -215,22 +199,19 @@ function renderMap(trip) {
   </div>`;
 }
 
-const preparationChecklist = (items) => `<ul class="check-list">${items.map((item) => {
+const preparationChecklist = (items) => `<ul class="check-list task-list">${items.map((item) => {
   const completed = draftState.preparation.get(item.id) ?? item.completed;
-  const changed = draftState.preparation.has(item.id) && completed !== item.completed;
-  return `<li class="${completed ? "completed" : ""} ${changed ? "draft-changed" : ""}"><label><input type="checkbox" data-preparation-id="${escapeHtml(item.id)}" ${completed ? "checked" : ""}><span class="check-icon" aria-hidden="true">${completed ? "✓" : "○"}</span><span>${escapeHtml(item.label)}</span>${changed ? "<em>変更予定</em>" : ""}</label></li>`;
+  return `<li class="${completed ? "completed" : "pending"}"><label><input type="checkbox" data-preparation-id="${escapeHtml(item.id)}" ${completed ? "checked" : ""}><span class="check-icon" aria-hidden="true">${completed ? "✓" : "○"}</span><span class="task-copy"><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(formatDate(item.dueDate))}期限</small></span></label>${aiTargetButton("preparation", item.id, item.label)}</li>`;
 }).join("")}</ul>`;
 
-const rioChecklist = (items, extraClass = "") => `<ul class="check-list ${extraClass}">${items.map((item) => {
+const rioChecklist = (items) => `<ul class="check-list rio-list">${items.map((item) => {
   const value = draftState.rioPacking.get(item.id) ?? (item.notNeeded ? "notNeeded" : item.completed ? "completed" : "pending");
-  const original = item.notNeeded ? "notNeeded" : item.completed ? "completed" : "pending";
-  return `<li class="${value === "completed" ? "completed" : ""} ${value === "notNeeded" ? "not-needed" : ""} ${value !== original ? "draft-changed" : ""}"><span>${escapeHtml(item.label)}</span><select data-rio-packing-id="${escapeHtml(item.id)}" aria-label="${escapeHtml(item.label)}の一時状態"><option value="pending" ${value === "pending" ? "selected" : ""}>未完了</option><option value="completed" ${value === "completed" ? "selected" : ""}>完了</option><option value="notNeeded" ${value === "notNeeded" ? "selected" : ""}>不要</option></select>${value !== original ? "<em>変更予定</em>" : ""}</li>`;
+  return `<li class="${value === "completed" ? "completed" : "pending"} ${value === "notNeeded" ? "not-needed" : ""}"><label><input type="checkbox" data-rio-packing-id="${escapeHtml(item.id)}" ${value === "completed" ? "checked" : ""}><span class="check-icon" aria-hidden="true">${value === "completed" ? "✓" : "○"}</span><span>${escapeHtml(item.label)}${value === "notNeeded" ? "（持参しない）" : ""}</span></label>${aiTargetButton("rioPlan", item.id, item.label)}</li>`;
 }).join("")}</ul>`;
 
 function renderPreparation(trip, placesById) {
   const transportsById = new Map(trip.transports.map((transport) => [transport.id, transport]));
-  const requiredRio = trip.rioPlan.packingItems.filter((item) => !item.notNeeded).sort((a, b) => a.order - b.order);
-  const unnecessaryRio = trip.rioPlan.packingItems.filter((item) => item.notNeeded).sort((a, b) => a.order - b.order);
+  const rioItems = [...trip.rioPlan.packingItems].sort((a, b) => a.order - b.order);
   const total = trip.bookings.reduce((sum, booking) => sum + booking.amount, 0);
   const totals = Object.entries(categoryLabels).map(([category, label]) => {
     const value = trip.bookings.filter((booking) => booking.category === category).reduce((sum, booking) => sum + booking.amount, 0);
@@ -239,30 +220,25 @@ function renderPreparation(trip, placesById) {
   return `<div class="tab-panel" id="panel-preparation" role="tabpanel" aria-labelledby="tab-preparation" hidden>
     <div class="preparation-grid">
       <section class="prep-card wife-card">
-        <div class="card-heading"><div><p class="eyebrow">PREPARATION</p><h3>妻の準備</h3></div><span class="deadline">期限 ${escapeHtml(formatDate(trip.preparation.packingDueDate))}</span></div>
-        <p class="draft-help">チェック操作は一時状態です。採用済みJSONは変更しません。</p>
-        <h4>パッキング</h4>${preparationChecklist([...trip.preparation.items].sort((a, b) => a.order - b.order))}
-        <h4>特別準備</h4>${preparationChecklist([...trip.preparation.specialPreparations].sort((a, b) => a.order - b.order))}
-        ${instructionField("preparation", trip.preparation.id, "例：雨具を追加して")}
+        <div class="card-heading"><div><p class="eyebrow">PREPARATION</p><h3>妻の準備</h3></div>${aiTargetButton("preparation", trip.preparation.id, "妻の準備")}</div>
+        ${preparationChecklist([...trip.preparation.tasks].sort((a, b) => a.order - b.order))}
       </section>
       <section class="prep-card rio-card">
-        <div class="card-heading"><div><p class="eyebrow">RIO PLAN</p><h3>Rioの予定</h3></div><span class="decision-alert">早期決定</span></div>
+        <div class="card-heading"><div><p class="eyebrow">RIO PLAN</p><h3>Rioの予定</h3></div>${aiTargetButton("rioPlan", trip.rioPlan.id, "Rioの予定")}</div>
         <div class="decision-box"><span>同伴 / 預ける</span><strong>未定</strong><small>決定期限 ${escapeHtml(formatDate(trip.rioPlan.careDecisionDueDate))}</small></div>
         <p class="care-detail">${escapeHtml(trip.rioPlan.careDetails)}</p>
-        <p class="draft-help">完了・不要の変更はAIへの未送信指示として扱います。</p>
-        <h4>標準持参品</h4>${rioChecklist(requiredRio)}
-        <h4 class="subdued-heading">今回は不要</h4>${rioChecklist(unnecessaryRio, "unnecessary")}
-        ${instructionField("rioPlan", trip.rioPlan.id, "例：預け先候補も調べて")}
+        ${rioChecklist(rioItems)}
       </section>
       <section class="prep-card booking-card">
-        <div class="card-heading"><div><p class="eyebrow">BOOKING</p><h3>予約と費用</h3></div><strong class="total">${moneyFormatter.format(total)}</strong></div>
-        <div class="cost-grid">${totals}</div>
-        <div class="booking-list">${trip.bookings.map((booking) => {
+        <div class="card-heading"><div><p class="eyebrow">BOOKING</p><h3>予約</h3></div></div>
+        <div class="booking-table" role="table" aria-label="予約一覧">${trip.bookings.map((booking) => {
           const target = placesById.get(booking.placeId);
           const transport = transportsById.get(booking.transportId);
           const transportName = transport ? `${transportLabels[transport.mode] ?? transport.mode} ${placesById.get(transport.fromPlaceId).name} → ${placesById.get(transport.toPlaceId).name}` : null;
-          return `<article><div><span>${categoryLabels[booking.category]}</span><strong>${escapeHtml(target?.name ?? transportName ?? "予約")}</strong><small class="official-note"><b>正式な予約メモ</b>${escapeHtml(booking.notes)}</small>${instructionField("booking", booking.id, "例：キャンセル条件を確認して")}</div><div><strong>${moneyFormatter.format(booking.amount)}</strong><em class="status ${booking.status}">${booking.status === "booked" ? "予約済み" : "確認待ち"}</em></div></article>`;
+          const bookingName = target?.name ?? transportName ?? "予約";
+          return `<div class="booking-row" role="row"><div role="cell"><span>${categoryLabels[booking.category]}</span><strong>${escapeHtml(bookingName)}</strong></div><small class="official-note" role="cell">${escapeHtml(booking.notes)}</small><em class="status ${booking.status}" role="cell">${booking.status === "booked" ? "予約済み" : "確認待ち"}</em>${aiTargetButton("booking", booking.id, bookingName)}</div>`;
         }).join("")}</div>
+        <div class="cost-summary"><div><span>費用合計</span><strong>${moneyFormatter.format(total)}</strong></div><div class="cost-breakdown">${totals}</div></div>
       </section>
     </div>
   </div>`;
@@ -295,8 +271,14 @@ function instructionTargetLabel(trip, key, placesById) {
     const transportName = transport ? `${placesById.get(transport.fromPlaceId)?.name ?? "出発地"} → ${placesById.get(transport.toPlaceId)?.name ?? "到着地"}` : null;
     return `予約：${placesById.get(booking?.placeId)?.name ?? transportName ?? "予約項目"}`;
   }
-  if (type === "preparation") return "妻の準備：パッキング・特別準備";
-  if (type === "rioPlan") return "Rioの予定：同行・預け先と持参品";
+  if (type === "preparation") {
+    const task = trip.preparation.tasks.find((item) => item.id === id);
+    return task ? `準備：${task.label}` : "妻の準備";
+  }
+  if (type === "rioPlan") {
+    const item = trip.rioPlan.packingItems.find((candidate) => candidate.id === id);
+    return item ? `Rio持参品：${item.label}` : "Rioの予定";
+  }
   return "関連項目";
 }
 
@@ -312,7 +294,7 @@ const updateTargetTypes = {
 
 function updateMaterials(trip, placesById) {
   const materials = [];
-  const preparationItems = [...trip.preparation.items, ...trip.preparation.specialPreparations];
+  const preparationItems = trip.preparation.tasks;
 
   draftState.preparation.forEach((completed, id) => {
     const item = preparationItems.find((candidate) => candidate.id === id);
@@ -385,10 +367,9 @@ function renderNotes(trip, placesById) {
   return `<div class="tab-panel" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" hidden>
     <section class="notes-workspace">
       <div class="notes-heading"><div><p class="eyebrow">AI UPDATE MATERIAL</p><h3>AIへ渡す変更内容</h3><p>一時状態を、次版の完全JSONを再生成するための更新材料として確認できます。</p></div><span class="unsent-badge">未送信</span></div>
-      ${instructionField("trip", trip.id, "例：全体をゆったりした旅程にして")}
       <div class="material-heading">
         <div><h4>変更内容の確認</h4><p><strong data-update-count>${materials.length}</strong>件の変更があります。</p></div>
-        <button type="button" class="copy-materials" data-copy-update ${materials.length ? "" : "disabled"}>クリップボードへコピー</button>
+        <div class="material-actions"><button type="button" class="quiet-button" data-reset-draft ${materials.length ? "" : "disabled"}>すべて取り消す</button><button type="button" class="copy-materials" data-copy-update ${materials.length ? "" : "disabled"}>クリップボードへコピー</button></div>
       </div>
       <p class="copy-status" data-copy-status role="status">${materials.length ? "内容を確認してからコピーしてください。" : "AIへ渡す変更はまだありません。"}</p>
       <div class="material-summary">
@@ -399,6 +380,19 @@ function renderNotes(trip, placesById) {
   </div>`;
 }
 
+function renderAiPanel(trip) {
+  if (!draftState.aiPanelOpen) return "";
+  const target = draftState.aiTarget ?? { type: "trip", id: trip.id, name: trip.title };
+  const key = targetKey(target.type, target.id);
+  const value = draftState.instructions.get(key) ?? "";
+  return `<section class="ai-panel" role="dialog" aria-modal="false" aria-labelledby="ai-panel-title">
+    <div class="ai-panel-heading"><div><span>対象: ${escapeHtml(target.name)}</span><h3 id="ai-panel-title">AIへ指示</h3></div><button type="button" data-close-ai aria-label="AI指示パネルを閉じる">×</button></div>
+    <p>この項目について、どのように変更しますか？</p>
+    <label class="ai-panel-input"><span class="visually-hidden">AIへの指示</span><textarea rows="3" data-instruction-key="${escapeHtml(key)}" placeholder="変更したい内容を入力">${escapeHtml(value)}</textarea></label>
+    <small>一時状態・AIへ未送信</small>
+  </section>`;
+}
+
 function renderTrip(trip) {
   document.title = `${trip.title} | Calendar`;
   const placesById = new Map(trip.places.map((place) => [place.id, place]));
@@ -407,17 +401,18 @@ function renderTrip(trip) {
       <div><p class="eyebrow">SYNTHETIC TRIP · ${trip.id}</p><h1>${escapeHtml(trip.title)}</h1><p>${escapeHtml(formatDateRange(trip.dateRange))}</p></div>
       <div class="trip-stat"><strong>${trip.days.length}</strong><span>DAYS</span></div>
     </section>
-    <aside class="draft-status" aria-live="polite"><div><strong>変更指示を編集中</strong><span>ブラウザ内だけの一時状態・AIへ未送信</span></div><div><b data-draft-count>${draftCount()}</b><span>件の変更</span><button type="button" data-reset-draft ${draftCount() ? "" : "disabled"}>すべて取り消す</button></div></aside>
-    <nav class="tabs" aria-label="旅行詳細">
+    <nav class="tabs bottom-nav" aria-label="旅行詳細">
       <button id="tab-itinerary" class="tab active" role="tab" aria-selected="true" aria-controls="panel-itinerary" data-tab="itinerary">旅程</button>
       <button id="tab-map" class="tab" role="tab" aria-selected="false" aria-controls="panel-map" data-tab="map">地図</button>
       <button id="tab-preparation" class="tab" role="tab" aria-selected="false" aria-controls="panel-preparation" data-tab="preparation">準備</button>
-      <button id="tab-notes" class="tab" role="tab" aria-selected="false" aria-controls="panel-notes" data-tab="notes">メモ</button>
+      <button id="tab-notes" class="tab" role="tab" aria-selected="false" aria-controls="panel-notes" data-tab="notes">AI <span class="draft-count" data-draft-count>${draftCount()}</span></button>
+      <button type="button" class="ai-primary" data-open-ai-all>AIへ指示</button>
     </nav>
     ${renderItinerary(trip, placesById)}
     ${renderMap(trip)}
     ${renderPreparation(trip, placesById)}
-    ${renderNotes(trip, placesById)}`;
+    ${renderNotes(trip, placesById)}
+    ${renderAiPanel(trip)}`;
 }
 
 function activateTab(name, updateHistory = true) {
@@ -454,7 +449,6 @@ function setupTripInteractions(app, trip) {
       draftState.rioPacking.clear();
       draftState.placeSelections.clear();
       draftState.instructions.clear();
-      draftState.openInstructionFields.clear();
       rerender();
     }
     const copyButton = event.target.closest("[data-copy-update]");
@@ -469,13 +463,26 @@ function setupTripInteractions(app, trip) {
         if (status) status.textContent = "コピーできませんでした。ブラウザのクリップボード許可を確認してください。";
       });
     }
-    const instructionToggle = event.target.closest("[data-instruction-toggle]");
-    if (instructionToggle) {
-      const key = instructionToggle.dataset.instructionToggle;
-      if (draftState.openInstructionFields.has(key)) draftState.openInstructionFields.delete(key);
-      else draftState.openInstructionFields.add(key);
+    const aiTarget = event.target.closest("[data-ai-target-type]");
+    if (aiTarget) {
+      draftState.aiTarget = {
+        type: aiTarget.dataset.aiTargetType,
+        id: aiTarget.dataset.aiTargetId,
+        name: aiTarget.dataset.aiTargetName,
+      };
+      draftState.aiPanelOpen = true;
       rerender();
-      if (draftState.openInstructionFields.has(key)) app.querySelector(`[data-instruction-key="${CSS.escape(key)}"]`)?.focus();
+      app.querySelector("[data-instruction-key]")?.focus();
+    }
+    if (event.target.closest("[data-open-ai-all]")) {
+      draftState.aiTarget = null;
+      draftState.aiPanelOpen = true;
+      rerender();
+      app.querySelector("[data-instruction-key]")?.focus();
+    }
+    if (event.target.closest("[data-close-ai]")) {
+      draftState.aiPanelOpen = false;
+      rerender();
     }
   });
 
@@ -484,8 +491,8 @@ function setupTripInteractions(app, trip) {
     if (!key) return;
     if (event.target.value.trim()) draftState.instructions.set(key, event.target.value);
     else draftState.instructions.delete(key);
-    app.querySelector("[data-draft-count]").textContent = draftCount();
-    app.querySelector("[data-reset-draft]").disabled = draftCount() === 0;
+    app.querySelectorAll("[data-draft-count]").forEach((item) => { item.textContent = draftCount(); });
+    app.querySelectorAll("[data-reset-draft]").forEach((item) => { item.disabled = draftCount() === 0; });
     const updateCount = app.querySelector("[data-update-count]");
     const copyButton = app.querySelector("[data-copy-update]");
     if (updateCount) updateCount.textContent = updateMaterials(trip, new Map(trip.places.map((place) => [place.id, place]))).length;
@@ -493,13 +500,10 @@ function setupTripInteractions(app, trip) {
   });
 
   app.addEventListener("change", (event) => {
-    if (event.target.dataset.instructionKey) {
-      rerender();
-      return;
-    }
+    if (event.target.dataset.instructionKey) return;
     const preparationId = event.target.dataset.preparationId;
     if (preparationId) {
-      const item = [...trip.preparation.items, ...trip.preparation.specialPreparations].find((candidate) => candidate.id === preparationId);
+      const item = trip.preparation.tasks.find((candidate) => candidate.id === preparationId);
       if (event.target.checked === item.completed) draftState.preparation.delete(preparationId);
       else draftState.preparation.set(preparationId, event.target.checked);
       rerender();
@@ -509,8 +513,9 @@ function setupTripInteractions(app, trip) {
     if (rioId) {
       const item = trip.rioPlan.packingItems.find((candidate) => candidate.id === rioId);
       const original = item.notNeeded ? "notNeeded" : item.completed ? "completed" : "pending";
-      if (event.target.value === original) draftState.rioPacking.delete(rioId);
-      else draftState.rioPacking.set(rioId, event.target.value);
+      const next = event.target.checked ? "completed" : (item.notNeeded ? "notNeeded" : "pending");
+      if (next === original) draftState.rioPacking.delete(rioId);
+      else draftState.rioPacking.set(rioId, next);
       rerender();
       return;
     }
