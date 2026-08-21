@@ -4,7 +4,7 @@ Calendar is the first standard project in `/Users/us/Tools`, built with a three-
 
 ## Current state
 
-Foundation only. No existing Calendar prototype has been migrated, and no application framework has been selected.
+The first dependency-free, read-only web prototype is implemented from a synthetic JSON sample. No legacy prototype or private data has been migrated, and no production framework has been selected.
 
 ## Three layers
 
@@ -41,3 +41,14 @@ The command validates committed JSON samples and runs every `Tests/*.test.sh`
 script. Pull requests to `main` run the same command in GitHub Actions, together
 with a diff consistency check. Add other build and test commands here when the
 technology stack is selected.
+
+## Local preview
+
+From the repository root:
+
+```sh
+python3 -m http.server 4173
+```
+
+Open `http://localhost:4173/Sources/web/`. The preview is local and read-only;
+it does not publish or connect to external services.

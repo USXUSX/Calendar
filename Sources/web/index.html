@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="合成JSONを表示する読み取り専用Calendar">
+    <title>Calendar | 旅の一覧</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body data-page="home">
+    <header class="site-header">
+      <a class="brand" href="./index.html" aria-label="Calendar トップへ">
+        <span class="brand-mark" aria-hidden="true">C</span>
+        <span>Calendar</span>
+      </a>
+      <span class="read-only-badge">読み取り専用</span>
+    </header>
+    <main id="app" class="page-shell" aria-live="polite">
+      <p class="loading">旅の情報を読み込んでいます…</p>
+    </main>
+  </body>
+</html>
