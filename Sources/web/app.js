@@ -9,7 +9,7 @@ const draftState = {
   instructions: new Map(),
   aiPanelOpen: false,
   aiTarget: null,
-  activeDayId: null,
+  collapsedDays: new Set(),
 };
 
 const targetKey = (type, id) => `${type}:${id}`;
@@ -127,10 +127,9 @@ function itineraryEntry(entry, placesById) {
     const to = placesById.get(entry.toPlaceId);
     const transportName = `${from.name} → ${to.name}`;
     return `<article class="itinerary-row transport-row">
-      <time>${escapeHtml(formatTime(entry.time))}</time>
-      <span class="row-kind">${escapeHtml(transportLabels[entry.mode] ?? entry.mode)}</span>
-      <strong>${escapeHtml(transportName)}</strong>
-      <span class="row-duration">所要${entry.time.durationMinutes}分</span>
+      <div class="entry-classification"><span aria-hidden="true">↗</span><small>移動</small></div>
+      <div class="entry-time"><time>${escapeHtml(formatTime(entry.time))}</time><small>所要${entry.time.durationMinutes}分</small></div>
+      <div class="row-main"><strong>${escapeHtml(transportName)}</strong><p>${escapeHtml(transportLabels[entry.mode] ?? entry.mode)}</p></div>
       ${aiTargetButton("transport", entry.id, transportName)}
     </article>`;
   }
@@ -140,32 +139,29 @@ function itineraryEntry(entry, placesById) {
   const selected = draftState.placeSelections.get(entry.id) ?? adopted;
   const candidates = selection.candidatePlaceIds.map((id) => placesById.get(id));
   return `<article class="itinerary-row schedule-row">
-    <time>${escapeHtml(formatTime(entry.time))}</time>
-    <span class="row-kind">予定</span>
-    <div class="row-main"><strong>${escapeHtml(entry.action)}</strong><div class="candidate-inline">${candidates.map((place) => {
+    <div class="entry-classification"><span aria-hidden="true">●</span><small>予定</small></div>
+    <div class="entry-time"><time>${escapeHtml(formatTime(entry.time))}</time><small>所要${entry.time.durationMinutes}分</small></div>
+    <div class="row-main"><strong>${escapeHtml(entry.action)}</strong>${entry.summary ? `<p>${escapeHtml(entry.summary)}</p>` : ""}<div class="candidate-inline">${candidates.map((place) => {
         const checked = selected.has(place.id);
         const atMaximum = selection.maxSelections !== null && selected.size >= selection.maxSelections;
         return `<label class="candidate-chip ${checked ? "selected" : ""}"><input type="checkbox" data-place-selection="${escapeHtml(entry.id)}" data-place-id="${escapeHtml(place.id)}" ${checked ? "checked" : ""} ${!checked && atMaximum ? "disabled" : ""}><span>${escapeHtml(place.name)}</span>${placeRating(place)}</label>`;
-      }).join("")}</div></div>
-    <span class="row-duration">所要${entry.time.durationMinutes}分</span>
+      }).join("")}</div>${entry.details?.length ? `<p class="entry-detail">${escapeHtml(entry.details[0])}</p>` : ""}</div>
     ${aiTargetButton("scheduleItem", entry.id, entry.action)}
   </article>`;
 }
 
 function renderItinerary(trip, placesById) {
-  const activeDay = trip.days.find((day) => day.id === draftState.activeDayId) ?? trip.days[0];
-  const dayIndex = trip.days.findIndex((day) => day.id === activeDay.id);
-  const transports = trip.transports.filter((item) => activeDay.transportIds.includes(item.id));
-  const entries = [
-    ...activeDay.scheduleItems.map((item) => ({ ...item, kind: "schedule" })),
-    ...transports.map((item) => ({ ...item, kind: "transport" })),
-  ].sort((a, b) => a.order - b.order);
   return `<div class="tab-panel" id="panel-itinerary" role="tabpanel" aria-labelledby="tab-itinerary">
-    <nav class="day-switcher" aria-label="日付を選択">${trip.days.map((day, index) => `<button type="button" data-day-id="${escapeHtml(day.id)}" class="${day.id === activeDay.id ? "active" : ""}"><span>${index + 1}日目</span><strong>${escapeHtml(formatDate(day.date))}</strong></button>`).join("")}</nav>
-    <section class="day-section">
-      <div class="day-heading"><div><span>${dayIndex + 1}日目</span><h3>${escapeHtml(activeDay.title)}</h3></div>${aiTargetButton("day", activeDay.id, `${formatDate(activeDay.date)} ${activeDay.title}`)}</div>
-      <div class="itinerary-list">${entries.map((entry) => itineraryEntry(entry, placesById)).join("")}</div>
-    </section>
+    <nav class="day-switcher" aria-label="日付へ移動"><button type="button" data-day-anchor="all">全日程</button>${trip.days.map((day) => `<button type="button" data-day-anchor="${escapeHtml(day.id)}">${escapeHtml(formatDate(day.date))}</button>`).join("")}</nav>
+    <div class="all-days">${trip.days.map((day, dayIndex) => {
+      const transports = trip.transports.filter((item) => day.transportIds.includes(item.id));
+      const entries = [...day.scheduleItems.map((item) => ({ ...item, kind: "schedule" })), ...transports.map((item) => ({ ...item, kind: "transport" }))].sort((a, b) => a.order - b.order);
+      const collapsed = draftState.collapsedDays.has(day.id);
+      return `<section class="day-section" id="${escapeHtml(day.id)}" style="--day-color: var(--day-${dayIndex % 5 + 1})">
+        <div class="day-heading"><button type="button" class="day-toggle" data-toggle-day="${escapeHtml(day.id)}" aria-expanded="${!collapsed}"><span>第${dayIndex + 1}日 ${escapeHtml(formatDate(day.date))}</span><strong>${escapeHtml(day.title)}</strong><b aria-hidden="true">${collapsed ? "⌄" : "⌃"}</b></button>${aiTargetButton("day", day.id, `${formatDate(day.date)} ${day.title}`)}</div>
+        <div class="itinerary-list" ${collapsed ? "hidden" : ""}>${entries.map((entry) => itineraryEntry(entry, placesById)).join("")}</div>
+      </section>`;
+    }).join("")}</div>
   </div>`;
 }
 
@@ -434,9 +430,16 @@ function setupTripInteractions(app, trip) {
       if (tab.dataset.tab === "notes") rerender();
       else activateTab(tab.dataset.tab, false);
     }
-    const dayButton = event.target.closest("[data-day-id]");
-    if (dayButton) {
-      draftState.activeDayId = dayButton.dataset.dayId;
+    const dayAnchor = event.target.closest("[data-day-anchor]");
+    if (dayAnchor) {
+      const target = dayAnchor.dataset.dayAnchor === "all" ? app.querySelector(".all-days") : app.querySelector(`#${CSS.escape(dayAnchor.dataset.dayAnchor)}`);
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    const dayToggle = event.target.closest("[data-toggle-day]");
+    if (dayToggle) {
+      const id = dayToggle.dataset.toggleDay;
+      if (draftState.collapsedDays.has(id)) draftState.collapsedDays.delete(id);
+      else draftState.collapsedDays.add(id);
       rerender();
     }
     if (event.target.closest("[data-reset-draft]")) {
