@@ -300,17 +300,101 @@ function instructionTargetLabel(trip, key, placesById) {
   return "関連項目";
 }
 
+const updateTargetTypes = {
+  trip: "Trip",
+  day: "Day",
+  scheduleItem: "ScheduleItem",
+  transport: "Transport",
+  preparation: "Preparation",
+  rioPlan: "RioPlan",
+  booking: "Booking",
+};
+
+function updateMaterials(trip, placesById) {
+  const materials = [];
+  const preparationItems = [...trip.preparation.items, ...trip.preparation.specialPreparations];
+
+  draftState.preparation.forEach((completed, id) => {
+    const item = preparationItems.find((candidate) => candidate.id === id);
+    materials.push({
+      type: "Preparation item",
+      id,
+      name: item?.label ?? "準備項目",
+      change: `完了状態を「${completed ? "完了" : "未完了"}」に変更する`,
+    });
+  });
+
+  draftState.rioPacking.forEach((value, id) => {
+    const item = trip.rioPlan.packingItems.find((candidate) => candidate.id === id);
+    const stateLabels = { pending: "未完了", completed: "完了", notNeeded: "不要" };
+    materials.push({
+      type: "RioPlan packing item",
+      id,
+      name: item?.label ?? "Rio持参品",
+      change: `持参品の状態を「${stateLabels[value]}」に変更する`,
+    });
+  });
+
+  draftState.placeSelections.forEach((selected, id) => {
+    const item = trip.days.flatMap((day) => day.scheduleItems).find((candidate) => candidate.id === id);
+    const placeNames = [...selected].map((placeId) => placesById.get(placeId)?.name ?? placeId);
+    materials.push({
+      type: "PlaceSelection",
+      id,
+      name: item?.action ?? "場所候補のある予定",
+      change: placeNames.length ? `場所候補として「${placeNames.join("、")}」を選ぶ` : "場所候補を選択なしにする",
+    });
+  });
+
+  draftState.instructions.forEach((value, key) => {
+    if (!value.trim()) return;
+    const [type, id] = key.split(":");
+    materials.push({
+      type: updateTargetTypes[type] ?? type,
+      id,
+      name: instructionTargetLabel(trip, key, placesById),
+      change: `AIへの指示：${value.trim()}`,
+    });
+  });
+
+  return materials;
+}
+
+function updateMaterialText(trip, materials) {
+  const lines = [
+    "Calendar AI更新材料",
+    `対象旅行: ${trip.title}`,
+    `Trip ID: ${trip.id}`,
+    `変更件数: ${materials.length}件`,
+    "",
+    "以下は、採用済み完全JSONから次版の完全JSONを再生成するための更新材料です。差分パッチや次版JSONではありません。",
+    "",
+  ];
+  materials.forEach((material, index) => {
+    lines.push(`${index + 1}. ${material.name}`);
+    lines.push(`   対象種別: ${material.type}`);
+    lines.push(`   安定ID: ${material.id}`);
+    lines.push(`   変更内容: ${material.change}`);
+    lines.push("");
+  });
+  return lines.join("\n").trimEnd();
+}
+
 function renderNotes(trip, placesById) {
-  const notes = [...draftState.instructions.entries()].filter(([, value]) => value.trim());
+  const materials = updateMaterials(trip, placesById);
   return `<div class="tab-panel" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" hidden>
     <section class="notes-workspace">
-      <div class="notes-heading"><div><p class="eyebrow">AI INSTRUCTIONS</p><h3>AIへの指示メモ</h3><p>対象ごとのメモを一時的にまとめます。まだAIへ送信されていません。</p></div><span class="unsent-badge">未送信</span></div>
+      <div class="notes-heading"><div><p class="eyebrow">AI UPDATE MATERIAL</p><h3>AIへ渡す変更内容</h3><p>一時状態を、次版の完全JSONを再生成するための更新材料として確認できます。</p></div><span class="unsent-badge">未送信</span></div>
       ${instructionField("trip", trip.id, "例：全体をゆったりした旅程にして")}
-      <div class="instruction-summary">
-        <h4>入力済みメモ</h4>
-        ${notes.length ? `<ul>${notes.map(([key, value]) => `<li><span>${escapeHtml(instructionTargetLabel(trip, key, placesById))}</span><p>${escapeHtml(value)}</p></li>`).join("")}</ul>` : "<p>各画面で入力したメモがここに表示されます。</p>"}
+      <div class="material-heading">
+        <div><h4>変更内容の確認</h4><p><strong data-update-count>${materials.length}</strong>件の変更があります。</p></div>
+        <button type="button" class="copy-materials" data-copy-update ${materials.length ? "" : "disabled"}>クリップボードへコピー</button>
       </div>
-      <div class="boundary-note"><strong>一時状態について</strong><span>採用済みJSONや予約の正式メモは変更しません。AI送信・完全JSON生成・採用はこの段階では行いません。</span></div>
+      <p class="copy-status" data-copy-status role="status">${materials.length ? "内容を確認してからコピーしてください。" : "AIへ渡す変更はまだありません。"}</p>
+      <div class="material-summary">
+        ${materials.length ? `<ol>${materials.map((material) => `<li><div class="material-title"><strong>${escapeHtml(material.name)}</strong><span>${escapeHtml(material.type)}</span></div><dl><div><dt>安定ID</dt><dd>${escapeHtml(material.id)}</dd></div><div><dt>変更内容</dt><dd>${escapeHtml(material.change)}</dd></div></dl></li>`).join("")}</ol>` : "<div class=\"material-empty\"><strong>変更内容はありません</strong><span>準備のチェック、Rio持参品、場所候補、またはAI指示メモを変更すると、ここに表示されます。</span></div>"}
+      </div>
+      <div class="boundary-note"><strong>更新材料について</strong><span>採用済み完全JSON、Bookingの正式な予約メモ、内部差分ではありません。コピーしても一時状態は消えず、外部AIへの送信・完全JSON生成・採用も行いません。</span></div>
     </section>
   </div>`;
 }
@@ -373,6 +457,18 @@ function setupTripInteractions(app, trip) {
       draftState.openInstructionFields.clear();
       rerender();
     }
+    const copyButton = event.target.closest("[data-copy-update]");
+    if (copyButton && !copyButton.disabled) {
+      const placesById = new Map(trip.places.map((place) => [place.id, place]));
+      const materials = updateMaterials(trip, placesById);
+      navigator.clipboard.writeText(updateMaterialText(trip, materials)).then(() => {
+        const status = app.querySelector("[data-copy-status]");
+        if (status) status.textContent = `${materials.length}件の変更内容をコピーしました。一時状態は保持されています。`;
+      }).catch(() => {
+        const status = app.querySelector("[data-copy-status]");
+        if (status) status.textContent = "コピーできませんでした。ブラウザのクリップボード許可を確認してください。";
+      });
+    }
     const instructionToggle = event.target.closest("[data-instruction-toggle]");
     if (instructionToggle) {
       const key = instructionToggle.dataset.instructionToggle;
@@ -390,6 +486,10 @@ function setupTripInteractions(app, trip) {
     else draftState.instructions.delete(key);
     app.querySelector("[data-draft-count]").textContent = draftCount();
     app.querySelector("[data-reset-draft]").disabled = draftCount() === 0;
+    const updateCount = app.querySelector("[data-update-count]");
+    const copyButton = app.querySelector("[data-copy-update]");
+    if (updateCount) updateCount.textContent = updateMaterials(trip, new Map(trip.places.map((place) => [place.id, place]))).length;
+    if (copyButton) copyButton.disabled = draftCount() === 0;
   });
 
   app.addEventListener("change", (event) => {
