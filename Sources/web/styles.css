@@ -582,7 +582,12 @@ body[data-page="home"] .calendar-cell.trip-span a {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
-body[data-page="home"] .home-columns h2 { color: #4f8060; font-weight: 800; }
+body[data-page="home"] .home-columns h2 {
+  padding-left: 9px;
+  border-left: 5px solid #4f8060;
+  color: #4f8060;
+  font-weight: 800;
+}
 body[data-page="home"] .trip-line strong { color: var(--ink); font-weight: 800; }
 body[data-page="home"] .trip-line span { color: #365452; font-weight: 700; }
 
