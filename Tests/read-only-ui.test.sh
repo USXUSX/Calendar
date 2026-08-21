@@ -87,6 +87,9 @@ grep -Fq 'formatShortDateRange(trip.dateRange)' "$web_dir/app.js"
 grep -Fq 'body[data-page="home"] .calendar-cell { min-height: 103px; padding: 4px; }' "$web_dir/styles.css"
 grep -Fq 'body[data-page="home"] .calendar-cell { min-height: 86px; }' "$web_dir/styles.css"
 grep -Fq 'body[data-page="home"] .page-shell * { font-family: inherit; }' "$web_dir/styles.css"
+grep -Fq -- '-webkit-line-clamp: 2;' "$web_dir/styles.css"
+grep -Fq 'body[data-page="home"] .home-columns h2 { color: #4f8060; font-weight: 800; }' "$web_dir/styles.css"
+grep -Fq 'body[data-page="home"] .trip-line span { color: #365452; font-weight: 700; }' "$web_dir/styles.css"
 if grep -Fq '<textarea data-instruction-key="${escapeHtml(key)}" aria-label="コメントを編集">' "$web_dir/app.js"; then
   printf '%s\n' 'Comment textarea is still always visible.' >&2
   exit 1
