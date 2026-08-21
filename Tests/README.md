@@ -12,3 +12,7 @@ standard local and GitHub Actions checks by following that filename pattern.
 
 `read-only-ui.test.sh` validates the synthetic trip contract and confirms that
 the static prototype contains no network write or external-service path.
+
+`temporary-state-ui.test.sh` confirms that Issue #9 interactions use separate
+browser-memory state and do not add instructions or draft fields to the adopted
+synthetic JSON.
