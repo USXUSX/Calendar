@@ -20,12 +20,19 @@ grep -Fq 'class="booking-table"' "$app_file"
 grep -Fq 'trip.preparation.tasks' "$app_file"
 grep -Fq 'type="checkbox" data-rio-packing-id=' "$app_file"
 grep -Fq '.bottom-nav { position: fixed;' "$style_file"
-grep -Fq '.itinerary-grid { display: grid;' "$style_file"
+grep -Fq 'class="day-switcher"' "$app_file"
+grep -Fq 'class="itinerary-row' "$app_file"
+grep -Fq '.bottom-nav { left: 0; bottom: 0; width: 100%;' "$style_file"
 grep -Fq '.check-list li.completed { color: var(--ink-soft); text-decoration: none;' "$style_file"
 grep -Fq 'Calendar は旅行計画の閲覧を主目的とする' "$spec_file"
 
-if grep -Eq '候補件数|件選択中|あと[0-9]+件選択してください|変更メモ' "$app_file"; then
+if grep -Eq '候補件数|件選択中|あと[0-9]+件選択してください|変更メモ|SYNTHETIC TRIP|AI UPDATE MATERIAL|PREPARATION|RIO PLAN|BOOKING' "$app_file"; then
   printf '%s\n' 'Browse-first UI still exposes verbose selection or instruction labels.' >&2
+  exit 1
+fi
+
+if grep -Fq 'itinerary-grid' "$app_file" || grep -Fq '.itinerary-grid' "$style_file"; then
+  printf '%s\n' 'Itinerary must switch days instead of placing days in a grid.' >&2
   exit 1
 fi
 

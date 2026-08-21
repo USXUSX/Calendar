@@ -23,8 +23,8 @@ grep -Fq 'aiTarget: null' "$app_file"
 grep -Fq '予定：${item.action}' "$app_file"
 grep -Fq '移動：${placesById.get(transport.fromPlaceId)?.name' "$app_file"
 grep -Fq '予約：${placesById.get(booking?.placeId)?.name' "$app_file"
-grep -Fq '一時状態・AIへ未送信' "$app_file"
-grep -Fq '正式な予約メモ' "$app_file"
+grep -Fq 'data-draft-count' "$app_file"
+grep -Fq 'class="official-note"' "$app_file"
 
 if grep -Fq 'data-instruction-toggle=' "$app_file"; then
   printf '%s\n' 'Per-item instruction fields must not remain in the browse-first UI.' >&2

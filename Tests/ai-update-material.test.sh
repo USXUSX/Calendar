@@ -16,7 +16,7 @@ grep -Fq '安定ID: ${material.id}' "$app_file"
 grep -Fq 'data-copy-update' "$app_file"
 grep -Fq 'navigator.clipboard.writeText' "$app_file"
 grep -Fq '一時状態は保持されています' "$app_file"
-grep -Fq 'Bookingの正式な予約メモ' "$app_file"
+grep -Fq 'class="official-note"' "$app_file"
 grep -Fq 'materials.length ? "" : "disabled"' "$app_file"
 
 python3 - "$sample_file" <<'PY'
