@@ -11,12 +11,15 @@
       "id": "day-2027-05-14",
       "date": "2027-05-14",
       "title": "港に着いて、島へ渡る",
+      "routeSummary": "自宅 → 青凪港 → 光島",
       "scheduleItems": [
         {
           "id": "schedule-port-breakfast",
           "dayId": "day-2027-05-14",
           "order": 10,
           "action": "港で朝食をとる",
+          "category": "food",
+          "summary": "出航前に港で軽く朝食をとる。",
           "time": {
             "mode": "fixed",
             "start": "08:30",
@@ -39,6 +42,8 @@
           "dayId": "day-2027-05-14",
           "order": 30,
           "action": "島のアート施設を巡る",
+          "category": "sightseeing",
+          "summary": "島内の候補から1〜2か所を巡る。",
           "time": {
             "mode": "range",
             "start": "11:00",
@@ -61,6 +66,8 @@
           "dayId": "day-2027-05-14",
           "order": 50,
           "action": "夕食をとる",
+          "category": "food",
+          "summary": "島の食材を楽しめる店を選ぶ。",
           "time": {
             "mode": "undecided",
             "start": null,
@@ -87,12 +94,15 @@
       "id": "day-2027-05-15",
       "date": "2027-05-15",
       "title": "海辺と古い町並みを歩く",
+      "routeSummary": "光島 → 青凪旧市街 → 光島",
       "scheduleItems": [
         {
           "id": "schedule-morning-walk",
           "dayId": "day-2027-05-15",
           "order": 10,
           "action": "海辺を散歩する",
+          "category": "sightseeing",
+          "summary": "朝の海辺をゆっくり歩く。",
           "time": {
             "mode": "range",
             "start": "08:00",
@@ -115,6 +125,8 @@
           "dayId": "day-2027-05-15",
           "order": 30,
           "action": "古い町並みと喫茶店を巡る",
+          "category": "sightseeing",
+          "summary": "町並みを見ながら店を選んで立ち寄る。",
           "time": {
             "mode": "undecided",
             "start": null,
@@ -141,12 +153,15 @@
       "id": "day-2027-05-16",
       "date": "2027-05-16",
       "title": "朝の市場と帰路",
+      "routeSummary": "光島 → 青凪朝市 → 青凪空港",
       "scheduleItems": [
         {
           "id": "schedule-market",
           "dayId": "day-2027-05-16",
           "order": 10,
           "action": "朝市で買い物をする",
+          "category": "sightseeing",
+          "summary": "旅の最後に市場で土産を選ぶ。",
           "time": {
             "mode": "fixed",
             "start": "09:00",
@@ -371,20 +386,18 @@
   ],
   "preparation": {
     "id": "preparation-setouchi-2027",
-    "packingDueDate": "2027-05-12",
-    "specialPreparations": [
-      { "id": "special-museum-ticket", "label": "美術館の日時指定券を確認", "completed": true, "order": 10 },
-      { "id": "special-seasickness", "label": "船酔い対策を準備", "completed": false, "order": 20 }
-    ],
-    "items": [
-      { "id": "prep-clothes", "label": "着替えを揃える", "completed": true, "order": 10 },
-      { "id": "prep-shoes", "label": "歩きやすい靴を用意", "completed": false, "order": 20 },
-      { "id": "prep-charger", "label": "充電器を入れる", "completed": false, "order": 30 }
+    "tasks": [
+      { "id": "prep-clothes", "label": "荷造り", "dueDate": "2027-05-12", "completed": true, "order": 10 },
+      { "id": "special-museum-ticket", "label": "美術館の日時指定券を確認", "dueDate": "2027-05-10", "completed": true, "order": 20 },
+      { "id": "special-seasickness", "label": "船酔い対策を準備", "dueDate": "2027-05-12", "completed": false, "order": 30 },
+      { "id": "prep-shoes", "label": "旅行用の靴を準備", "dueDate": "2027-05-11", "completed": false, "order": 40 },
+      { "id": "prep-charger", "label": "充電機器をまとめる", "dueDate": "2027-05-12", "completed": false, "order": 50 }
     ]
   },
   "rioPlan": {
     "id": "rio-plan-setouchi-2027",
-    "careMode": "undecided",
+    "applicable": true,
+    "careMode": "accompany",
     "careDecisionDueDate": "2027-04-20",
     "careDetails": "同伴の場合はフェリー会社へ事前確認。預ける場合はいつもの施設へ相談。",
     "packingTemplate": "rio-standard-v1",
@@ -399,6 +412,8 @@
       "id": "booking-hotel",
       "category": "accommodation",
       "status": "booked",
+      "targetDate": "2027-05-14",
+      "reserved": true,
       "placeId": "place-bay-hotel",
       "transportId": null,
       "amount": 52800,
@@ -409,6 +424,8 @@
       "id": "booking-ferry",
       "category": "transport",
       "status": "booked",
+      "targetDate": "2027-05-14",
+      "reserved": true,
       "placeId": null,
       "transportId": "transport-ferry",
       "amount": 4800,
@@ -419,6 +436,8 @@
       "id": "booking-museum",
       "category": "activity",
       "status": "pending",
+      "targetDate": "2027-05-14",
+      "reserved": false,
       "placeId": "place-art-museum",
       "transportId": null,
       "amount": 5200,
@@ -429,6 +448,8 @@
       "id": "booking-airport-bus",
       "category": "transport",
       "status": "booked",
+      "targetDate": "2027-05-16",
+      "reserved": true,
       "placeId": null,
       "transportId": "transport-airport-bus",
       "amount": 2400,
@@ -439,6 +460,8 @@
       "id": "booking-travel-insurance",
       "category": "other",
       "status": "booked",
+      "targetDate": "2027-05-14",
+      "reserved": true,
       "placeId": null,
       "transportId": null,
       "amount": 1800,

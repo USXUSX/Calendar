@@ -16,13 +16,19 @@ grep -Fq 'data-preparation-id=' "$app_file"
 grep -Fq 'data-rio-packing-id=' "$app_file"
 grep -Fq 'data-place-selection=' "$app_file"
 grep -Fq 'data-instruction-key=' "$app_file"
-grep -Fq 'data-instruction-toggle=' "$app_file"
-grep -Fq 'openInstructionFields: new Set()' "$app_file"
+grep -Fq 'data-ai-target-type=' "$app_file"
+grep -Fq 'aiPanelOpen: false' "$app_file"
+grep -Fq 'aiTarget: null' "$app_file"
 grep -Fq '予定：${item.action}' "$app_file"
 grep -Fq '移動：${placesById.get(transport.fromPlaceId)?.name' "$app_file"
 grep -Fq '予約：${placesById.get(booking?.placeId)?.name' "$app_file"
-grep -Fq '一時状態・AIへ未送信' "$app_file"
-grep -Fq '正式な予約メモ' "$app_file"
+grep -Fq 'data-draft-count' "$app_file"
+grep -Fq 'class="official-note"' "$app_file"
+
+if grep -Fq 'data-instruction-toggle=' "$app_file"; then
+  printf '%s\n' 'Per-item instruction fields must not remain in the browse-first UI.' >&2
+  exit 1
+fi
 
 python3 - "$sample_file" <<'PY'
 import json

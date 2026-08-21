@@ -1,0 +1,81 @@
+#!/bin/sh
+
+set -eu
+
+repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+app_file="$repo_root/Sources/web/app.js"
+style_file="$repo_root/Sources/web/styles.css"
+spec_file="$repo_root/docs/calendar-specification.md"
+sample_file="$repo_root/Samples/synthetic-trip.json"
+
+grep -Fq 'data-ai-target-type=' "$app_file"
+grep -Fq 'data-ai-target-id=' "$app_file"
+grep -Fq 'data-ai-target-name=' "$app_file"
+grep -Fq 'function renderAiPanel(trip)' "$app_file"
+grep -Fq '<h3 id="ai-panel-title">コメント</h3>' "$app_file"
+grep -Fq 'timeBlock(entry.time)' "$app_file"
+grep -Fq 'class="tabs bottom-nav"' "$app_file"
+grep -Fq 'class="booking-table"' "$app_file"
+grep -Fq 'trip.preparation.tasks' "$app_file"
+grep -Fq 'type="checkbox" data-rio-packing-id=' "$app_file"
+grep -Fq '.bottom-nav { position: fixed;' "$style_file"
+grep -Fq 'class="day-switcher"' "$app_file"
+grep -Fq 'data-day-anchor="all"' "$app_file"
+grep -Fq 'data-toggle-day=' "$app_file"
+grep -Fq 'class="all-days"' "$app_file"
+grep -Fq 'class="itinerary-row' "$app_file"
+grep -Fq 'data-map-day=' "$app_file"
+grep -Fq 'categoryFilter("map", draftState.mapCategory)' "$app_file"
+grep -Fq 'カレンダー</a>' "$app_file"
+grep -Fq 'コメント <span class="draft-count"' "$app_file"
+grep -Fq 'formatDateRange' "$app_file"
+grep -Fq '<header class="home-header"><h1>カレンダー</h1><time>2026/8/21（金）</time></header>' "$app_file"
+grep -Fq 'class="trip-summary"><h1>' "$app_file"
+grep -Fq 'data-new-trip-comment' "$app_file"
+grep -Fq 'data-add-trip-comment' "$app_file"
+grep -Fq '<h3>リオ　${trip.rioPlan.careMode' "$app_file"
+grep -Fq '.bottom-nav { left: 0; bottom: 0; width: 100%;' "$style_file"
+grep -Fq '.check-list li.completed { color: var(--ink-soft); text-decoration: none;' "$style_file"
+grep -Fq 'Calendar は旅行計画の閲覧を主目的とする' "$spec_file"
+
+if grep -Eq '候補件数|件選択中|あと[0-9]+件選択してください|変更メモ|SYNTHETIC TRIP|AI UPDATE MATERIAL|PREPARATION|RIO PLAN|BOOKING' "$app_file"; then
+  printf '%s\n' 'Browse-first UI still exposes verbose selection or instruction labels.' >&2
+  exit 1
+fi
+
+if grep -Fq '更新材料をコピー</button>' "$app_file"; then
+  printf '%s\n' 'Comment screen must not expose a persistent update-material copy button.' >&2
+  exit 1
+fi
+
+if grep -Fq 'itinerary-grid' "$app_file" || grep -Fq '.itinerary-grid' "$style_file"; then
+  printf '%s\n' 'Itinerary must show all days vertically instead of placing days in a grid.' >&2
+  exit 1
+fi
+
+if grep -Fq 'activeDayId' "$app_file" || grep -Fq 'data-day-id=' "$app_file"; then
+  printf '%s\n' 'Date navigation must use anchors and keep all days in the itinerary.' >&2
+  exit 1
+fi
+
+python3 - "$sample_file" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    trip = json.load(handle)
+
+preparation = trip["preparation"]
+assert "packingDueDate" not in preparation
+assert "items" not in preparation
+assert "specialPreparations" not in preparation
+assert len(preparation["tasks"]) >= 3
+assert all(task["dueDate"] for task in preparation["tasks"])
+assert len({task["id"] for task in preparation["tasks"]}) == len(preparation["tasks"])
+assert all(day["routeSummary"] for day in trip["days"])
+assert all(item["category"] in {"sightseeing", "food", "accommodation"} for day in trip["days"] for item in day["scheduleItems"])
+assert trip["rioPlan"]["applicable"] is True
+assert all({"targetDate", "reserved"} <= booking.keys() for booking in trip["bookings"])
+PY
+
+printf '%s\n' 'Browse-first UI check passed.'

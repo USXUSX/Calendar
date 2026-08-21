@@ -58,9 +58,9 @@ for place in trip["places"]:
         assert rating and rating["source"] == "楽天トラベル"
 
 preparation = trip["preparation"]
-assert preparation["packingDueDate"]
-assert preparation["specialPreparations"]
-assert any(item["completed"] for item in preparation["items"])
+assert preparation["tasks"]
+assert all({"id", "label", "dueDate", "completed", "order"} <= task.keys() for task in preparation["tasks"])
+assert any(item["completed"] for item in preparation["tasks"])
 
 rio_plan = trip["rioPlan"]
 assert rio_plan["careMode"] in {"accompany", "leave", "undecided"}
