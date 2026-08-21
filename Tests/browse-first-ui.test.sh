@@ -11,10 +11,9 @@ sample_file="$repo_root/Samples/synthetic-trip.json"
 grep -Fq 'data-ai-target-type=' "$app_file"
 grep -Fq 'data-ai-target-id=' "$app_file"
 grep -Fq 'data-ai-target-name=' "$app_file"
-grep -Fq 'data-open-ai-all' "$app_file"
 grep -Fq 'function renderAiPanel(trip)' "$app_file"
-grep -Fq '対象: ${escapeHtml(target.name)}' "$app_file"
-grep -Fq '所要${entry.time.durationMinutes}分' "$app_file"
+grep -Fq '<h3 id="ai-panel-title">コメント</h3>' "$app_file"
+grep -Fq 'timeBlock(entry.time)' "$app_file"
 grep -Fq 'class="tabs bottom-nav"' "$app_file"
 grep -Fq 'class="booking-table"' "$app_file"
 grep -Fq 'trip.preparation.tasks' "$app_file"
@@ -25,6 +24,11 @@ grep -Fq 'data-day-anchor="all"' "$app_file"
 grep -Fq 'data-toggle-day=' "$app_file"
 grep -Fq 'class="all-days"' "$app_file"
 grep -Fq 'class="itinerary-row' "$app_file"
+grep -Fq 'data-map-day=' "$app_file"
+grep -Fq 'categoryFilter("map", draftState.mapCategory)' "$app_file"
+grep -Fq 'カレンダー</a>' "$app_file"
+grep -Fq 'コメント <span class="draft-count"' "$app_file"
+grep -Fq 'formatDateRange' "$app_file"
 grep -Fq '.bottom-nav { left: 0; bottom: 0; width: 100%;' "$style_file"
 grep -Fq '.check-list li.completed { color: var(--ink-soft); text-decoration: none;' "$style_file"
 grep -Fq 'Calendar は旅行計画の閲覧を主目的とする' "$spec_file"
@@ -58,6 +62,10 @@ assert "specialPreparations" not in preparation
 assert len(preparation["tasks"]) >= 3
 assert all(task["dueDate"] for task in preparation["tasks"])
 assert len({task["id"] for task in preparation["tasks"]}) == len(preparation["tasks"])
+assert all(day["routeSummary"] for day in trip["days"])
+assert all(item["category"] in {"sightseeing", "food", "accommodation"} for day in trip["days"] for item in day["scheduleItems"])
+assert trip["rioPlan"]["applicable"] is True
+assert all({"targetDate", "reserved"} <= booking.keys() for booking in trip["bookings"])
 PY
 
 printf '%s\n' 'Browse-first UI check passed.'
