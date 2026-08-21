@@ -19,10 +19,6 @@ const draftState = {
 
 const targetKey = (type, id) => `${type}:${id}`;
 
-function aiTargetButton(type, id, name, label = "AIへ変更を指示") {
-  return `<button type="button" class="row-action" data-ai-target-type="${escapeHtml(type)}" data-ai-target-id="${escapeHtml(id)}" data-ai-target-name="${escapeHtml(name)}" aria-label="${escapeHtml(`${name}：${label}`)}">…</button>`;
-}
-
 const shortDateFormatter = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" });
 const weekdayFormatter = new Intl.DateTimeFormat("ja-JP", { weekday: "short" });
 const moneyFormatter = new Intl.NumberFormat("ja-JP", {
@@ -137,7 +133,6 @@ function itineraryEntry(entry, placesById) {
       <div class="entry-time">${timeBlock(entry.time)}</div>
       <div class="entry-classification"><span aria-hidden="true">↗</span><small>移動</small></div>
       <div class="row-main"><strong>${escapeHtml(transportName)}</strong><p>${escapeHtml(transportLabels[entry.mode] ?? entry.mode)}　${entry.time.durationMinutes}分</p></div>
-      ${aiTargetButton("transport", entry.id, transportName)}
     </article>`;
   }
 
@@ -156,21 +151,19 @@ function itineraryEntry(entry, placesById) {
         const atMaximum = selection.maxSelections !== null && selected.size >= selection.maxSelections;
         return `<label class="candidate-chip ${checked ? "selected" : ""}"><input type="checkbox" data-place-selection="${escapeHtml(entry.id)}" data-place-id="${escapeHtml(place.id)}" ${checked ? "checked" : ""} ${!checked && atMaximum ? "disabled" : ""}><span>${escapeHtml(place.name)}</span>${placeRating(place)}</label>`;
       }).join("")}</div>`}${entry.details?.length ? `<p class="entry-detail">${escapeHtml(entry.details[0])}</p>` : ""}</div>
-    ${aiTargetButton("scheduleItem", entry.id, entry.action)}
   </article>`;
 }
 
 function renderItinerary(trip, placesById) {
   return `<div class="tab-panel" id="panel-itinerary" role="tabpanel" aria-labelledby="tab-itinerary">
-    <nav class="day-switcher" aria-label="日付へ移動"><button type="button" data-day-anchor="all">全日程</button>${trip.days.map((day) => `<button type="button" data-day-anchor="${escapeHtml(day.id)}">${escapeHtml(formatDate(day.date))}</button>`).join("")}</nav>
-    ${categoryFilter("itinerary", draftState.itineraryCategory)}
+    <div class="top-controls"><nav class="day-switcher" aria-label="日付へ移動"><button type="button" data-day-anchor="all">全日程</button>${trip.days.map((day) => `<button type="button" data-day-anchor="${escapeHtml(day.id)}">${escapeHtml(formatDate(day.date))}</button>`).join("")}</nav>${categoryFilter("itinerary", draftState.itineraryCategory)}</div>
     <div class="all-days">${trip.days.map((day, dayIndex) => {
       const transports = trip.transports.filter((item) => day.transportIds.includes(item.id));
       const entries = [...day.scheduleItems.map((item) => ({ ...item, kind: "schedule" })), ...transports.map((item) => ({ ...item, kind: "transport" }))].sort((a, b) => a.order - b.order);
       const visibleEntries = entries.filter((entry) => draftState.itineraryCategory === "all" || entryCategory(entry, placesById) === draftState.itineraryCategory);
       const collapsed = draftState.collapsedDays.has(day.id);
       return `<section class="day-section" id="${escapeHtml(day.id)}" style="--day-color: var(--day-${dayIndex % 5 + 1})">
-        <div class="day-heading"><button type="button" class="day-toggle" data-toggle-day="${escapeHtml(day.id)}" aria-expanded="${!collapsed}"><span>第${dayIndex + 1}日 ${escapeHtml(formatDate(day.date))}（${weekdayFormatter.format(localDate(day.date))}）</span><span class="day-copy"><strong>${escapeHtml(day.title)}</strong><small>${escapeHtml(day.routeSummary || "")}</small></span><b aria-hidden="true">${collapsed ? "⌄" : "⌃"}</b></button>${aiTargetButton("day", day.id, `${formatDate(day.date)} ${day.title}`)}</div>
+        <div class="day-heading"><button type="button" class="day-toggle" data-toggle-day="${escapeHtml(day.id)}" aria-expanded="${!collapsed}"><span>第${dayIndex + 1}日 ${escapeHtml(formatDate(day.date))}（${weekdayFormatter.format(localDate(day.date))}）</span><span class="day-copy"><strong>${escapeHtml(day.title)}</strong><small>${escapeHtml(day.routeSummary || "")}</small></span><b aria-hidden="true">${collapsed ? "⌄" : "⌃"}</b></button></div>
         <div class="itinerary-list" ${collapsed ? "hidden" : ""}>${visibleEntries.map((entry) => itineraryEntry(entry, placesById)).join("")}</div>
       </section>`;
     }).join("")}</div>
@@ -199,8 +192,7 @@ function renderMap(trip) {
     return `<button class="map-pin ${place.category}" style="left:${x}%;top:${y}%;--pin-color:var(--day-${place.map.dayIndex % 5 + 1})" aria-label="${escapeHtml(place.name)}" data-place-index="${index}"><span>${dayPoints.length}</span></button>`;
   }).join("");
   return `<div class="tab-panel" id="panel-map" role="tabpanel" aria-labelledby="tab-map" hidden>
-    <nav class="day-switcher map-days" aria-label="地図の日付">${[["all", "全日程"], ...trip.days.map((day) => [day.id, formatDate(day.date)])].map(([key, label]) => `<button type="button" data-map-day="${escapeHtml(key)}" class="${draftState.mapDay === key ? "active" : ""}">${escapeHtml(label)}</button>`).join("")}</nav>
-    ${categoryFilter("map", draftState.mapCategory)}
+    <div class="top-controls"><nav class="day-switcher map-days" aria-label="地図の日付">${[["all", "全日程"], ...trip.days.map((day) => [day.id, formatDate(day.date)])].map(([key, label]) => `<button type="button" data-map-day="${escapeHtml(key)}" class="${draftState.mapDay === key ? "active" : ""}">${escapeHtml(label)}</button>`).join("")}</nav>${categoryFilter("map", draftState.mapCategory)}</div>
     <div class="map-layout">
       <div class="map-card">
         <div class="map-watermark">SETONAIKAI</div>
@@ -234,11 +226,11 @@ function renderPreparation(trip, placesById) {
   return `<div class="tab-panel" id="panel-preparation" role="tabpanel" aria-labelledby="tab-preparation" hidden>
     <div class="preparation-grid">
       <section class="prep-card wife-card">
-        <div class="card-heading"><h3>準備すること</h3>${aiTargetButton("preparation", trip.preparation.id, "準備すること")}</div>
+        <div class="card-heading"><h3>準備すること</h3></div>
         ${preparationChecklist([...trip.preparation.tasks].sort((a, b) => a.order - b.order))}
       </section>
       ${trip.rioPlan.applicable === false ? "" : `<section class="prep-card rio-card">
-        <div class="card-heading"><h3>リオ　${trip.rioPlan.careMode === "leave" ? "預ける" : "同行"}</h3>${aiTargetButton("rioPlan", trip.rioPlan.id, "リオ")}</div>
+        <div class="card-heading"><h3>リオ　${trip.rioPlan.careMode === "leave" ? "預ける" : "同行"}</h3></div>
         ${rioChecklist(rioItems)}
       </section>`}
       <section class="prep-card booking-card">
@@ -249,7 +241,7 @@ function renderPreparation(trip, placesById) {
           const transportName = transport ? `${transportLabels[transport.mode] ?? transport.mode} ${placesById.get(transport.fromPlaceId).name} → ${placesById.get(transport.toPlaceId).name}` : null;
           const bookingName = target?.name ?? transportName ?? "予約";
           const importantNote = booking.reserved ? "" : booking.notes;
-          return `<div class="booking-row" role="row"><span class="booking-check" aria-label="${booking.reserved ? "予約済み" : "未予約"}">${booking.reserved ? "✓" : "○"}</span><time>${escapeHtml(formatDate(booking.targetDate))}</time><span class="booking-category">${categoryLabels[booking.category]}</span><div class="booking-content" role="cell"><strong>${escapeHtml(bookingName)}</strong>${importantNote ? `<small class="official-note">${escapeHtml(importantNote)}</small>` : ""}</div><b class="booking-amount">${moneyFormatter.format(booking.amount)}</b>${aiTargetButton("booking", booking.id, bookingName)}</div>`;
+          return `<div class="booking-row" role="row"><span class="booking-check" aria-label="${booking.reserved ? "予約済み" : "未予約"}">${booking.reserved ? "✓" : "○"}</span><time>${escapeHtml(formatDate(booking.targetDate))}</time><span class="booking-category">${categoryLabels[booking.category]}</span><div class="booking-content" role="cell"><strong>${escapeHtml(bookingName)}</strong>${importantNote ? `<small class="official-note">${escapeHtml(importantNote)}</small>` : ""}</div><b class="booking-amount">${moneyFormatter.format(booking.amount)}</b></div>`;
         }).join("")}</div>
         <div class="cost-summary"><div><span>費用合計</span><strong>${moneyFormatter.format(total)}</strong></div><div class="cost-breakdown">${totals}</div></div>
       </section>
@@ -264,33 +256,33 @@ function draftCount() {
 
 function instructionTargetLabel(trip, key, placesById) {
   const [type, id] = key.split(":");
-  if (type === "trip") return `旅行全体：${trip.title}`;
+  if (type === "trip") return "旅行全体";
   if (type === "day") {
     const day = trip.days.find((item) => item.id === id);
     return day ? `日程：${formatDate(day.date)} ${day.title}` : "日程";
   }
   if (type === "scheduleItem") {
     const item = trip.days.flatMap((day) => day.scheduleItems).find((candidate) => candidate.id === id);
-    return item ? `予定：${item.action}` : "予定";
+    return item ? `旅程 › ${item.action}` : "旅程";
   }
   if (type === "transport") {
     const transport = trip.transports.find((item) => item.id === id);
-    if (transport) return `移動：${placesById.get(transport.fromPlaceId)?.name ?? "出発地"} → ${placesById.get(transport.toPlaceId)?.name ?? "到着地"}`;
-    return "移動";
+    if (transport) return `旅程 › ${placesById.get(transport.fromPlaceId)?.name ?? "出発地"} → ${placesById.get(transport.toPlaceId)?.name ?? "到着地"}`;
+    return "旅程 › 移動";
   }
   if (type === "booking") {
     const booking = trip.bookings.find((item) => item.id === id);
     const transport = trip.transports.find((item) => item.id === booking?.transportId);
     const transportName = transport ? `${placesById.get(transport.fromPlaceId)?.name ?? "出発地"} → ${placesById.get(transport.toPlaceId)?.name ?? "到着地"}` : null;
-    return `予約：${placesById.get(booking?.placeId)?.name ?? transportName ?? "予約項目"}`;
+    return `準備 › ${placesById.get(booking?.placeId)?.name ?? transportName ?? "予約項目"}`;
   }
   if (type === "preparation") {
     const task = trip.preparation.tasks.find((item) => item.id === id);
-    return task ? `準備：${task.label}` : "妻の準備";
+    return task ? `準備 › ${task.label}` : "準備";
   }
   if (type === "rioPlan") {
     const item = trip.rioPlan.packingItems.find((candidate) => candidate.id === id);
-    return item ? `Rio持参品：${item.label}` : "Rioの予定";
+    return item ? `準備 › リオ › ${item.label}` : "準備 › リオ";
   }
   return "関連項目";
 }

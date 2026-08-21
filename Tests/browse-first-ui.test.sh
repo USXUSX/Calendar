@@ -8,9 +8,6 @@ style_file="$repo_root/Sources/web/styles.css"
 spec_file="$repo_root/docs/calendar-specification.md"
 sample_file="$repo_root/Samples/synthetic-trip.json"
 
-grep -Fq 'data-ai-target-type=' "$app_file"
-grep -Fq 'data-ai-target-id=' "$app_file"
-grep -Fq 'data-ai-target-name=' "$app_file"
 grep -Fq 'function renderAiPanel(trip)' "$app_file"
 grep -Fq '<h3 id="ai-panel-title">コメント</h3>' "$app_file"
 grep -Fq 'timeBlock(entry.time)' "$app_file"
@@ -37,7 +34,13 @@ grep -Fq '<h3>リオ　${trip.rioPlan.careMode' "$app_file"
 grep -Fq '.bottom-nav { left: 0; bottom: 0; width: 100%;' "$style_file"
 grep -Fq '.trip-summary { position: fixed;' "$style_file"
 grep -Fq '.page-shell { width: calc(100vw - 24px); max-width: none;' "$style_file"
-grep -Fq '.row-action { opacity: 0; pointer-events: none; }' "$style_file"
+grep -Fq 'class="top-controls"' "$app_file"
+grep -Fq '.trip-summary h1 { font-size: 27px; }' "$style_file"
+grep -Fq '.itinerary-row { grid-template-columns: 98px 84px minmax(0,1fr);' "$style_file"
+if grep -Fq 'class="row-action"' "$app_file"; then
+  printf '%s\n' 'Per-row action buttons must not appear in the browse-first UI.' >&2
+  exit 1
+fi
 grep -Fq '.check-list li.completed { color: var(--ink-soft); text-decoration: none;' "$style_file"
 grep -Fq 'Calendar は旅行計画の閲覧を主目的とする' "$spec_file"
 
