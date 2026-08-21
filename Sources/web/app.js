@@ -44,6 +44,8 @@ const formatDateRange = ({ start, end }) => {
   return `${first.getFullYear()}/${first.getMonth() + 1}/${first.getDate()}〜${formatDate(end)}`;
 };
 
+const formatShortDateRange = ({ start, end }) => `${formatDate(start)}〜${formatDate(end)}`;
+
 const formatClock = (value) => value ? value.replace(/^0/, "") : "";
 
 const modeLabels = {
@@ -110,7 +112,7 @@ function renderHome(trip) {
     </section>
     <div class="home-columns">
       <section><h2>今後1週間の予定</h2><p class="empty-line">予定はありません</p></section>
-      <section><h2>旅行予定</h2><a class="trip-line" href="./trip.html?id=${encodeURIComponent(trip.id)}"><strong>${escapeHtml(trip.title)}</strong><span>${escapeHtml(formatDateRange(trip.dateRange))}</span></a><button class="past-trips" type="button">過去の旅行</button></section>
+      <section><h2>旅行予定</h2><a class="trip-line" href="./trip.html?id=${encodeURIComponent(trip.id)}"><strong>${escapeHtml(trip.title)}</strong><span>${escapeHtml(formatShortDateRange(trip.dateRange))}</span></a><button class="past-trips" type="button">過去の旅行</button></section>
     </div>`;
 }
 

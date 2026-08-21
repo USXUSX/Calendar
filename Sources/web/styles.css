@@ -560,3 +560,18 @@ body[data-page="home"] .page-shell { padding-top: 14px; }
   .day-toggle { grid-template-columns: 190px minmax(0,1fr) auto; }
   .itinerary-row { grid-template-columns: 98px 84px minmax(0,1fr); gap: 10px; }
 }
+
+/* Issue #19: tune the home calendar for iPad device review. */
+body[data-page="home"] .page-shell { width: calc(100vw - 36px); }
+body[data-page="home"] .page-shell,
+body[data-page="home"] .page-shell * { font-family: inherit; }
+body[data-page="home"] .month-heading { padding-block: 6px; }
+body[data-page="home"] .calendar-weekdays span { padding-block: 4px; }
+body[data-page="home"] .calendar-cell { min-height: 103px; padding: 4px; }
+body[data-page="home"] .calendar-cell.trip-span::after { top: 31px; }
+body[data-page="home"] .calendar-cell.trip-span a { left: 4px; top: 37px; width: calc(200% - 4px); box-sizing: border-box; }
+
+@media (max-width: 820px) {
+  body[data-page="home"] .page-shell { width: calc(100vw - 24px); }
+  body[data-page="home"] .calendar-cell { min-height: 86px; }
+}
