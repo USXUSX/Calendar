@@ -59,6 +59,8 @@ grep -Fq '.map-day-heading .day-label { font-size: 21px; white-space: nowrap; }'
 grep -Fq '.map-day-heading { grid-template-columns: 180px minmax(0, 1fr) auto; gap: 8px; }' "$style_file"
 grep -Fq '.map-day-heading .day-copy strong { color: var(--ink); }' "$style_file"
 grep -Fq '.map-day-heading .day-date {' "$style_file"
+grep -Fq 'font-size: 21px;' "$style_file"
+grep -Fq 'font-weight: 600;' "$style_file"
 grep -Fq 'font-variant-numeric: proportional-nums;' "$style_file"
 grep -Fq 'font-feature-settings: "palt" 1, "pnum" 1;' "$style_file"
 grep -Fq 'letter-spacing: normal;' "$style_file"

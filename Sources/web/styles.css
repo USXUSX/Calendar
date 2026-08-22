@@ -694,6 +694,8 @@ body[data-page="home"] .trip-line span { color: #365452; font-weight: 700; }
 .map-day-heading .day-date {
   color: var(--ink);
   font-family: inherit;
+  font-size: 21px;
+  font-weight: 600;
   font-variant-numeric: proportional-nums;
   font-feature-settings: "palt" 1, "pnum" 1;
   letter-spacing: normal;
