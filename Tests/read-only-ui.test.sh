@@ -4,9 +4,11 @@ set -eu
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 sample_file="$repo_root/Samples/synthetic-trip.json"
+schema_file="$repo_root/Schemas/trip.schema.json"
 web_dir="$repo_root/Sources/web"
 
 test -f "$sample_file"
+test -f "$schema_file"
 test -f "$web_dir/index.html"
 test -f "$web_dir/trip.html"
 test -f "$web_dir/app.js"

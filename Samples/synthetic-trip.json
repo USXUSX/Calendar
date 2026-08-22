@@ -35,7 +35,8 @@
             ],
             "minSelections": 1,
             "maxSelections": 1
-          }
+          },
+          "details": []
         },
         {
           "id": "schedule-island-art",
@@ -59,7 +60,8 @@
             "selection": [],
             "minSelections": 1,
             "maxSelections": 2
-          }
+          },
+          "details": []
         },
         {
           "id": "schedule-dinner",
@@ -82,7 +84,8 @@
             "selection": [],
             "minSelections": 1,
             "maxSelections": null
-          }
+          },
+          "details": []
         }
       ],
       "transportIds": [
@@ -118,7 +121,8 @@
             ],
             "minSelections": 1,
             "maxSelections": 1
-          }
+          },
+          "details": []
         },
         {
           "id": "schedule-old-town",
@@ -142,7 +146,8 @@
             "selection": [],
             "minSelections": null,
             "maxSelections": null
-          }
+          },
+          "details": []
         }
       ],
       "transportIds": [
@@ -177,7 +182,8 @@
             ],
             "minSelections": 1,
             "maxSelections": 1
-          }
+          },
+          "details": []
         }
       ],
       "transportIds": [
@@ -253,27 +259,43 @@
       "name": "青凪港",
       "category": "station",
       "address": "香川県青凪市港町1-1",
-      "location": { "latitude": 34.351, "longitude": 134.046 },
+      "location": {
+        "latitude": 34.351,
+        "longitude": 134.046
+      },
       "urls": [],
-      "rating": null
+      "rating": null,
+      "summary": null
     },
     {
       "id": "place-harbor-cafe",
       "name": "波止場珈琲店",
       "category": "restaurant",
       "address": "香川県青凪市港町1-8",
-      "location": { "latitude": 34.349, "longitude": 134.049 },
+      "location": {
+        "latitude": 34.349,
+        "longitude": 134.049
+      },
       "urls": [],
-      "rating": { "value": 3.58, "source": "食べログ", "observedAt": "2026-08-01" }
+      "rating": {
+        "value": 3.58,
+        "source": "食べログ",
+        "observedAt": "2026-08-01"
+      },
+      "summary": null
     },
     {
       "id": "place-island-port",
       "name": "光島港",
       "category": "station",
       "address": "香川県光島町港2",
-      "location": { "latitude": 34.458, "longitude": 133.995 },
+      "location": {
+        "latitude": 34.458,
+        "longitude": 133.995
+      },
       "urls": [],
-      "rating": null
+      "rating": null,
+      "summary": null
     },
     {
       "id": "place-art-museum",
@@ -281,7 +303,10 @@
       "summary": "欧米美術中心の展示",
       "category": "attraction",
       "address": "香川県光島町浜5-2",
-      "location": { "latitude": 34.463, "longitude": 133.987 },
+      "location": {
+        "latitude": 34.463,
+        "longitude": 133.987
+      },
       "urls": [],
       "rating": null
     },
@@ -291,7 +316,10 @@
       "summary": "海辺の小規模企画展",
       "category": "attraction",
       "address": "香川県光島町浜7-4",
-      "location": { "latitude": 34.469, "longitude": 133.981 },
+      "location": {
+        "latitude": 34.469,
+        "longitude": 133.981
+      },
       "urls": [],
       "rating": null
     },
@@ -301,7 +329,10 @@
       "summary": "作家の制作風景を見学",
       "category": "attraction",
       "address": "香川県光島町丘3-1",
-      "location": { "latitude": 34.476, "longitude": 133.991 },
+      "location": {
+        "latitude": 34.476,
+        "longitude": 133.991
+      },
       "urls": [],
       "rating": null
     },
@@ -311,9 +342,16 @@
       "summary": "朝どれの島魚を使った定食",
       "category": "restaurant",
       "address": "香川県光島町本町4-7",
-      "location": { "latitude": 34.461, "longitude": 133.998 },
+      "location": {
+        "latitude": 34.461,
+        "longitude": 133.998
+      },
       "urls": [],
-      "rating": { "value": 3.71, "source": "食べログ", "observedAt": "2026-08-01" }
+      "rating": {
+        "value": 3.71,
+        "source": "食べログ",
+        "observedAt": "2026-08-01"
+      }
     },
     {
       "id": "place-garden-bistro",
@@ -321,36 +359,59 @@
       "summary": "庭を眺める瀬戸内食材のコース",
       "category": "restaurant",
       "address": "香川県光島町本町6-2",
-      "location": { "latitude": 34.466, "longitude": 134.002 },
+      "location": {
+        "latitude": 34.466,
+        "longitude": 134.002
+      },
       "urls": [],
-      "rating": { "value": 3.52, "source": "食べログ", "observedAt": "2026-08-01" }
+      "rating": {
+        "value": 3.52,
+        "source": "食べログ",
+        "observedAt": "2026-08-01"
+      }
     },
     {
       "id": "place-bay-hotel",
       "name": "光島ベイホテル",
       "category": "hotel",
       "address": "香川県光島町湾岸8-1",
-      "location": { "latitude": 34.457, "longitude": 134.004 },
+      "location": {
+        "latitude": 34.457,
+        "longitude": 134.004
+      },
       "urls": [],
-      "rating": { "value": 4.42, "source": "楽天トラベル", "observedAt": "2026-08-01" }
+      "rating": {
+        "value": 4.42,
+        "source": "楽天トラベル",
+        "observedAt": "2026-08-01"
+      },
+      "summary": null
     },
     {
       "id": "place-sunset-pier",
       "name": "夕凪桟橋",
       "category": "attraction",
       "address": "香川県光島町海岸1",
-      "location": { "latitude": 34.451, "longitude": 134.012 },
+      "location": {
+        "latitude": 34.451,
+        "longitude": 134.012
+      },
       "urls": [],
-      "rating": null
+      "rating": null,
+      "summary": null
     },
     {
       "id": "place-old-town",
       "name": "青凪旧市街",
       "category": "attraction",
       "address": "香川県青凪市古町",
-      "location": { "latitude": 34.334, "longitude": 134.061 },
+      "location": {
+        "latitude": 34.334,
+        "longitude": 134.061
+      },
       "urls": [],
-      "rating": null
+      "rating": null,
+      "summary": null
     },
     {
       "id": "place-roastery",
@@ -358,46 +419,95 @@
       "summary": "自家焙煎珈琲と焼き菓子",
       "category": "restaurant",
       "address": "香川県青凪市古町2-3",
-      "location": { "latitude": 34.332, "longitude": 134.064 },
+      "location": {
+        "latitude": 34.332,
+        "longitude": 134.064
+      },
       "urls": [],
-      "rating": { "value": 3.47, "source": "食べログ", "observedAt": "2026-08-01" }
+      "rating": {
+        "value": 3.47,
+        "source": "食べログ",
+        "observedAt": "2026-08-01"
+      }
     },
     {
       "id": "place-craft-shop",
       "name": "瀬戸内手仕事店",
       "category": "other",
       "address": "香川県青凪市古町2-8",
-      "location": { "latitude": 34.336, "longitude": 134.058 },
+      "location": {
+        "latitude": 34.336,
+        "longitude": 134.058
+      },
       "urls": [],
-      "rating": null
+      "rating": null,
+      "summary": null
     },
     {
       "id": "place-morning-market",
       "name": "青凪朝市",
       "category": "attraction",
       "address": "香川県青凪市市場通り1",
-      "location": { "latitude": 34.344, "longitude": 134.053 },
+      "location": {
+        "latitude": 34.344,
+        "longitude": 134.053
+      },
       "urls": [],
-      "rating": null
+      "rating": null,
+      "summary": null
     },
     {
       "id": "place-airport",
       "name": "青凪空港",
       "category": "station",
       "address": "香川県青凪市空港町100",
-      "location": { "latitude": 34.216, "longitude": 134.019 },
+      "location": {
+        "latitude": 34.216,
+        "longitude": 134.019
+      },
       "urls": [],
-      "rating": null
+      "rating": null,
+      "summary": null
     }
   ],
   "preparation": {
     "id": "preparation-setouchi-2027",
     "tasks": [
-      { "id": "prep-clothes", "label": "荷造り", "dueDate": "2027-05-12", "completed": true, "order": 10 },
-      { "id": "special-museum-ticket", "label": "美術館の日時指定券を確認", "dueDate": "2027-05-10", "completed": true, "order": 20 },
-      { "id": "special-seasickness", "label": "船酔い対策を準備", "dueDate": "2027-05-12", "completed": false, "order": 30 },
-      { "id": "prep-shoes", "label": "旅行用の靴を準備", "dueDate": "2027-05-11", "completed": false, "order": 40 },
-      { "id": "prep-charger", "label": "充電機器をまとめる", "dueDate": "2027-05-12", "completed": false, "order": 50 }
+      {
+        "id": "prep-clothes",
+        "label": "荷造り",
+        "dueDate": "2027-05-12",
+        "completed": true,
+        "order": 10
+      },
+      {
+        "id": "special-museum-ticket",
+        "label": "美術館の日時指定券を確認",
+        "dueDate": "2027-05-10",
+        "completed": true,
+        "order": 20
+      },
+      {
+        "id": "special-seasickness",
+        "label": "船酔い対策を準備",
+        "dueDate": "2027-05-12",
+        "completed": false,
+        "order": 30
+      },
+      {
+        "id": "prep-shoes",
+        "label": "旅行用の靴を準備",
+        "dueDate": "2027-05-11",
+        "completed": false,
+        "order": 40
+      },
+      {
+        "id": "prep-charger",
+        "label": "充電機器をまとめる",
+        "dueDate": "2027-05-12",
+        "completed": false,
+        "order": 50
+      }
     ]
   },
   "rioPlan": {
@@ -408,9 +518,27 @@
     "careDetails": "同伴の場合はフェリー会社へ事前確認。預ける場合はいつもの施設へ相談。",
     "packingTemplate": "rio-standard-v1",
     "packingItems": [
-      { "id": "rio-food", "label": "フード 3日分", "completed": false, "notNeeded": false, "order": 10 },
-      { "id": "rio-lead", "label": "予備リード", "completed": true, "notNeeded": false, "order": 20 },
-      { "id": "rio-raincoat", "label": "レインコート", "completed": false, "notNeeded": true, "order": 30 }
+      {
+        "id": "rio-food",
+        "label": "フード 3日分",
+        "completed": false,
+        "notNeeded": false,
+        "order": 10
+      },
+      {
+        "id": "rio-lead",
+        "label": "予備リード",
+        "completed": true,
+        "notNeeded": false,
+        "order": 20
+      },
+      {
+        "id": "rio-raincoat",
+        "label": "レインコート",
+        "completed": false,
+        "notNeeded": true,
+        "order": 30
+      }
     ]
   },
   "bookings": [
@@ -423,7 +551,8 @@
       "transportId": null,
       "amount": 52800,
       "currency": "JPY",
-      "notes": "2泊・朝食付き。合成予約番号 ST-2027-0514。"
+      "notes": "2泊・朝食付き。合成予約番号 ST-2027-0514。",
+      "label": null
     },
     {
       "id": "booking-ferry",
@@ -434,7 +563,8 @@
       "transportId": "transport-ferry",
       "amount": 4800,
       "currency": "JPY",
-      "notes": "往路フェリー2名分。"
+      "notes": "往路フェリー2名分。",
+      "label": null
     },
     {
       "id": "booking-museum",
@@ -445,7 +575,8 @@
       "transportId": null,
       "amount": 5200,
       "currency": "JPY",
-      "notes": "日時指定枠の確定待ち。"
+      "notes": "日時指定枠の確定待ち。",
+      "label": null
     },
     {
       "id": "booking-airport-bus",
@@ -456,7 +587,8 @@
       "transportId": "transport-airport-bus",
       "amount": 2400,
       "currency": "JPY",
-      "notes": "空港連絡バス2名分。"
+      "notes": "空港連絡バス2名分。",
+      "label": null
     },
     {
       "id": "booking-travel-insurance",
@@ -467,7 +599,8 @@
       "transportId": null,
       "amount": 1800,
       "currency": "JPY",
-      "notes": "合成旅行保険2名分。"
+      "notes": "合成旅行保険2名分。",
+      "label": null
     }
   ]
 }

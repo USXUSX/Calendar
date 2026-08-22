@@ -10,6 +10,10 @@ sh Tests/run.sh
 `Tests/*.test.sh` script. New dependency-free shell tests can therefore join the
 standard local and GitHub Actions checks by following that filename pattern.
 
+`trip-schema.test.sh` verifies the formal JSON Schema, semantic reference
+validation, and the ChatGPT generation guide. Existing legacy fixtures are not
+kept as compatibility cases.
+
 `read-only-ui.test.sh` validates the synthetic trip contract and confirms that
 the static prototype contains no network write or external-service path.
 
