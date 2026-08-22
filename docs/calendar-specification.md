@@ -150,7 +150,7 @@ Booking は予約と費用を管理する。
 - `id`: 安定 ID
 - `category`: `accommodation`（宿泊費）/ `transport`（交通費）/ `activity`（観光・チケット）/ `other`（その他）
 - `status`: 未予約、予約済み、変更・取消等を表す状態
-- `targetDate`: 予約・手配の対象日を表す任意の日付。予約済みかどうかは `status` を正本とし、別の真偽値には重複保持しない
+- `targetDate`: 予約・手配の対象日を表す必須の日付。予約済みかどうかは `status` を正本とし、別の真偽値には重複保持しない
 - `placeId` または `transportId`: 対象への参照
 - `amount`: 金額
 - `currency`: 通貨

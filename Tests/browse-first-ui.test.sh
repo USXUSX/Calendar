@@ -84,6 +84,7 @@ if grep -Fq 'class="row-action"' "$app_file"; then
 fi
 grep -Fq '.check-list li.completed { color: var(--ink-soft); text-decoration: none;' "$style_file"
 grep -Fq 'Calendar は旅行計画の閲覧を主目的とする' "$spec_file"
+grep -Fq '`targetDate`: 予約・手配の対象日を表す必須の日付' "$spec_file"
 
 if grep -Eq '候補件数|件選択中|あと[0-9]+件選択してください|変更メモ|SYNTHETIC TRIP|AI UPDATE MATERIAL|PREPARATION|RIO PLAN|BOOKING' "$app_file"; then
   printf '%s\n' 'Browse-first UI still exposes verbose selection or instruction labels.' >&2
