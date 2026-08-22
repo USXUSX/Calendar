@@ -8,6 +8,7 @@
 - GitHub repository: `USXUSX/Calendar`; local `origin` points to `git@github.com:USXUSX/Calendar.git`.
 - The existing Calendar prototype will not be migrated during foundation setup.
 - 2026-08-20, Issue #5: the first read-only UI uses browser-native HTML, CSS, and ES modules with no application framework or runtime dependencies. It is served locally as static files, reads only committed synthetic JSON, and exists to validate the display contract and information design before a production architecture is selected.
+- 2026-08-22, Issue #27: real trip data is kept only under `/Users/us/Tools/LocalData/Calendar_Local/trips/<trip-id>/`. `current.json` is the adopted source of truth, `candidate.json` is an unadopted complete-JSON proposal, and `history/` preserves the preceding `current.json` when a candidate is adopted. Chat updates use the adopted complete JSON plus Calendar update material and return a new complete JSON; no candidate is adopted automatically.
 
 ## Pending
 

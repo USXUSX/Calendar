@@ -21,6 +21,7 @@ The first dependency-free, read-only web prototype is implemented from a synthet
 - `docs/workflow.md`: future Issue-to-PR workflow
 - `docs/decisions.md`: confirmed architectural decisions
 - `docs/calendar-specification.md`: confirmed Calendar data and AI-assisted update specification
+- `docs/operation.md`: private trip data and complete-JSON update operation
 - `Sources/`: application source code when implementation starts
 - `Tests/`: automated tests and test guidance
 - `Samples/`: synthetic, non-sensitive examples safe to commit
@@ -52,3 +53,6 @@ python3 -m http.server 4173
 
 Open `http://localhost:4173/Sources/web/`. The preview is local and read-only;
 it does not publish or connect to external services.
+
+Real trip data is kept outside this repository. See
+[`docs/operation.md`](docs/operation.md) before viewing or updating it.
