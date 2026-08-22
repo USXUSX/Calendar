@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Serve Calendar web assets and adopted local trip JSON on loopback only."""
+"""Serve Calendar web assets and formal trip JSON on loopback only."""
 
 from __future__ import annotations
 
@@ -20,10 +20,10 @@ TRIP_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,99}\Z")
 
 
 class TripDataError(Exception):
-    """An adopted trip file cannot be safely served."""
+    """A formal trip file cannot be read or served."""
 
 
-def load_current(path: Path, expected_id: str) -> dict:
+def load_trip(path: Path, expected_id: str) -> dict:
     try:
         with path.open(encoding="utf-8") as handle:
             value = json.load(handle)
@@ -31,25 +31,22 @@ def load_current(path: Path, expected_id: str) -> dict:
         raise TripDataError(f"cannot read valid JSON for trip {expected_id}") from error
     if not isinstance(value, dict):
         raise TripDataError(f"trip {expected_id} does not contain a JSON object")
-    metadata = value.get("trip") if isinstance(value.get("trip"), dict) else value
-    actual_id = metadata.get("id")
+    actual_id = value.get("id")
     if actual_id != expected_id:
-        raise TripDataError(f"trip folder and JSON id do not match for {expected_id}")
+        raise TripDataError(f"trip filename and JSON id do not match for {expected_id}")
+    if not isinstance(value.get("title"), str) or not isinstance(value.get("dateRange"), dict):
+        raise TripDataError(f"trip {expected_id} is not formal Calendar JSON")
     return value
 
 
 def trip_summary(value: dict) -> dict:
-    metadata = value.get("trip") if isinstance(value.get("trip"), dict) else value
-    title = metadata.get("name", metadata.get("title"))
-    date_range = metadata.get("dateRange") or {
-        "start": metadata.get("startDate"),
-        "end": metadata.get("endDate"),
-    }
+    title = value.get("title")
+    date_range = value.get("dateRange")
     if not isinstance(title, str) or not title or not isinstance(date_range, dict):
-        raise TripDataError(f"trip {metadata.get('id', '(unknown)')} is missing list metadata")
+        raise TripDataError(f"trip {value.get('id', '(unknown)')} is missing list metadata")
     if not all(isinstance(date_range.get(key), str) and date_range[key] for key in ("start", "end")):
-        raise TripDataError(f"trip {metadata.get('id', '(unknown)')} has an invalid date range")
-    return {"id": metadata["id"], "title": title, "dateRange": date_range}
+        raise TripDataError(f"trip {value.get('id', '(unknown)')} has an invalid date range")
+    return {"id": value["id"], "title": title, "dateRange": date_range}
 
 
 def make_handler(local_data: Path):
@@ -77,31 +74,29 @@ def make_handler(local_data: Path):
                 try:
                     summaries = []
                     if trips_root.is_dir():
-                        for folder in sorted(item for item in trips_root.iterdir() if item.is_dir()):
-                            if not TRIP_ID.fullmatch(folder.name):
-                                raise TripDataError("an invalid trip folder name exists")
-                            current = folder / "current.json"
-                            if not current.is_file():
-                                continue
-                            summaries.append(trip_summary(load_current(current, folder.name)))
+                        for trip_file in sorted(trips_root.glob("*.json")):
+                            trip_id = trip_file.stem
+                            if not TRIP_ID.fullmatch(trip_id):
+                                raise TripDataError("an invalid trip filename exists")
+                            summaries.append(trip_summary(load_trip(trip_file, trip_id)))
                     self._json(HTTPStatus.OK, summaries)
                 except TripDataError as error:
                     print(f"Calendar data error: {error}", file=sys.stderr)
                     self._api_error(HTTPStatus.INTERNAL_SERVER_ERROR, str(error))
                 return
 
-            match = re.fullmatch(r"/api/trips/([^/]+)/current", path)
+            match = re.fullmatch(r"/api/trips/([^/]+)", path)
             if match:
                 trip_id = match.group(1)
                 if not TRIP_ID.fullmatch(trip_id):
                     self._api_error(HTTPStatus.BAD_REQUEST, "invalid trip id")
                     return
-                current = trips_root / trip_id / "current.json"
-                if not current.is_file():
+                trip_file = trips_root / f"{trip_id}.json"
+                if not trip_file.is_file():
                     self._api_error(HTTPStatus.NOT_FOUND, "trip not found")
                     return
                 try:
-                    self._json(HTTPStatus.OK, load_current(current, trip_id))
+                    self._json(HTTPStatus.OK, load_trip(trip_file, trip_id))
                 except TripDataError as error:
                     print(f"Calendar data error: {error}", file=sys.stderr)
                     self._api_error(HTTPStatus.INTERNAL_SERVER_ERROR, str(error))

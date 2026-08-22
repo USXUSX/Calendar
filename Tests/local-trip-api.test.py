@@ -25,14 +25,11 @@ class LocalTripApiTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.local_data = Path(self.temp.name)
+        trips = self.local_data / "trips"
+        trips.mkdir()
         for trip_id, title, start in (("future-trip", "Future Trip", "2099-03-01"), ("past-trip", "Past Trip", "2020-02-01")):
-            folder = self.local_data / "trips" / trip_id
-            folder.mkdir(parents=True)
-            (folder / "history").mkdir()
             payload = {"id": trip_id, "title": title, "dateRange": {"start": start, "end": start}, "private": "fixture"}
-            (folder / "current.json").write_text(json.dumps(payload), encoding="utf-8")
-            (folder / "candidate.json").write_text(json.dumps(payload), encoding="utf-8")
-            (folder / "history" / "current-old.json").write_text(json.dumps(payload), encoding="utf-8")
+            (trips / f"{trip_id}.json").write_text(json.dumps(payload), encoding="utf-8")
         self.process = subprocess.Popen(
             [sys.executable, str(SERVER), "--port", "0", "--local-data", str(self.local_data)],
             stdout=subprocess.PIPE,
@@ -54,23 +51,22 @@ class LocalTripApiTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual({trip["id"] for trip in trips}, {"future-trip", "past-trip"})
         self.assertEqual(set(trips[0]), {"id", "title", "dateRange"})
-        status, current = request(self.base, "/api/trips/future-trip/current")
+        status, current = request(self.base, "/api/trips/future-trip")
         self.assertEqual(status, 200)
         self.assertEqual(current["private"], "fixture")
 
     def test_rejects_missing_private_and_write_paths(self):
-        self.assertEqual(request(self.base, "/api/trips/missing/current")[0], 404)
+        self.assertEqual(request(self.base, "/api/trips/missing")[0], 404)
         self.assertEqual(request(self.base, "/api/trips/future-trip/candidate")[0], 404)
-        self.assertEqual(request(self.base, "/api/trips/future-trip/history/current-old.json")[0], 404)
-        self.assertEqual(request(self.base, "/api/trips/future-trip/current", "POST")[0], 405)
-        self.assertEqual(request(self.base, "/api/trips/..%2Ffuture-trip/current")[0], 404)
+        self.assertEqual(request(self.base, "/api/trips/future-trip", "POST")[0], 405)
+        self.assertEqual(request(self.base, "/api/trips/..%2Ffuture-trip")[0], 404)
 
     def test_reports_invalid_json_and_id_mismatch(self):
-        current = self.local_data / "trips" / "future-trip" / "current.json"
-        current.write_text("not json", encoding="utf-8")
+        trip_file = self.local_data / "trips" / "future-trip.json"
+        trip_file.write_text("not json", encoding="utf-8")
         self.assertEqual(request(self.base, "/api/trips")[0], 500)
-        current.write_text(json.dumps({"id": "wrong", "title": "Wrong", "dateRange": {"start": "2099-01-01", "end": "2099-01-01"}}), encoding="utf-8")
-        self.assertEqual(request(self.base, "/api/trips/future-trip/current")[0], 500)
+        trip_file.write_text(json.dumps({"id": "wrong", "title": "Wrong", "dateRange": {"start": "2099-01-01", "end": "2099-01-01"}}), encoding="utf-8")
+        self.assertEqual(request(self.base, "/api/trips/future-trip")[0], 500)
 
 
 if __name__ == "__main__":

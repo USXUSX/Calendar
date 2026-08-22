@@ -4,10 +4,10 @@ Calendar is the first standard project in `/Users/us/Tools`, built with a three-
 
 ## Current state
 
-The first dependency-free, read-only web prototype loads adopted real trip JSON
-from private `Calendar_Local` storage when run through its loopback-only server.
-Static review environments continue to use the committed synthetic sample. No
-production framework has been selected.
+The dependency-free, read-only web prototype displays formal Calendar trip JSON
+from private `Calendar_Local` storage through a minimal loopback-only server.
+Static review environments use the committed synthetic sample. Legacy JSON
+compatibility and candidate/history management are not part of the app.
 
 ## Three layers
 
@@ -54,9 +54,9 @@ From the repository root, start the loopback-only read server:
 python3 scripts/serve_calendar.py
 ```
 
-Open `http://127.0.0.1:4174/Sources/web/`. The server exposes only adopted
-`current.json` files through read-only API routes; it does not expose
-`candidate.json`, `history/`, or the rest of `Calendar_Local`.
+Open `http://127.0.0.1:4174/Sources/web/`. The server exposes only formal
+`trips/<trip-id>.json` files through read-only routes; it does not expose the
+rest of `Calendar_Local`.
 
 Tests can override the private-data root with `--local-data PATH` or the
 `CALENDAR_LOCAL_DATA` environment variable. The server always binds to
