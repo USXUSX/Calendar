@@ -785,6 +785,8 @@ body[data-page="home"] .trip-line span { color: #365452; font-weight: 700; }
   text-align: left;
 }
 .day-toggle { min-width: 0; align-items: start; }
+.day-copy { min-width: 0; }
+.day-copy small { overflow-wrap: anywhere; white-space: normal; }
 .map-day-heading {
   padding-inline: 6px;
   border-bottom: 1px solid var(--line);

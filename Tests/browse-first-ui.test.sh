@@ -145,6 +145,10 @@ fi
 
 grep -Fq 'data-open-comment-target' "$app_file"
 grep -Fq 'data-copy-update' "$app_file"
+grep -Fq 'const importantNote = booking.notes' "$app_file"
+grep -Fq 'entry.details?.map((detail)' "$app_file"
+grep -Fq 'const title = entry.action' "$app_file"
+grep -Fq '.day-copy small { overflow-wrap: anywhere; white-space: normal; }' "$style_file"
 
 if grep -Fq 'itinerary-grid' "$app_file" || grep -Fq '.itinerary-grid' "$style_file"; then
   printf '%s\n' 'Itinerary must show all days vertically instead of placing days in a grid.' >&2
