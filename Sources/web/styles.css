@@ -695,7 +695,7 @@ body[data-page="home"] .trip-line span { color: #365452; font-weight: 700; }
   color: var(--ink);
   font-family: inherit;
   font-variant-numeric: proportional-nums;
-  font-feature-settings: "pnum" 1;
+  font-feature-settings: "palt" 1, "pnum" 1;
   letter-spacing: normal;
 }
 
