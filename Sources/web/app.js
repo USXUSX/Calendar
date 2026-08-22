@@ -53,12 +53,6 @@ const formatClock = (value) => value ? value.replace(/^0/, "") : "";
 const formatCurrentDate = (date = new Date()) => currentDateFormatter.format(date).replace(/\(([^)]+)\)$/, "（$1）");
 const formatIsoLocalDate = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
-const modeLabels = {
-  fixed: "時刻確定",
-  range: "時間帯",
-  undecided: "時間未定",
-};
-
 const transportLabels = {
   ferry: "フェリー",
   walk: "徒歩",
@@ -74,20 +68,6 @@ const categoryLabels = {
   activity: "観光・チケット",
   other: "その他",
 };
-
-function formatTime(time) {
-  if (time.mode === "undecided") return "未定";
-  if (time.end) return `${formatClock(time.start)}〜${formatClock(time.end)}`;
-  return formatClock(time.start);
-}
-
-function selectionLabel(selection) {
-  const { minSelections: min, maxSelections: max } = selection;
-  if (min === null && max === null) return "選択数は未定";
-  if (min === max) return `${min}箇所を予定`;
-  if (max === null) return `${min}箇所以上を予定`;
-  return `${min}〜${max}箇所を予定`;
-}
 
 function placeRating(place) {
   if (!place.rating) return "";
@@ -126,6 +106,7 @@ function renderHome(trip) {
 const filterLabels = { all: "全て", transport: "移動", sightseeing: "観光", food: "食事", accommodation: "宿泊" };
 const placeCategory = (place) => place?.category === "restaurant" ? "food" : place?.category === "hotel" ? "accommodation" : "sightseeing";
 const entryCategory = (entry, placesById) => entry.kind === "transport" ? "transport" : (entry.category || placeCategory(placesById.get(entry.placeSelection.selection[0])));
+const daySwitcher = (scope, active, days) => `<nav class="day-switcher ${scope === "map" ? "map-days" : ""}" aria-label="${scope === "map" ? "地図" : "旅程"}の日付">${[["all", "全日程"], ...days.map((day) => [day.id, formatDate(day.date)])].map(([key, label]) => `<button type="button" data-${scope}-day="${escapeHtml(key)}" class="${active === key ? "active" : ""}">${escapeHtml(label)}</button>`).join("")}</nav>`;
 const categoryFilter = (scope, active) => `<nav class="category-filter" aria-label="分類">${Object.entries(filterLabels).map(([key, label]) => `<button type="button" data-${scope}-category="${key}" class="${active === key ? "active" : ""}">${label}</button>`).join("")}</nav>`;
 const formatDateWithWeekday = (value) => `${formatDate(value)}（${weekdayFormatter.format(localDate(value))}）`;
 
@@ -166,7 +147,7 @@ function itineraryEntry(entry, placesById) {
 
 function renderItinerary(trip, placesById) {
   return `<div class="tab-panel" id="panel-itinerary" role="tabpanel" aria-labelledby="tab-itinerary">
-    <div class="top-controls"><nav class="day-switcher" aria-label="旅程の日付">${[["all", "全日程"], ...trip.days.map((day) => [day.id, formatDate(day.date)])].map(([key, label]) => `<button type="button" data-itinerary-day="${escapeHtml(key)}" class="${draftState.itineraryDay === key ? "active" : ""}">${escapeHtml(label)}</button>`).join("")}</nav>${categoryFilter("itinerary", draftState.itineraryCategory)}</div>
+    <div class="top-controls">${daySwitcher("itinerary", draftState.itineraryDay, trip.days)}${categoryFilter("itinerary", draftState.itineraryCategory)}</div>
     <div class="all-days">${trip.days.map((day, dayIndex) => {
       if (draftState.itineraryDay !== "all" && draftState.itineraryDay !== day.id) return "";
       const transports = trip.transports.filter((item) => day.transportIds.includes(item.id));
@@ -203,7 +184,7 @@ function renderMap(trip) {
     return `<button class="map-pin ${place.category}" style="left:${x}%;top:${y}%;--pin-color:var(--day-${place.map.dayIndex % 5 + 1})" aria-label="${escapeHtml(place.name)}" data-place-index="${index}"><span>${dayPoints.length}</span></button>`;
   }).join("");
   return `<div class="tab-panel" id="panel-map" role="tabpanel" aria-labelledby="tab-map" hidden>
-    <div class="top-controls"><nav class="day-switcher map-days" aria-label="地図の日付">${[["all", "全日程"], ...trip.days.map((day) => [day.id, formatDate(day.date)])].map(([key, label]) => `<button type="button" data-map-day="${escapeHtml(key)}" class="${draftState.mapDay === key ? "active" : ""}">${escapeHtml(label)}</button>`).join("")}</nav>${categoryFilter("map", draftState.mapCategory)}</div>
+    <div class="top-controls">${daySwitcher("map", draftState.mapDay, trip.days)}${categoryFilter("map", draftState.mapCategory)}</div>
     <div class="map-layout">
       <div class="map-card">
         <div class="map-watermark">SETONAIKAI</div>
@@ -518,13 +499,6 @@ function setupTripInteractions(app, trip) {
       draftState.pendingTripComment = "";
       rerender();
     }
-    if (event.target.closest("[data-reset-draft]")) {
-      draftState.preparation.clear();
-      draftState.rioPacking.clear();
-      draftState.placeSelections.clear();
-      draftState.instructions.clear();
-      rerender();
-    }
     const copyButton = event.target.closest("[data-copy-update]");
     if (copyButton && !copyButton.disabled) {
       const placesById = new Map(trip.places.map((place) => [place.id, place]));
@@ -548,23 +522,6 @@ function setupTripInteractions(app, trip) {
         app.querySelector("[data-instruction-key]")?.focus();
       }
     }
-    const aiTarget = event.target.closest("[data-ai-target-type]");
-    if (aiTarget) {
-      draftState.aiTarget = {
-        type: aiTarget.dataset.aiTargetType,
-        id: aiTarget.dataset.aiTargetId,
-        name: aiTarget.dataset.aiTargetName,
-      };
-      draftState.aiPanelOpen = true;
-      rerender();
-      app.querySelector("[data-instruction-key]")?.focus();
-    }
-    if (event.target.closest("[data-open-ai-all]")) {
-      draftState.aiTarget = null;
-      draftState.aiPanelOpen = true;
-      rerender();
-      app.querySelector("[data-instruction-key]")?.focus();
-    }
     if (event.target.closest("[data-close-ai]")) {
       draftState.aiPanelOpen = false;
       rerender();
@@ -583,10 +540,7 @@ function setupTripInteractions(app, trip) {
     if (event.target.value.trim()) draftState.instructions.set(key, event.target.value);
     else draftState.instructions.delete(key);
     app.querySelectorAll("[data-comment-count]").forEach((item) => { item.textContent = commentCount(); });
-    app.querySelectorAll("[data-reset-draft]").forEach((item) => { item.disabled = draftCount() === 0; });
-    const updateCount = app.querySelector("[data-update-count]");
     const copyButton = app.querySelector("[data-copy-update]");
-    if (updateCount) updateCount.textContent = updateMaterials(trip, new Map(trip.places.map((place) => [place.id, place]))).length;
     if (copyButton) copyButton.disabled = draftCount() === 0;
   });
 

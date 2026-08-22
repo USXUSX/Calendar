@@ -16,7 +16,9 @@ grep -Fq 'class="booking-table"' "$app_file"
 grep -Fq 'trip.preparation.tasks' "$app_file"
 grep -Fq 'type="checkbox" data-rio-packing-id=' "$app_file"
 grep -Fq '.bottom-nav { position: fixed;' "$style_file"
-grep -Fq 'class="day-switcher"' "$app_file"
+grep -Fq 'const daySwitcher = (scope, active, days)' "$app_file"
+grep -Fq 'daySwitcher("itinerary", draftState.itineraryDay, trip.days)' "$app_file"
+grep -Fq 'daySwitcher("map", draftState.mapDay, trip.days)' "$app_file"
 grep -Fq 'data-itinerary-day=' "$app_file"
 grep -Fq 'itineraryDay: "all"' "$app_file"
 grep -Fq 'data-toggle-day=' "$app_file"
@@ -87,6 +89,14 @@ grep -Fq '.page-shell, .page-shell * { font-family: inherit; }' "$style_file"
 grep -Fq '.page-shell { width: calc(100% - 24px); }' "$style_file"
 if grep -Fq 'class="row-action"' "$app_file"; then
   printf '%s\n' 'Per-row action buttons must not appear in the browse-first UI.' >&2
+  exit 1
+fi
+if grep -Eq 'modeLabels|function formatTime|function selectionLabel|data-reset-draft|data-ai-target-type|data-open-ai-all|data-update-count' "$app_file"; then
+  printf '%s\n' 'Removed UI behavior must not leave unreachable JavaScript behind.' >&2
+  exit 1
+fi
+if grep -Eq 'row-action|cost-summary|cost-breakdown' "$style_file"; then
+  printf '%s\n' 'Removed UI controls must not leave obsolete CSS behind.' >&2
   exit 1
 fi
 grep -Fq '.check-list li.completed { color: var(--ink-soft); text-decoration: none;' "$style_file"

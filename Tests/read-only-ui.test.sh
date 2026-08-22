@@ -11,8 +11,8 @@ test -f "$web_dir/index.html"
 test -f "$web_dir/trip.html"
 test -f "$web_dir/app.js"
 test -f "$web_dir/styles.css"
-grep -Fq 'href="./styles.css?v=issue-23-3"' "$web_dir/index.html"
-grep -Fq 'href="./styles.css?v=issue-23-3"' "$web_dir/trip.html"
+grep -Fq 'href="./styles.css?v=issue-25-1"' "$web_dir/index.html"
+grep -Fq 'href="./styles.css?v=issue-25-1"' "$web_dir/trip.html"
 if grep -Fq 'href="./styles.css"' "$web_dir/index.html" || grep -Fq 'href="./styles.css"' "$web_dir/trip.html"; then
   printf '%s\n' 'Review pages must use the versioned stylesheet URL.' >&2
   exit 1

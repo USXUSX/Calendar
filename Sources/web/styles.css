@@ -178,12 +178,9 @@ h1, h2, h3 { font-family: Georgia, "Yu Mincho", serif; }
 .bottom-nav .tab { min-width: 76px; padding: 10px 12px; }
 .draft-count { min-width: 17px; height: 17px; margin-left: 4px; display: inline-grid; place-items: center; border-radius: 999px; background: var(--coral-soft); color: #9d3d2b; font-size: 9px; }
 .ai-primary { min-width: 112px; padding: 9px 15px; border: 0; border-radius: 10px; background: var(--ink); color: white; cursor: pointer; font-size: 12px; font-weight: 800; }
-.row-action { width: 26px; height: 26px; padding: 0; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--ink-soft); cursor: pointer; font-weight: 800; line-height: 1; }
-.row-action:hover, .row-action:focus-visible { border-color: var(--line); background: white; color: var(--teal); }
 .entry-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .entry-top .entry-kicker { margin: 0; }
 .day-heading { align-items: center; }
-.day-heading .row-action { margin-left: auto; }
 .day-section { min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,253,248,.68); }
 .timeline::before { left: 93px; }
 .timeline-entry { grid-template-columns: 76px 34px minmax(0, 1fr); }
@@ -191,7 +188,6 @@ h1, h2, h3 { font-family: Georgia, "Yu Mincho", serif; }
 .candidate-list { margin-top: 8px; }
 .candidate-row { padding: 7px 0; }
 .card-heading { align-items: center; margin-bottom: 14px; }
-.card-heading .row-action { margin-left: auto; }
 .check-list li { min-height: 43px; padding: 6px 0; }
 .check-list li > label { min-width: 0; }
 .check-list li.completed { color: var(--ink-soft); text-decoration: none; }
@@ -209,12 +205,6 @@ h1, h2, h3 { font-family: Georgia, "Yu Mincho", serif; }
 .booking-row strong { font-size: 12px; }
 .booking-row .official-note { margin: 0; color: var(--ink-soft); font-size: 10px; }
 .booking-row .status { margin: 0; white-space: nowrap; }
-.cost-summary { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 16px; padding-top: 12px; }
-.cost-summary > div:first-child span, .cost-summary > div:first-child strong { display: block; }
-.cost-summary > div:first-child span { color: var(--ink-soft); font-size: 9px; }
-.cost-summary > div:first-child strong { font: 700 20px Georgia, serif; }
-.cost-breakdown { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
-.cost-breakdown div { display: flex; gap: 5px; color: var(--ink-soft); font-size: 9px; }
 .material-actions { display: flex; gap: 8px; }
 .quiet-button { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink-soft); cursor: pointer; font-size: 10px; font-weight: 700; }
 .quiet-button:disabled { opacity: .4; cursor: default; }
@@ -244,9 +234,6 @@ h1, h2, h3 { font-family: Georgia, "Yu Mincho", serif; }
   .booking-row { grid-template-columns: 1fr auto 28px; gap: 8px; }
   .booking-row .official-note { grid-column: 1 / -1; grid-row: 2; }
   .booking-row .status { grid-column: 2; grid-row: 1; }
-  .booking-row .row-action { grid-column: 3; grid-row: 1; }
-  .cost-summary { align-items: flex-start; flex-direction: column; gap: 8px; }
-  .cost-breakdown { justify-content: flex-start; }
   .material-heading, .material-actions { align-items: stretch; flex-direction: column; }
   .ai-panel { bottom: 76px; padding: 15px; }
 }
@@ -304,7 +291,6 @@ h1, h2, h3 { font-family: Georgia, "Yu Mincho", serif; }
   .bottom-nav { height: 60px; padding: 6px 8px; }
   .itinerary-row { grid-template-columns: 82px 54px minmax(0,1fr) 28px; gap: 7px; }
   .itinerary-row .row-duration { grid-column: 1; grid-row: 2; }
-  .itinerary-row .row-action { grid-column: 4; grid-row: 1 / span 2; }
   .row-main { align-items: flex-start; flex-direction: column; gap: 4px; }
   .day-switcher button { min-width: 0; flex: 1; }
   .day-switcher button strong { font-size: 9px; }
@@ -412,7 +398,6 @@ body[data-page="home"] .page-shell { padding-bottom: 36px; }
 .check-list li > label { display:grid; grid-template-columns:28px 62px minmax(0,1fr); align-items:center; width:100%; }.rio-list li > label { grid-template-columns:28px 1fr; }.check-list time { text-align:center; font-size:11px; }
 .care-setting { justify-content:flex-start; border:0; background:transparent; padding:9px 4px; }
 .booking-row { grid-template-columns:28px 55px 94px minmax(0,1fr) 80px 28px; gap:9px; }.booking-row > time,.booking-row > b { text-align:center; font-size:11px; }.booking-row .official-note { display:block; margin-top:2px; color:var(--ink); }.booking-check { font-weight:800; text-align:center; }
-.cost-summary { border-top:1px solid var(--line); }
 .comments-workspace { max-width:760px; margin:16px auto; }.comments-workspace h2 { margin:0 0 10px; font-size:20px; }
 .comment-list article { padding:9px 0; border-bottom:1px solid var(--line); }.comment-list span { color:var(--ink-soft); font-size:10px; }.comment-body { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:8px; }.comment-list button { margin-top:7px; border:0; background:transparent; color:#a44545; cursor:pointer; }.comment-list textarea,.trip-comment textarea { width:100%; min-height:44px; margin-top:3px; padding:6px; border:0; background:transparent; color:var(--ink); resize:vertical; font:inherit; }
 .trip-comment { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end; gap:8px; margin-top:20px; }.trip-comment label,.trip-comment label > span { display:block; }.trip-comment label > span { font-size:11px; font-weight:800; }.trip-comment textarea { border:1px solid var(--line); background:white; }.trip-comment > button { min-width:62px; height:44px; border:0; background:var(--ink); color:white; cursor:pointer; font-weight:800; }.trip-comment > button:disabled { opacity:.35; cursor:default; }
@@ -430,7 +415,7 @@ body[data-page="home"] .page-shell { padding-bottom: 36px; }
   .home-columns { grid-template-columns:1fr; }.calendar-cell { min-height:56px; padding:4px; }.calendar-cell.trip-span a { font-size:9px; }
   .day-toggle { grid-template-columns:1fr auto; }.day-toggle > span:first-child { grid-column:1; }.day-copy { grid-column:1/-1; }
   .itinerary-row { grid-template-columns:56px 42px minmax(0,1fr) 24px; gap:5px; }
-  .booking-row { grid-template-columns:22px 45px 72px minmax(0,1fr) 22px; }.booking-row > b { grid-column:4; }.booking-row .row-action { grid-column:5;grid-row:1; }
+  .booking-row { grid-template-columns:22px 45px 72px minmax(0,1fr) 22px; }.booking-row > b { grid-column:4; }
 }
 
 /* Issue #15: restore readable type hierarchy and approved compact layouts. */
@@ -472,9 +457,6 @@ body { font-size: 17px; }
 .booking-category { grid-column: 3; }
 .booking-content { grid-column: 4; }
 .booking-amount { grid-column: 5; }
-.booking-row .row-action { grid-column: 6; grid-row: 1; }
-.cost-summary > div:first-child span, .cost-breakdown div { font-size: 14px; }
-.cost-summary > div:first-child strong { font-size: 22px; }
 .comment-list article { padding: 12px 0; }
 .comment-list article > span { color: var(--ink-soft); font-size: 14px; }
 .comment-body { align-items: center; }
@@ -496,7 +478,6 @@ body { font-size: 17px; }
 @media (max-width: 680px) {
   .booking-row { grid-template-columns: 28px 62px 92px minmax(0,1fr) 28px; }
   .booking-amount { grid-column: 4; margin-top: 4px; text-align: left !important; }
-  .booking-row .row-action { grid-column: 5; grid-row: 1; }
 }
 
 /* PR #16 review: use the full device width and keep navigation fixed. */
@@ -511,12 +492,6 @@ body[data-page="home"] .page-shell { padding-top: 14px; }
 .booking-row { position: relative; }
 .day-toggle { border-left-width: 8px; background: color-mix(in srgb, var(--day-color) 8%, transparent); }
 .map-day-heading { border-left-width: 8px; background: color-mix(in srgb, var(--day-color) 8%, transparent); }
-.row-action { opacity: 0; pointer-events: none; }
-.itinerary-row:hover .row-action, .itinerary-row:focus-within .row-action,
-.day-heading:hover .row-action, .day-heading:focus-within .row-action,
-.card-heading:hover .row-action, .card-heading:focus-within .row-action,
-.booking-row:hover .row-action, .booking-row:focus-within .row-action,
-.row-action:focus-visible { opacity: 1; pointer-events: auto; }
 
 @media (max-width: 820px) {
   .page-shell { width: calc(100vw - 16px); }
@@ -524,7 +499,6 @@ body[data-page="home"] .page-shell { padding-top: 14px; }
   .day-switcher { gap: 12px; overflow-x: auto; }
   .category-filter { gap: 8px; overflow-x: auto; }
   .booking-row { grid-template-columns: 28px 64px 104px minmax(0,1fr) 92px; }
-  .booking-row .row-action { position: absolute; right: 0; }
 }
 
 /* Latest PR #16 mock fidelity review; final cascade. */
