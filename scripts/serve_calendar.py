@@ -23,7 +23,7 @@ class TripDataError(Exception):
     """An adopted trip file cannot be safely served."""
 
 
-def load_current(path: Path, expected_id: str) -> dict:
+def load_trip_file(path: Path, expected_id: str) -> dict:
     try:
         with path.open(encoding="utf-8") as handle:
             value = json.load(handle)
@@ -83,25 +83,26 @@ def make_handler(local_data: Path):
                             current = folder / "current.json"
                             if not current.is_file():
                                 continue
-                            summaries.append(trip_summary(load_current(current, folder.name)))
+                            summaries.append(trip_summary(load_trip_file(current, folder.name)))
                     self._json(HTTPStatus.OK, summaries)
                 except TripDataError as error:
                     print(f"Calendar data error: {error}", file=sys.stderr)
                     self._api_error(HTTPStatus.INTERNAL_SERVER_ERROR, str(error))
                 return
 
-            match = re.fullmatch(r"/api/trips/([^/]+)/current", path)
+            match = re.fullmatch(r"/api/trips/([^/]+)/(current|candidate)", path)
             if match:
                 trip_id = match.group(1)
+                version = match.group(2)
                 if not TRIP_ID.fullmatch(trip_id):
                     self._api_error(HTTPStatus.BAD_REQUEST, "invalid trip id")
                     return
-                current = trips_root / trip_id / "current.json"
-                if not current.is_file():
-                    self._api_error(HTTPStatus.NOT_FOUND, "trip not found")
+                trip_file = trips_root / trip_id / f"{version}.json"
+                if not trip_file.is_file():
+                    self._api_error(HTTPStatus.NOT_FOUND, f"{version} trip not found")
                     return
                 try:
-                    self._json(HTTPStatus.OK, load_current(current, trip_id))
+                    self._json(HTTPStatus.OK, load_trip_file(trip_file, trip_id))
                 except TripDataError as error:
                     print(f"Calendar data error: {error}", file=sys.stderr)
                     self._api_error(HTTPStatus.INTERNAL_SERVER_ERROR, str(error))

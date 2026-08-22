@@ -58,12 +58,20 @@ class LocalTripApiTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(current["private"], "fixture")
 
+        status, candidate = request(self.base, "/api/trips/future-trip/candidate")
+        self.assertEqual(status, 200)
+        self.assertEqual(candidate["id"], "future-trip")
+
     def test_rejects_missing_private_and_write_paths(self):
         self.assertEqual(request(self.base, "/api/trips/missing/current")[0], 404)
-        self.assertEqual(request(self.base, "/api/trips/future-trip/candidate")[0], 404)
         self.assertEqual(request(self.base, "/api/trips/future-trip/history/current-old.json")[0], 404)
+        self.assertEqual(request(self.base, "/api/trips/future-trip/notes.json")[0], 404)
         self.assertEqual(request(self.base, "/api/trips/future-trip/current", "POST")[0], 405)
+        self.assertEqual(request(self.base, "/api/trips/future-trip/candidate", "PUT")[0], 405)
         self.assertEqual(request(self.base, "/api/trips/..%2Ffuture-trip/current")[0], 404)
+
+        (self.local_data / "trips" / "past-trip" / "candidate.json").unlink()
+        self.assertEqual(request(self.base, "/api/trips/past-trip/candidate")[0], 404)
 
     def test_reports_invalid_json_and_id_mismatch(self):
         current = self.local_data / "trips" / "future-trip" / "current.json"
@@ -71,6 +79,12 @@ class LocalTripApiTest(unittest.TestCase):
         self.assertEqual(request(self.base, "/api/trips")[0], 500)
         current.write_text(json.dumps({"id": "wrong", "title": "Wrong", "dateRange": {"start": "2099-01-01", "end": "2099-01-01"}}), encoding="utf-8")
         self.assertEqual(request(self.base, "/api/trips/future-trip/current")[0], 500)
+
+        candidate = self.local_data / "trips" / "past-trip" / "candidate.json"
+        candidate.write_text("not json", encoding="utf-8")
+        self.assertEqual(request(self.base, "/api/trips/past-trip/candidate")[0], 500)
+        candidate.write_text(json.dumps({"id": "wrong", "title": "Wrong", "dateRange": {"start": "2020-01-01", "end": "2020-01-01"}}), encoding="utf-8")
+        self.assertEqual(request(self.base, "/api/trips/past-trip/candidate")[0], 500)
 
 
 if __name__ == "__main__":

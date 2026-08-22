@@ -55,8 +55,9 @@ python3 scripts/serve_calendar.py
 ```
 
 Open `http://127.0.0.1:4174/Sources/web/`. The server exposes only adopted
-`current.json` files through read-only API routes; it does not expose
-`candidate.json`, `history/`, or the rest of `Calendar_Local`.
+`current.json` files and explicitly requested `candidate.json` files through
+read-only API routes; it does not expose `history/` or the rest of
+`Calendar_Local`.
 
 Tests can override the private-data root with `--local-data PATH` or the
 `CALENDAR_LOCAL_DATA` environment variable. The server always binds to

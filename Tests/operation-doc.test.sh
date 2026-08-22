@@ -12,7 +12,7 @@ for required in \
   'current.json' \
   'candidate.json' \
   'history/' \
-  '採用済み `current.json` 全文' \
+  '採用済みの元 `current.json` 全文' \
   '差分や部分JSONではなく' \
   '不採用の場合' \
   '新規旅行を作る入口'
@@ -21,7 +21,9 @@ do
 done
 
 grep -F 'python3 scripts/serve_calendar.py' "$operation" >/dev/null
-grep -F 'candidate.json`、`history/`' "$operation" >/dev/null
+grep -F '「AI更新依頼をコピー」' "$operation" >/dev/null
+grep -F '候補版・未採用' "$operation" >/dev/null
+grep -F '元の `current.json`' "$operation" >/dev/null
 
 grep -F '[`docs/operation.md`](docs/operation.md)' "$root/README.md" >/dev/null
 

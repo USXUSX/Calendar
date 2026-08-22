@@ -1,4 +1,5 @@
 import { normalizeTrip } from "./trip-normalizer.mjs";
+import { createUpdatePackage } from "./update-package.mjs";
 
 const SAMPLE_URL = "../../Samples/synthetic-trip.json";
 
@@ -285,7 +286,7 @@ function instructionTargetLabel(trip, key, placesById) {
     const booking = trip.bookings.find((item) => item.id === id);
     const transport = trip.transports.find((item) => item.id === booking?.transportId);
     const transportName = transport ? `${placesById.get(transport.fromPlaceId)?.name ?? "出発地"} → ${placesById.get(transport.toPlaceId)?.name ?? "到着地"}` : null;
-    return `準備 › ${placesById.get(booking?.placeId)?.name ?? transportName ?? "予約項目"}`;
+    return `準備 › ${placesById.get(booking?.placeId)?.name ?? transportName ?? booking?.label ?? "予約項目"}`;
   }
   if (type === "preparation") {
     const task = trip.preparation.tasks.find((item) => item.id === id);
@@ -358,27 +359,8 @@ function updateMaterials(trip, placesById) {
   return materials;
 }
 
-function updateMaterialText(trip, materials) {
-  const lines = [
-    "Calendar AI更新材料",
-    `対象旅行: ${trip.title}`,
-    `Trip ID: ${trip.id}`,
-    `変更件数: ${materials.length}件`,
-    "",
-    "以下は、採用済み完全JSONから次版の完全JSONを再生成するための更新材料です。差分パッチや次版JSONではありません。",
-    "",
-  ];
-  materials.forEach((material, index) => {
-    lines.push(`${index + 1}. ${material.name}`);
-    lines.push(`   対象種別: ${material.type}`);
-    lines.push(`   安定ID: ${material.id}`);
-    lines.push(`   変更内容: ${material.change}`);
-    lines.push("");
-  });
-  return lines.join("\n").trimEnd();
-}
-
-function renderNotes(trip, placesById) {
+function renderNotes(trip, placesById, readOnly = false) {
+  if (readOnly) return `<div class="tab-panel" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" hidden><section class="comments-workspace candidate-read-only"><h2>コメント</h2><p>候補版は確認専用です。コメント追加やAI更新依頼は現在版で行ってください。</p></section></div>`;
   const commentTargets = [
     { type: "trip", id: trip.id },
     ...trip.days.flatMap((day) => [
@@ -398,7 +380,7 @@ function renderNotes(trip, placesById) {
   }).join("");
   return `<div class="tab-panel" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" hidden>
     <section class="comments-workspace">
-      <div class="comments-heading"><h2>コメント</h2><div class="comment-actions"><label><span class="visually-hidden">コメント対象</span><select data-comment-target>${commentTargets.map((target) => { const key = targetKey(target.type, target.id); return `<option value="${escapeHtml(key)}">${escapeHtml(instructionTargetLabel(trip, key, placesById))}</option>`; }).join("")}</select></label><button type="button" data-open-comment-target>コメントを追加</button><button type="button" data-copy-update ${draftCount() ? "" : "disabled"}>AI更新材料をコピー</button></div></div>
+      <div class="comments-heading"><h2>コメント</h2><div class="comment-actions"><label><span class="visually-hidden">コメント対象</span><select data-comment-target>${commentTargets.map((target) => { const key = targetKey(target.type, target.id); return `<option value="${escapeHtml(key)}">${escapeHtml(instructionTargetLabel(trip, key, placesById))}</option>`; }).join("")}</select></label><button type="button" data-open-comment-target>コメントを追加</button><button type="button" data-copy-update ${draftCount() ? "" : "disabled"}>AI更新依頼をコピー</button></div></div>
       <p class="copy-status" data-copy-status role="status"></p>
       <div class="comment-list">${comments || `<p class="empty-line">未処理のコメントはありません</p>`}</div>
       <div class="trip-comment"><label><span>旅行全体へのコメントを追加</span><textarea data-new-trip-comment placeholder="コメントを入力">${escapeHtml(draftState.pendingTripComment)}</textarea></label><button type="button" data-add-trip-comment ${draftState.pendingTripComment.trim() ? "" : "disabled"}>追加</button></div>
@@ -417,10 +399,14 @@ function renderAiPanel(trip) {
   </section>`;
 }
 
-function renderTrip(trip) {
+function renderTrip(trip, view) {
   document.title = `${trip.title} | Calendar`;
   const placesById = new Map(trip.places.map((place) => [place.id, place]));
-  return `<section class="trip-summary"><h1>${escapeHtml(trip.title)}<span>（${escapeHtml(formatDateRange(trip.dateRange))}）</span></h1></section>
+  const candidate = view.version === "candidate";
+  const versionControl = candidate
+    ? `<div class="version-status"><strong>候補版・未採用</strong><a href="./trip.html?id=${encodeURIComponent(trip.id)}">現在版に戻る</a></div>`
+    : view.candidateAvailable ? `<div class="version-status"><a href="./trip.html?id=${encodeURIComponent(trip.id)}&version=candidate">候補版を確認</a></div>` : "";
+  return `<section class="trip-summary"><h1>${escapeHtml(trip.title)}<span>（${escapeHtml(formatDateRange(trip.dateRange))}）</span></h1>${versionControl}</section>
     <nav class="tabs bottom-nav" aria-label="旅行詳細">
       <a class="tab" href="./index.html">カレンダー</a>
       <button id="tab-itinerary" class="tab active" role="tab" aria-selected="true" aria-controls="panel-itinerary" data-tab="itinerary">旅程</button>
@@ -431,8 +417,8 @@ function renderTrip(trip) {
     ${renderItinerary(trip, placesById)}
     ${renderMap(trip)}
     ${renderPreparation(trip, placesById)}
-    ${renderNotes(trip, placesById)}
-    ${renderAiPanel(trip)}`;
+    ${renderNotes(trip, placesById, candidate)}
+    ${candidate ? "" : renderAiPanel(trip)}`;
 }
 
 function activateTab(name, updateHistory = true) {
@@ -460,10 +446,17 @@ function updateFilterState(target) {
   return true;
 }
 
-function setupTripInteractions(app, trip) {
+function applyCandidateReadOnly(app, readOnly) {
+  if (!readOnly) return;
+  app.querySelectorAll("[data-preparation-id], [data-rio-packing-id], [data-place-selection]").forEach((control) => { control.disabled = true; });
+}
+
+function setupTripInteractions(app, trip, view) {
+  const readOnly = view.version === "candidate";
   const rerender = () => {
     const activeTab = location.hash.slice(1) || "itinerary";
-    app.innerHTML = renderTrip(trip);
+    app.innerHTML = renderTrip(trip, view);
+    applyCandidateReadOnly(app, readOnly);
     activateTab(activeTab, false);
   };
 
@@ -492,6 +485,7 @@ function setupTripInteractions(app, trip) {
       else draftState.collapsedMapDays.add(id);
       rerender();
     }
+    if (readOnly) return;
     const cancelledComment = event.target.closest("[data-cancel-comment]");
     if (cancelledComment) {
       draftState.instructions.delete(cancelledComment.dataset.cancelComment);
@@ -514,9 +508,9 @@ function setupTripInteractions(app, trip) {
     if (copyButton && !copyButton.disabled) {
       const placesById = new Map(trip.places.map((place) => [place.id, place]));
       const materials = updateMaterials(trip, placesById);
-      navigator.clipboard.writeText(updateMaterialText(trip, materials)).then(() => {
+      navigator.clipboard.writeText(createUpdatePackage(view.originalJson, trip, materials)).then(() => {
         const status = app.querySelector("[data-copy-status]");
-        if (status) status.textContent = `${materials.length}件の変更内容をコピーしました。一時状態は保持されています。`;
+        if (status) status.textContent = `元の完全JSONと${materials.length}件の変更内容を1パッケージでコピーしました。一時状態は保持されています。`;
       }).catch(() => {
         const status = app.querySelector("[data-copy-status]");
         if (status) status.textContent = "コピーできませんでした。ブラウザのクリップボード許可を確認してください。";
@@ -540,6 +534,7 @@ function setupTripInteractions(app, trip) {
   });
 
   app.addEventListener("input", (event) => {
+    if (readOnly) return;
     if (event.target.dataset.newTripComment !== undefined) {
       draftState.pendingTripComment = event.target.value;
       const addButton = app.querySelector("[data-add-trip-comment]");
@@ -556,6 +551,7 @@ function setupTripInteractions(app, trip) {
   });
 
   app.addEventListener("change", (event) => {
+    if (readOnly) return;
     if (event.target.dataset.instructionKey) return;
     const preparationId = event.target.dataset.preparationId;
     if (preparationId) {
@@ -590,6 +586,7 @@ function setupTripInteractions(app, trip) {
 
   const requested = location.hash.slice(1);
   const available = [...document.querySelectorAll("[data-tab]")].some((tab) => tab.dataset.tab === requested);
+  applyCandidateReadOnly(app, readOnly);
   activateTab(available ? requested : "itinerary", false);
 }
 
@@ -612,7 +609,7 @@ async function loadData(page) {
   if (indexResponse.status === 404) {
     const sampleResponse = await fetch(SAMPLE_URL, { cache: "no-store" });
     const sample = await responseJson(sampleResponse, "合成JSONを読み込めませんでした");
-    return page === "trip" ? normalizeTrip(sample) : [tripSummary(sample)];
+    return page === "trip" ? { trip: normalizeTrip(sample), originalJson: sample, version: "current", candidateAvailable: false } : [tripSummary(sample)];
   }
   const trips = await responseJson(indexResponse, "旅行一覧を読み込めませんでした");
   if (!Array.isArray(trips) || trips.length === 0) throw new Error("採用済みの旅行がありません。Calendar_Localを確認してください。");
@@ -620,8 +617,19 @@ async function loadData(page) {
   const tripId = new URLSearchParams(location.search).get("id");
   if (!tripId) throw new Error("URLにTrip IDがありません。");
   if (!trips.some((trip) => trip.id === tripId)) throw new Error(`旅行が見つかりません: ${tripId}`);
-  const currentResponse = await fetch(`/api/trips/${encodeURIComponent(tripId)}/current`, { cache: "no-store" });
-  return normalizeTrip(await responseJson(currentResponse, "旅行JSONを読み込めませんでした"));
+  const requestedVersion = new URLSearchParams(location.search).get("version") === "candidate" ? "candidate" : "current";
+  let candidateAvailable = requestedVersion === "candidate";
+  if (requestedVersion === "current") {
+    const candidateResponse = await fetch(`/api/trips/${encodeURIComponent(tripId)}/candidate`, { cache: "no-store" });
+    if (candidateResponse.status === 404) candidateAvailable = false;
+    else {
+      await responseJson(candidateResponse, "候補版を確認できませんでした");
+      candidateAvailable = true;
+    }
+  }
+  const sourceResponse = await fetch(`/api/trips/${encodeURIComponent(tripId)}/${requestedVersion}`, { cache: "no-store" });
+  const originalJson = await responseJson(sourceResponse, requestedVersion === "candidate" ? "候補版を読み込めませんでした" : "旅行JSONを読み込めませんでした");
+  return { trip: normalizeTrip(originalJson), originalJson, version: requestedVersion, candidateAvailable };
 }
 
 function tripSummary(source) {
@@ -634,8 +642,8 @@ async function start() {
   try {
     const page = document.body.dataset.page;
     const data = await loadData(page);
-    app.innerHTML = page === "trip" ? renderTrip(data) : renderHome(data);
-    if (page === "trip") setupTripInteractions(app, data);
+    app.innerHTML = page === "trip" ? renderTrip(data.trip, data) : renderHome(data);
+    if (page === "trip") setupTripInteractions(app, data.trip, data);
     else setupHomeInteractions(app);
   } catch (error) {
     app.innerHTML = `<section class="error-state"><h1>旅行情報を表示できませんでした</h1><p>${escapeHtml(error.message)}</p><p>ローカル利用時は <code>python3 scripts/serve_calendar.py</code> で起動してください。</p></section>`;
