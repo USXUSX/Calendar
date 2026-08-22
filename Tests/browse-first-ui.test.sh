@@ -97,6 +97,11 @@ for selector in targets:
     pattern = rf"(?m)^\s*{re.escape(selector)}(?:\s*,|\s*\{{)"
     assert not re.search(pattern, legacy), f"legacy root rule remains: {selector}"
 
+for selector in [
+    ".top-controls .day-switcher", ".top-controls .category-filter",
+]:
+    assert selector not in legacy, f"legacy high-specificity rule remains: {selector}"
+
 for fragment in [
     "width: calc(100% - 24px);",
     "position: fixed;",
@@ -107,6 +112,9 @@ for fragment in [
     "grid-template-columns: 30px 112px 132px minmax(0, 1fr) 88px;",
     "grid-template-columns: 180px minmax(0, 1fr) auto;",
     "grid-template-columns: 28px 108px 124px minmax(0, 1fr) 82px;",
+    ".top-controls .day-switcher button,",
+    ".top-controls .category-filter button.active",
+    "gap: 2px; overflow-x: visible;",
 ]:
     assert fragment in canonical, fragment
 PY
