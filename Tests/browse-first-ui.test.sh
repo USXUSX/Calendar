@@ -44,20 +44,14 @@ grep -Fq 'data-new-trip-comment' "$app_file"
 grep -Fq 'data-add-trip-comment' "$app_file"
 grep -Fq '<h3>リオ　${trip.rioPlan.careMode' "$app_file"
 grep -Fq '.bottom-nav { left: 0; bottom: 0; width: 100%;' "$style_file"
-grep -Fq '.trip-summary { position: fixed;' "$style_file"
-grep -Fq '.page-shell { width: calc(100vw - 24px); max-width: none;' "$style_file"
 grep -Fq 'class="top-controls"' "$app_file"
 grep -Fq '.trip-summary h1 { font-size: 27px; }' "$style_file"
-grep -Fq '.itinerary-row { grid-template-columns: 98px 84px minmax(0,1fr);' "$style_file"
-grep -Fq '.itinerary-row { grid-template-columns: 88px 72px minmax(0,1fr);' "$style_file"
 grep -Fq 'class="candidate-check"' "$app_file"
 grep -Fq '.entry-time { border-right: 0; }' "$style_file"
 grep -Fq '.entry-classification { border: 0; }' "$style_file"
 grep -Fq '.map-card { position: sticky;' "$style_file"
 grep -Fq '.day-heading { grid-template-columns: minmax(0, 1fr); gap: 0; padding-right: 0; }' "$style_file"
-grep -Fq '.day-toggle { width: 100%; }' "$style_file"
 grep -Fq '.map-day-heading .day-label { font-size: 21px; white-space: nowrap; }' "$style_file"
-grep -Fq '.map-day-heading { grid-template-columns: 180px minmax(0, 1fr) auto; gap: 8px; }' "$style_file"
 grep -Fq '.map-day-heading .day-copy strong { color: var(--ink); }' "$style_file"
 grep -Fq '.map-day-heading .day-date {' "$style_file"
 grep -Fq 'font-size: 21px;' "$style_file"
@@ -69,23 +63,53 @@ if grep -Fq '.map-day-heading { grid-template-columns: 112px' "$style_file"; the
   printf '%s\n' 'Itinerary and map day headings must share the same first-column width.' >&2
   exit 1
 fi
-grep -Fq 'grid-template-columns: repeat(2, minmax(0, 1fr));' "$style_file"
 grep -Fq 'class="candidate-copy"' "$app_file"
-grep -Fq 'draftState.itineraryDay === selectedDay ? "all" : selectedDay' "$app_file"
+grep -Fq 'const filterStateKeys = ["itineraryDay", "itineraryCategory", "mapDay", "mapCategory"]' "$app_file"
+grep -Fq 'function updateFilterState(target)' "$app_file"
+grep -Fq 'draftState[stateKey] = control.dataset[stateKey]' "$app_file"
+if grep -Eq 'itineraryDay === selectedDay|itineraryCategory === selectedCategory' "$app_file"; then
+  printf '%s\n' 'Itinerary and map filters must use the same direct-selection behavior.' >&2
+  exit 1
+fi
 grep -Fq 'draftState.collapsedDays.delete(draftState.itineraryDay)' "$app_file"
-grep -Fq 'draftState.itineraryCategory === selectedCategory ? "all" : selectedCategory' "$app_file"
 grep -Fq 'formatDateWithWeekday(item.dueDate)' "$app_file"
 grep -Fq 'formatDateWithWeekday(booking.targetDate)' "$app_file"
 grep -Fq 'const reserved = booking.status === "booked"' "$app_file"
-grep -Fq '.map-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }' "$style_file"
 grep -Fq '.candidate-copy small { font-size: inherit;' "$style_file"
-grep -Fq 'grid-template-columns: 30px 112px 132px minmax(0, 1fr) 88px;' "$style_file"
 if grep -Fq 'class="cost-summary"' "$app_file"; then
   printf '%s\n' 'Preparation must not render the removed cost total block.' >&2
   exit 1
 fi
-grep -Fq '.page-shell, .page-shell * { font-family: inherit; }' "$style_file"
-grep -Fq '.page-shell { width: calc(100% - 24px); }' "$style_file"
+python3 - "$style_file" <<'PY'
+import re
+import sys
+
+css = open(sys.argv[1], encoding="utf-8").read()
+marker = "/* Issue #25: canonical layout rules for shared trip UI components. */"
+assert css.count(marker) == 1
+legacy, canonical = css.split(marker)
+targets = [
+    ".page-shell", ".trip-summary", ".top-controls", ".day-switcher",
+    ".category-filter", ".day-toggle", ".map-day-heading", ".itinerary-row",
+    ".map-layout", ".preparation-grid", ".booking-row",
+]
+for selector in targets:
+    pattern = rf"(?m)^\s*{re.escape(selector)}(?:\s*,|\s*\{{)"
+    assert not re.search(pattern, legacy), f"legacy root rule remains: {selector}"
+
+for fragment in [
+    "width: calc(100% - 24px);",
+    "position: fixed;",
+    "grid-template-columns: 158px minmax(0, 1fr) auto;",
+    "grid-template-columns: 94px 80px minmax(0, 1fr);",
+    "grid-template-columns: minmax(0, 1fr);",
+    "grid-template-columns: repeat(2, minmax(0, 1fr));",
+    "grid-template-columns: 30px 112px 132px minmax(0, 1fr) 88px;",
+    "grid-template-columns: 180px minmax(0, 1fr) auto;",
+    "grid-template-columns: 28px 108px 124px minmax(0, 1fr) 82px;",
+]:
+    assert fragment in canonical, fragment
+PY
 if grep -Fq 'class="row-action"' "$app_file"; then
   printf '%s\n' 'Per-row action buttons must not appear in the browse-first UI.' >&2
   exit 1
@@ -96,6 +120,10 @@ if grep -Eq 'modeLabels|function formatTime|function selectionLabel|data-reset-d
 fi
 if grep -Eq 'row-action|cost-summary|cost-breakdown' "$style_file"; then
   printf '%s\n' 'Removed UI controls must not leave obsolete CSS behind.' >&2
+  exit 1
+fi
+if grep -v '^\.visually-hidden ' "$style_file" | grep -Fq '!important'; then
+  printf '%s\n' 'Only the accessibility hiding utility may require !important.' >&2
   exit 1
 fi
 grep -Fq '.check-list li.completed { color: var(--ink-soft); text-decoration: none;' "$style_file"

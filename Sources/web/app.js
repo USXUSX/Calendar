@@ -104,6 +104,7 @@ function renderHome(trip) {
 }
 
 const filterLabels = { all: "全て", transport: "移動", sightseeing: "観光", food: "食事", accommodation: "宿泊" };
+const filterStateKeys = ["itineraryDay", "itineraryCategory", "mapDay", "mapCategory"];
 const placeCategory = (place) => place?.category === "restaurant" ? "food" : place?.category === "hotel" ? "accommodation" : "sightseeing";
 const entryCategory = (entry, placesById) => entry.kind === "transport" ? "transport" : (entry.category || placeCategory(placesById.get(entry.placeSelection.selection[0])));
 const daySwitcher = (scope, active, days) => `<nav class="day-switcher ${scope === "map" ? "map-days" : ""}" aria-label="${scope === "map" ? "地図" : "旅程"}の日付">${[["all", "全日程"], ...days.map((day) => [day.id, formatDate(day.date)])].map(([key, label]) => `<button type="button" data-${scope}-day="${escapeHtml(key)}" class="${active === key ? "active" : ""}">${escapeHtml(label)}</button>`).join("")}</nav>`;
@@ -430,6 +431,16 @@ function selectedSetsEqual(left, right) {
   return left.size === right.size && [...left].every((value) => right.has(value));
 }
 
+function updateFilterState(target) {
+  const selector = filterStateKeys.map((key) => `[data-${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}]`).join(", ");
+  const control = target.closest(selector);
+  if (!control) return false;
+  const stateKey = filterStateKeys.find((key) => control.dataset[key] !== undefined);
+  draftState[stateKey] = control.dataset[stateKey];
+  if (stateKey === "itineraryDay" && draftState.itineraryDay !== "all") draftState.collapsedDays.delete(draftState.itineraryDay);
+  return true;
+}
+
 function setupTripInteractions(app, trip) {
   const rerender = () => {
     const activeTab = location.hash.slice(1) || "itinerary";
@@ -444,12 +455,9 @@ function setupTripInteractions(app, trip) {
       if (tab.dataset.tab === "notes") rerender();
       else activateTab(tab.dataset.tab, false);
     }
-    const itineraryDay = event.target.closest("[data-itinerary-day]");
-    if (itineraryDay) {
-      const selectedDay = itineraryDay.dataset.itineraryDay;
-      draftState.itineraryDay = selectedDay !== "all" && draftState.itineraryDay === selectedDay ? "all" : selectedDay;
-      if (draftState.itineraryDay !== "all") draftState.collapsedDays.delete(draftState.itineraryDay);
+    if (updateFilterState(event.target)) {
       rerender();
+      return;
     }
     const dayToggle = event.target.closest("[data-toggle-day]");
     if (dayToggle) {
@@ -458,27 +466,11 @@ function setupTripInteractions(app, trip) {
       else draftState.collapsedDays.add(id);
       rerender();
     }
-    const itineraryCategory = event.target.closest("[data-itinerary-category]");
-    if (itineraryCategory) {
-      const selectedCategory = itineraryCategory.dataset.itineraryCategory;
-      draftState.itineraryCategory = selectedCategory !== "all" && draftState.itineraryCategory === selectedCategory ? "all" : selectedCategory;
-      rerender();
-    }
-    const mapDay = event.target.closest("[data-map-day]");
-    if (mapDay) {
-      draftState.mapDay = mapDay.dataset.mapDay;
-      rerender();
-    }
     const mapDayToggle = event.target.closest("[data-toggle-map-day]");
     if (mapDayToggle) {
       const id = mapDayToggle.dataset.toggleMapDay;
       if (draftState.collapsedMapDays.has(id)) draftState.collapsedMapDays.delete(id);
       else draftState.collapsedMapDays.add(id);
-      rerender();
-    }
-    const mapCategory = event.target.closest("[data-map-category]");
-    if (mapCategory) {
-      draftState.mapCategory = mapCategory.dataset.mapCategory;
       rerender();
     }
     const cancelledComment = event.target.closest("[data-cancel-comment]");
