@@ -633,6 +633,8 @@ body[data-page="home"] .trip-line span { color: #365452; font-weight: 700; }
 }
 
 /* Issue #21: align post-device-review itinerary, map, and preparation UI. */
+.day-heading { grid-template-columns: minmax(0, 1fr); gap: 0; padding-right: 0; }
+.day-toggle { width: 100%; }
 .trip-summary { align-items: center; }
 .trip-summary h1 { display: flex; align-items: baseline; gap: 0; white-space: nowrap; }
 .trip-summary h1 span { font-size: 19px; font-weight: 700; }
@@ -644,7 +646,7 @@ body[data-page="home"] .trip-line span { color: #365452; font-weight: 700; }
 .day-toggle,
 .map-day-heading { grid-template-columns: 158px minmax(0, 1fr) auto; gap: 12px; }
 .day-toggle > .day-label,
-.map-day-heading .day-label { font-size: 23px; }
+.map-day-heading .day-label { font-size: 21px; white-space: nowrap; }
 .itinerary-row { padding-top: 17px; }
 .entry-time { border-right: 0; }
 .entry-classification { border: 0; }
@@ -671,9 +673,8 @@ body[data-page="home"] .trip-line span { color: #365452; font-weight: 700; }
   .top-controls .category-filter { gap: 2px; }
   .top-controls .day-switcher button,
   .top-controls .category-filter button { padding-inline: 5px; }
-  .day-toggle { grid-template-columns: 150px minmax(0, 1fr) auto; gap: 8px; }
-  .map-day-heading { grid-template-columns: 112px minmax(0, 1fr) auto; gap: 8px; }
-  .map-day-heading .day-label { font-size: 21px; }
+  .day-toggle,
+  .map-day-heading { grid-template-columns: 180px minmax(0, 1fr) auto; gap: 8px; }
   .map-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .map-card { top: 174px; }
 }

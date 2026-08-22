@@ -52,6 +52,14 @@ grep -Fq 'class="candidate-check"' "$app_file"
 grep -Fq '.entry-time { border-right: 0; }' "$style_file"
 grep -Fq '.entry-classification { border: 0; }' "$style_file"
 grep -Fq '.map-card { position: sticky;' "$style_file"
+grep -Fq '.day-heading { grid-template-columns: minmax(0, 1fr); gap: 0; padding-right: 0; }' "$style_file"
+grep -Fq '.day-toggle { width: 100%; }' "$style_file"
+grep -Fq '.map-day-heading .day-label { font-size: 21px; white-space: nowrap; }' "$style_file"
+grep -Fq '.map-day-heading { grid-template-columns: 180px minmax(0, 1fr) auto; gap: 8px; }' "$style_file"
+if grep -Fq '.map-day-heading { grid-template-columns: 112px' "$style_file"; then
+  printf '%s\n' 'Itinerary and map day headings must share the same first-column width.' >&2
+  exit 1
+fi
 grep -Fq 'grid-template-columns: repeat(2, minmax(0, 1fr));' "$style_file"
 grep -Fq 'class="candidate-copy"' "$app_file"
 if grep -Fq 'class="cost-summary"' "$app_file"; then
