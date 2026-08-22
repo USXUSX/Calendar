@@ -20,6 +20,9 @@ do
 done
 
 grep -F 'python3 scripts/serve_calendar.py' "$operation" >/dev/null
+grep -F '生成JSONを`trips/`以外の一時作業場所へ保存' "$operation" >/dev/null
+grep -F '既存IDと変更対象外の内容を維持した次版の完全JSON' "$operation" >/dev/null
+grep -F '生成 → 検証 → 配置 → 表示確認' "$root/docs/trip-json-generation.md" >/dev/null
 grep -F '[`docs/operation.md`](docs/operation.md)' "$root/README.md" >/dev/null
 
 if git -C "$root" ls-files | grep -E '(^|/)trips/.*\.json$|(^|/)current\.json$|(^|/)candidate\.json$|(^|/)history/' >/dev/null; then
