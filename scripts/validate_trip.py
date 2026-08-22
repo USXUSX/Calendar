@@ -49,7 +49,9 @@ def schema_errors(value: Any, rule: dict[str, Any], root: dict[str, Any], path: 
     if isinstance(value, str):
         if len(value) < rule.get("minLength", 0):
             errors.append(f"{path}: string is too short")
-        if rule.get("pattern") and not re.fullmatch(rule["pattern"], value):
+        # JSON Schema `pattern` uses search semantics; anchors in the Schema
+        # decide whether a prefix or the whole value must match.
+        if rule.get("pattern") and not re.search(rule["pattern"], value):
             errors.append(f"{path}: string does not match {rule['pattern']}")
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         if "minimum" in rule and value < rule["minimum"]:
