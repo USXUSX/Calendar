@@ -1,5 +1,3 @@
-import { normalizeTrip } from "./trip-normalizer.mjs";
-
 const SAMPLE_URL = "../../Samples/synthetic-trip.json";
 
 // The adopted JSON remains read-only. Every interaction in this stage lives
@@ -612,7 +610,7 @@ async function loadData(page) {
   if (indexResponse.status === 404) {
     const sampleResponse = await fetch(SAMPLE_URL, { cache: "no-store" });
     const sample = await responseJson(sampleResponse, "合成JSONを読み込めませんでした");
-    return page === "trip" ? normalizeTrip(sample) : [tripSummary(sample)];
+    return page === "trip" ? sample : [tripSummary(sample)];
   }
   const trips = await responseJson(indexResponse, "旅行一覧を読み込めませんでした");
   if (!Array.isArray(trips) || trips.length === 0) throw new Error("採用済みの旅行がありません。Calendar_Localを確認してください。");
@@ -620,13 +618,12 @@ async function loadData(page) {
   const tripId = new URLSearchParams(location.search).get("id");
   if (!tripId) throw new Error("URLにTrip IDがありません。");
   if (!trips.some((trip) => trip.id === tripId)) throw new Error(`旅行が見つかりません: ${tripId}`);
-  const currentResponse = await fetch(`/api/trips/${encodeURIComponent(tripId)}/current`, { cache: "no-store" });
-  return normalizeTrip(await responseJson(currentResponse, "旅行JSONを読み込めませんでした"));
+  const tripResponse = await fetch(`/api/trips/${encodeURIComponent(tripId)}`, { cache: "no-store" });
+  return responseJson(tripResponse, "旅行JSONを読み込めませんでした");
 }
 
 function tripSummary(source) {
-  const trip = normalizeTrip(source);
-  return { id: trip.id, title: trip.title, dateRange: trip.dateRange };
+  return { id: source.id, title: source.title, dateRange: source.dateRange };
 }
 
 async function start() {

@@ -85,12 +85,14 @@ grep -Fq 'data-tab="preparation"' "$web_dir/app.js"
 grep -Fq 'data-tab="notes"' "$web_dir/app.js"
 grep -Fq 'fetch(SAMPLE_URL' "$web_dir/app.js"
 grep -Fq 'fetch("/api/trips"' "$web_dir/app.js"
-grep -Fq '/current`' "$web_dir/app.js"
+grep -Fq 'fetch(`/api/trips/${encodeURIComponent(tripId)}`' "$web_dir/app.js"
 grep -Fq 'if (indexResponse.status === 404)' "$web_dir/app.js"
 grep -Fq '採用済みの旅行がありません' "$web_dir/app.js"
 grep -Fq 'class="past-trip-list" hidden' "$web_dir/app.js"
-grep -Fq 'import { normalizeTrip } from "./trip-normalizer.mjs";' "$web_dir/app.js"
-grep -Fq 'export function normalizeTrip(source)' "$web_dir/trip-normalizer.mjs"
+if test -e "$web_dir/trip-normalizer.mjs"; then
+  printf '%s\n' 'Legacy JSON compatibility layer must not remain.' >&2
+  exit 1
+fi
 grep -Fq 'editingCommentKey' "$web_dir/app.js"
 grep -Fq 'data-edit-comment' "$web_dir/app.js"
 grep -Fq 'class="booking-content"' "$web_dir/app.js"
