@@ -48,7 +48,11 @@ const legacyTrip = {
     { date: "2030-04-11", mode: "電車", places: ["合成温泉", "合成駅"] },
   ],
   preparation: [],
-  bookings: [],
+  bookings: [
+    { id: "hotel-booking", label: "合成ホテル", status: "確定", amount: null },
+    { id: "flight-booking", label: "航空券", status: "未定", amount: 0 },
+    { id: "unknown-booking", label: "連絡事項", status: "未定", amount: null },
+  ],
 };
 
 const normalized = normalizeTrip(legacyTrip);
@@ -71,5 +75,15 @@ assert.deepEqual(secondDay.transportIds, ["intercity-2-1"]);
 assert.equal(normalized.transports[0].mode, "car");
 assert.equal(normalized.transports[1].mode, "train");
 assert.equal(normalized.places.find((place) => place.id === normalized.transports[0].toPlaceId).name, "合成温泉");
+
+const hotelBooking = normalized.bookings.find((booking) => booking.id === "hotel-booking");
+const flightBooking = normalized.bookings.find((booking) => booking.id === "flight-booking");
+const unknownBooking = normalized.bookings.find((booking) => booking.id === "unknown-booking");
+assert.equal(hotelBooking.label, "合成ホテル");
+assert.equal(hotelBooking.amount, null);
+assert.equal(hotelBooking.category, "accommodation");
+assert.equal(flightBooking.amount, 0);
+assert.equal(flightBooking.category, "transport");
+assert.equal(unknownBooking.category, "other");
 
 console.log("Legacy trip normalization checks passed.");

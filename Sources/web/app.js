@@ -245,10 +245,11 @@ function renderPreparation(trip, placesById) {
           const target = placesById.get(booking.placeId);
           const transport = transportsById.get(booking.transportId);
           const transportName = transport ? `${transportLabels[transport.mode] ?? transport.mode} ${placesById.get(transport.fromPlaceId).name} → ${placesById.get(transport.toPlaceId).name}` : null;
-          const bookingName = target?.name ?? transportName ?? "予約";
+          const bookingName = target?.name ?? transportName ?? booking.label ?? "予約";
           const reserved = booking.status === "booked";
           const importantNote = reserved ? "" : booking.notes;
-          return `<div class="booking-row" role="row"><span class="booking-check" aria-label="${reserved ? "予約済み" : "未予約"}">${reserved ? "✓" : ""}</span><time>${escapeHtml(formatDateWithWeekday(booking.targetDate))}</time><span class="booking-category">${categoryLabels[booking.category]}</span><div class="booking-content" role="cell"><strong>${escapeHtml(bookingName)}</strong>${importantNote ? `<small class="official-note">${escapeHtml(importantNote)}</small>` : ""}</div><b class="booking-amount">${moneyFormatter.format(booking.amount)}</b></div>`;
+          const amount = booking.amount === null || booking.amount === undefined ? "金額未定" : moneyFormatter.format(booking.amount);
+          return `<div class="booking-row" role="row"><span class="booking-check" aria-label="${reserved ? "予約済み" : "未予約"}">${reserved ? "✓" : ""}</span><time>${escapeHtml(formatDateWithWeekday(booking.targetDate))}</time><span class="booking-category">${categoryLabels[booking.category]}</span><div class="booking-content" role="cell"><strong>${escapeHtml(bookingName)}</strong>${importantNote ? `<small class="official-note">${escapeHtml(importantNote)}</small>` : ""}</div><b class="booking-amount">${amount}</b></div>`;
         }).join("")}</div>
       </section>
     </div>

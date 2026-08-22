@@ -157,7 +157,13 @@ export function normalizeTrip(source) {
   const rioPacking = rioItems.map((item, index) => typeof item === "string"
     ? { id: `rio-${index + 1}`, label: item, completed: false, notNeeded: false, order: index + 1 }
     : { id: item.id || `rio-${index + 1}`, label: item.label || item.name || "持参品", completed: Boolean(item.completed), notNeeded: Boolean(item.notNeeded), order: index + 1 });
-  const bookingCategory = (value) => String(value ?? "").includes("宿") ? "accommodation" : String(value ?? "").includes("交通") ? "transport" : String(value ?? "").includes("観光") ? "activity" : "other";
+  const bookingCategory = (type, label) => {
+    const text = `${type ?? ""} ${label ?? ""}`.toLowerCase();
+    if (/宿|ホテル|旅館|accommodation|hotel/.test(text)) return "accommodation";
+    if (/交通|航空|飛行|フェリー|船|鉄道|電車|新幹線|バス|レンタカー|transport|flight|train/.test(text)) return "transport";
+    if (/観光|入場|体験|ツアー|チケット|activity|tour|ticket/.test(text)) return "activity";
+    return "other";
+  };
   return {
     id: metadata.id,
     title: metadata.name,
@@ -169,10 +175,11 @@ export function normalizeTrip(source) {
     rioPlan: { id: `${metadata.id}-rio`, applicable: rioPacking.length > 0, careMode: rioSource.mode === "預ける" ? "leave" : "accompany", packingItems: rioPacking },
     bookings: (Array.isArray(source.bookings) ? source.bookings : []).map((booking) => ({
       id: booking.id,
-      category: bookingCategory(booking.type),
+      label: booking.label || "予約",
+      category: bookingCategory(booking.type, booking.label),
       status: booking.status === "確定" ? "booked" : "pending",
       targetDate: booking.dueDate || metadata.startDate,
-      amount: Number(booking.amount) || 0,
+      amount: booking.amount === null || booking.amount === undefined || booking.amount === "" || !Number.isFinite(Number(booking.amount)) ? null : Number(booking.amount),
       currency: booking.currency || "JPY",
       notes: booking.note || "",
     })),
