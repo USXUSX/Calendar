@@ -132,6 +132,14 @@ function timeBlock(time) {
   return `<time>${time.mode === "undecided" ? "未定" : formatClock(time.start)}</time>${time.durationMinutes ? `<small>${time.durationMinutes}分</small>` : ""}`;
 }
 
+function placeLinks(place) {
+  if (!place?.urls?.length) return "";
+  return `<div class="place-links">${place.urls.map((url) => {
+    const label = new URL(url).hostname.endsWith("google.com") ? "Google Maps" : "公式HP";
+    return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+  }).join("")}</div>`;
+}
+
 function itineraryEntry(entry, placesById) {
   if (entry.kind === "transport") {
     const from = placesById.get(entry.fromPlaceId);
@@ -154,7 +162,7 @@ function itineraryEntry(entry, placesById) {
   return `<article class="itinerary-row schedule-row">
     <div class="entry-time">${timeBlock(entry.time)}</div>
     <div class="entry-classification"><span aria-hidden="true">${category === "food" ? "●" : category === "accommodation" ? "◆" : "▲"}</span><small>${filterLabels[category]}</small></div>
-    <div class="row-main"><strong>${escapeHtml(title)}</strong>${confirmedPlace ? `<p class="entry-place">${escapeHtml(confirmedPlace.name)}</p>` : ""}${entry.summary ? `<p>${escapeHtml(entry.summary)}</p>` : ""}${confirmedPlace ? "" : `<div class="candidate-inline">${candidates.map((place) => {
+    <div class="row-main"><strong>${escapeHtml(title)}</strong>${confirmedPlace ? `<p class="entry-place">${escapeHtml(confirmedPlace.name)}</p>${placeLinks(confirmedPlace)}` : ""}${entry.summary ? `<p>${escapeHtml(entry.summary)}</p>` : ""}${confirmedPlace ? "" : `<div class="candidate-inline">${candidates.map((place) => {
         const checked = selected.has(place.id);
         const atMaximum = selection.maxSelections !== null && selected.size >= selection.maxSelections;
         return `<label class="candidate-chip ${checked ? "selected" : ""}"><input type="checkbox" data-place-selection="${escapeHtml(entry.id)}" data-place-id="${escapeHtml(place.id)}" ${checked ? "checked" : ""} ${!checked && atMaximum ? "disabled" : ""}><span class="candidate-check" aria-hidden="true">${checked ? "✓" : ""}</span><span class="candidate-copy"><strong>${escapeHtml(place.name)}</strong>${place.summary ? `<small>${escapeHtml(place.summary)}</small>` : ""}</span>${placeRating(place)}</label>`;
