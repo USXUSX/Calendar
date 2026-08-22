@@ -17,12 +17,14 @@ grep -Fq 'trip.preparation.tasks' "$app_file"
 grep -Fq 'type="checkbox" data-rio-packing-id=' "$app_file"
 grep -Fq '.bottom-nav { position: fixed;' "$style_file"
 grep -Fq 'class="day-switcher"' "$app_file"
-grep -Fq 'data-day-anchor="all"' "$app_file"
+grep -Fq 'data-itinerary-day=' "$app_file"
+grep -Fq 'itineraryDay: "all"' "$app_file"
 grep -Fq 'data-toggle-day=' "$app_file"
 grep -Fq 'class="all-days"' "$app_file"
 grep -Fq 'class="itinerary-row' "$app_file"
 grep -Fq 'data-map-day=' "$app_file"
-grep -Fq 'class="map-day-heading"><span class="day-label"><strong class="day-number">' "$app_file"
+grep -Fq 'data-toggle-map-day=' "$app_file"
+grep -Fq 'class="map-day-heading" data-toggle-map-day=' "$app_file"
 grep -Fq '<span class="day-date">${formatDate(day.date)}' "$app_file"
 grep -Fq '<span class="day-copy"><strong>${escapeHtml(day.title)}</strong>' "$app_file"
 if grep -Eq '^\.day-toggle strong .*Georgia' "$style_file"; then
@@ -35,7 +37,7 @@ grep -Fq 'data-comment-count' "$app_file"
 grep -Fq 'function commentCount()' "$app_file"
 grep -Fq 'formatDateRange' "$app_file"
 grep -Fq '<header class="home-header"><h1>カレンダー</h1><time>2026/8/21（金）</time></header>' "$app_file"
-grep -Fq 'class="trip-summary"><h1>' "$app_file"
+grep -Fq 'class="trip-summary"><h1>${escapeHtml(trip.title)}<span>（' "$app_file"
 grep -Fq 'data-new-trip-comment' "$app_file"
 grep -Fq 'data-add-trip-comment' "$app_file"
 grep -Fq '<h3>リオ　${trip.rioPlan.careMode' "$app_file"
@@ -47,8 +49,15 @@ grep -Fq '.trip-summary h1 { font-size: 27px; }' "$style_file"
 grep -Fq '.itinerary-row { grid-template-columns: 98px 84px minmax(0,1fr);' "$style_file"
 grep -Fq '.itinerary-row { grid-template-columns: 88px 72px minmax(0,1fr);' "$style_file"
 grep -Fq 'class="candidate-check"' "$app_file"
-grep -Fq '.entry-time { border-right: 1px solid var(--line); }' "$style_file"
-grep -Fq '.entry-classification { border-left: 0; border-right: 1px solid var(--line); }' "$style_file"
+grep -Fq '.entry-time { border-right: 0; }' "$style_file"
+grep -Fq '.entry-classification { border: 0; }' "$style_file"
+grep -Fq '.map-card { position: sticky;' "$style_file"
+grep -Fq 'grid-template-columns: repeat(2, minmax(0, 1fr));' "$style_file"
+grep -Fq 'class="candidate-copy"' "$app_file"
+if grep -Fq 'class="cost-summary"' "$app_file"; then
+  printf '%s\n' 'Preparation must not render the removed cost total block.' >&2
+  exit 1
+fi
 grep -Fq '.page-shell, .page-shell * { font-family: inherit; }' "$style_file"
 grep -Fq '.page-shell { width: calc(100% - 24px); }' "$style_file"
 if grep -Fq 'class="row-action"' "$app_file"; then
@@ -73,8 +82,8 @@ if grep -Fq 'itinerary-grid' "$app_file" || grep -Fq '.itinerary-grid' "$style_f
   exit 1
 fi
 
-if grep -Fq 'activeDayId' "$app_file" || grep -Fq 'data-day-id=' "$app_file"; then
-  printf '%s\n' 'Date navigation must use anchors and keep all days in the itinerary.' >&2
+if grep -Fq 'data-day-anchor=' "$app_file"; then
+  printf '%s\n' 'Itinerary date navigation must use the shared filter interaction.' >&2
   exit 1
 fi
 

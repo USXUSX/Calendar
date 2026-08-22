@@ -278,6 +278,7 @@
     {
       "id": "place-art-museum",
       "name": "光島現代美術館",
+      "summary": "欧米美術中心の展示",
       "category": "attraction",
       "address": "香川県光島町浜5-2",
       "location": { "latitude": 34.463, "longitude": 133.987 },
@@ -287,6 +288,7 @@
     {
       "id": "place-seaside-gallery",
       "name": "潮風ギャラリー",
+      "summary": "海辺の小規模企画展",
       "category": "attraction",
       "address": "香川県光島町浜7-4",
       "location": { "latitude": 34.469, "longitude": 133.981 },
@@ -296,6 +298,7 @@
     {
       "id": "place-hill-studio",
       "name": "丘の上の工房",
+      "summary": "作家の制作風景を見学",
       "category": "attraction",
       "address": "香川県光島町丘3-1",
       "location": { "latitude": 34.476, "longitude": 133.991 },
