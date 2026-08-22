@@ -1,3 +1,5 @@
+import { normalizeTrip } from "./trip-normalizer.mjs";
+
 const SAMPLE_URL = "../../Samples/synthetic-trip.json";
 
 // The adopted JSON remains read-only. Every interaction in this stage lives
@@ -74,9 +76,14 @@ function placeRating(place) {
   return `<span class="rating">${escapeHtml(place.rating.source)} ${place.rating.value.toFixed(2)}</span>`;
 }
 
-function renderHome(trip) {
+function renderHome(trips) {
   document.title = "Calendar | 旅の一覧";
-  const start = localDate(trip.dateRange.start);
+  const today = formatIsoLocalDate();
+  const upcoming = [...trips].filter((trip) => trip.dateRange.end >= today).sort((a, b) => a.dateRange.start.localeCompare(b.dateRange.start));
+  const past = [...trips].filter((trip) => trip.dateRange.end < today).sort((a, b) => b.dateRange.end.localeCompare(a.dateRange.end));
+  const referenceTrip = upcoming[0] ?? past[0];
+  if (!referenceTrip) throw new Error("採用済みの旅行がありません。Calendar_Localを確認してください。");
+  const start = localDate(referenceTrip.dateRange.start);
   const year = start.getFullYear();
   const month = start.getMonth();
   const firstDay = new Date(year, month, 1);
@@ -86,10 +93,11 @@ function renderHome(trip) {
   for (let day = 1; day <= lastDay; day += 1) {
     const date = new Date(year, month, day);
     const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const inTrip = iso >= trip.dateRange.start && iso <= trip.dateRange.end;
-    const startsTrip = iso === trip.dateRange.start;
-    cells.push(`<div class="calendar-cell ${inTrip ? "trip-span" : ""}"><span>${day}</span>${startsTrip ? `<a href="./trip.html?id=${encodeURIComponent(trip.id)}">${escapeHtml(trip.title)}</a>` : ""}</div>`);
+    const tripsOnDate = trips.filter((trip) => iso >= trip.dateRange.start && iso <= trip.dateRange.end);
+    const startingTrips = tripsOnDate.filter((trip) => iso === trip.dateRange.start);
+    cells.push(`<div class="calendar-cell ${tripsOnDate.length ? "trip-span" : ""}"><span>${day}</span>${startingTrips.map((trip) => `<a href="./trip.html?id=${encodeURIComponent(trip.id)}">${escapeHtml(trip.title)}</a>`).join("")}</div>`);
   }
+  const tripLink = (trip) => `<a class="trip-line" href="./trip.html?id=${encodeURIComponent(trip.id)}"><strong>${escapeHtml(trip.title)}</strong><span>${escapeHtml(formatShortDateRange(trip.dateRange))}</span></a>`;
   return `
     <header class="home-header"><h1>カレンダー</h1><time datetime="${formatIsoLocalDate()}">${formatCurrentDate()}</time></header>
     <section class="calendar-panel" aria-labelledby="calendar-title">
@@ -99,8 +107,18 @@ function renderHome(trip) {
     </section>
     <div class="home-columns">
       <section><h2>今後1週間の予定</h2><p class="empty-line">予定はありません</p></section>
-      <section><h2>旅行予定</h2><a class="trip-line" href="./trip.html?id=${encodeURIComponent(trip.id)}"><strong>${escapeHtml(trip.title)}</strong><span>${escapeHtml(formatShortDateRange(trip.dateRange))}</span></a><button class="past-trips" type="button">過去の旅行</button></section>
+      <section><h2>旅行予定</h2>${upcoming.map(tripLink).join("") || `<p class="empty-line">予定はありません</p>`}<button class="past-trips" type="button" aria-expanded="false" ${past.length ? "" : "disabled"}>過去の旅行</button><div class="past-trip-list" hidden>${past.map(tripLink).join("")}</div></section>
     </div>`;
+}
+
+function setupHomeInteractions(app) {
+  app.addEventListener("click", (event) => {
+    const button = event.target.closest(".past-trips");
+    if (!button || button.disabled) return;
+    const list = app.querySelector(".past-trip-list");
+    list.hidden = !list.hidden;
+    button.setAttribute("aria-expanded", String(!list.hidden));
+  });
 }
 
 const filterLabels = { all: "全て", transport: "移動", sightseeing: "観光", food: "食事", accommodation: "宿泊" };
@@ -124,7 +142,7 @@ function itineraryEntry(entry, placesById) {
     return `<article class="itinerary-row transport-row">
       <div class="entry-time">${timeBlock(entry.time)}</div>
       <div class="entry-classification"><span aria-hidden="true">↗</span><small>${escapeHtml(transportLabels[entry.mode] ?? entry.mode)}</small></div>
-      <div class="row-main"><strong>${escapeHtml(transportName)}</strong><p>${entry.time.durationMinutes}分</p></div>
+      <div class="row-main"><strong>${escapeHtml(transportName)}</strong>${entry.time.durationMinutes ? `<p>${entry.time.durationMinutes}分</p>` : ""}</div>
     </article>`;
   }
 
@@ -227,10 +245,11 @@ function renderPreparation(trip, placesById) {
           const target = placesById.get(booking.placeId);
           const transport = transportsById.get(booking.transportId);
           const transportName = transport ? `${transportLabels[transport.mode] ?? transport.mode} ${placesById.get(transport.fromPlaceId).name} → ${placesById.get(transport.toPlaceId).name}` : null;
-          const bookingName = target?.name ?? transportName ?? "予約";
+          const bookingName = target?.name ?? transportName ?? booking.label ?? "予約";
           const reserved = booking.status === "booked";
           const importantNote = reserved ? "" : booking.notes;
-          return `<div class="booking-row" role="row"><span class="booking-check" aria-label="${reserved ? "予約済み" : "未予約"}">${reserved ? "✓" : ""}</span><time>${escapeHtml(formatDateWithWeekday(booking.targetDate))}</time><span class="booking-category">${categoryLabels[booking.category]}</span><div class="booking-content" role="cell"><strong>${escapeHtml(bookingName)}</strong>${importantNote ? `<small class="official-note">${escapeHtml(importantNote)}</small>` : ""}</div><b class="booking-amount">${moneyFormatter.format(booking.amount)}</b></div>`;
+          const amount = booking.amount === null || booking.amount === undefined ? "金額未定" : moneyFormatter.format(booking.amount);
+          return `<div class="booking-row" role="row"><span class="booking-check" aria-label="${reserved ? "予約済み" : "未予約"}">${reserved ? "✓" : ""}</span><time>${escapeHtml(formatDateWithWeekday(booking.targetDate))}</time><span class="booking-category">${categoryLabels[booking.category]}</span><div class="booking-content" role="cell"><strong>${escapeHtml(bookingName)}</strong>${importantNote ? `<small class="official-note">${escapeHtml(importantNote)}</small>` : ""}</div><b class="booking-amount">${amount}</b></div>`;
         }).join("")}</div>
       </section>
     </div>
@@ -574,16 +593,52 @@ function setupTripInteractions(app, trip) {
   activateTab(available ? requested : "itinerary", false);
 }
 
+async function responseJson(response, context) {
+  if (!response.ok) {
+    let message = `${context}: HTTP ${response.status}`;
+    try {
+      const body = await response.json();
+      if (body?.error) message = body.error;
+    } catch (_) {
+      // Public static hosts commonly return an HTML 404 for the local-only API.
+    }
+    throw new Error(message);
+  }
+  return response.json();
+}
+
+async function loadData(page) {
+  const indexResponse = await fetch("/api/trips", { cache: "no-store" });
+  if (indexResponse.status === 404) {
+    const sampleResponse = await fetch(SAMPLE_URL, { cache: "no-store" });
+    const sample = await responseJson(sampleResponse, "合成JSONを読み込めませんでした");
+    return page === "trip" ? normalizeTrip(sample) : [tripSummary(sample)];
+  }
+  const trips = await responseJson(indexResponse, "旅行一覧を読み込めませんでした");
+  if (!Array.isArray(trips) || trips.length === 0) throw new Error("採用済みの旅行がありません。Calendar_Localを確認してください。");
+  if (page === "home") return trips;
+  const tripId = new URLSearchParams(location.search).get("id");
+  if (!tripId) throw new Error("URLにTrip IDがありません。");
+  if (!trips.some((trip) => trip.id === tripId)) throw new Error(`旅行が見つかりません: ${tripId}`);
+  const currentResponse = await fetch(`/api/trips/${encodeURIComponent(tripId)}/current`, { cache: "no-store" });
+  return normalizeTrip(await responseJson(currentResponse, "旅行JSONを読み込めませんでした"));
+}
+
+function tripSummary(source) {
+  const trip = normalizeTrip(source);
+  return { id: trip.id, title: trip.title, dateRange: trip.dateRange };
+}
+
 async function start() {
   const app = document.querySelector("#app");
   try {
-    const response = await fetch(SAMPLE_URL, { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const trip = await response.json();
-    app.innerHTML = document.body.dataset.page === "trip" ? renderTrip(trip) : renderHome(trip);
-    if (document.body.dataset.page === "trip") setupTripInteractions(app, trip);
+    const page = document.body.dataset.page;
+    const data = await loadData(page);
+    app.innerHTML = page === "trip" ? renderTrip(data) : renderHome(data);
+    if (page === "trip") setupTripInteractions(app, data);
+    else setupHomeInteractions(app);
   } catch (error) {
-    app.innerHTML = `<section class="error-state"><h1>旅行情報を表示できませんでした</h1><p>${escapeHtml(error.message)}</p><p>リポジトリ直下をローカルHTTPサーバーで配信してください。</p></section>`;
+    app.innerHTML = `<section class="error-state"><h1>旅行情報を表示できませんでした</h1><p>${escapeHtml(error.message)}</p><p>ローカル利用時は <code>python3 scripts/serve_calendar.py</code> で起動してください。</p></section>`;
   }
 }
 

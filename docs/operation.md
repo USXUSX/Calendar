@@ -28,11 +28,12 @@ Calendar_Local/
 ## 3. 通常閲覧
 
 1. 対象旅行のフォルダ名と `current.json` 内の `trip.id` が一致することを確認する。
-2. Calendarで `current.json` を読み取り専用で開く。
-3. 旅程、地図、準備、予約等を閲覧する。
-4. 変更しない場合はファイル操作を行わない。
+2. リポジトリ直下で `python3 scripts/serve_calendar.py` を実行する。
+3. `http://127.0.0.1:4174/Sources/web/` を開き、旅行一覧から対象旅行を選ぶ。Calendarはloopback専用の読み取りAPIを通じて、その旅行の `current.json` を直接表示する。
+4. 旅程、地図、準備、予約等を閲覧する。
+5. 変更しない場合はファイル操作を行わない。
 
-現行の静的プロトタイプは、まだ `Calendar_Local` の実データを直接選択して表示しない。実データ読込は次の実装Issueで扱う。それまでは `current.json` を正本として維持し、本書の更新手順を使う。
+ローカルAPIは `current.json` だけを返し、`candidate.json`、`history/`、その他の `Calendar_Local` 内容を公開しない。書込みAPIはない。GitHub Pages等の静的レビュー環境ではローカルAPIが存在しないため、コミット済み合成JSONを表示する。
 
 ## 4. CalendarからChatへ更新を依頼する
 

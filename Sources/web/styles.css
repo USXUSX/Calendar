@@ -23,6 +23,10 @@ html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: "Hiragino Sans", "Yu Gothic", system-ui, sans-serif; line-height: 1.65; }
 button, a, textarea, select, input { font: inherit; }
 a { color: inherit; }
+.past-trip-list[hidden] { display: none; }
+.past-trip-list { margin-top: 8px; }
+.past-trip-list .trip-line { opacity: .82; }
+.past-trips:disabled { opacity: .5; cursor: default; }
 .site-header { height: 72px; padding: 0 max(24px, calc((100vw - 1120px) / 2)); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(24, 58, 58, .12); background: rgba(247, 245, 239, .92); position: sticky; top: 0; z-index: 20; backdrop-filter: blur(16px); }
 .brand { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; font-family: Georgia, "Yu Mincho", serif; font-weight: 700; font-size: 19px; letter-spacing: .02em; }
 .brand-mark { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: white; font-size: 16px; }
