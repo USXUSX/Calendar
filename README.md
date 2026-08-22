@@ -4,7 +4,10 @@ Calendar is the first standard project in `/Users/us/Tools`, built with a three-
 
 ## Current state
 
-The first dependency-free, read-only web prototype is implemented from a synthetic JSON sample. No legacy prototype or private data has been migrated, and no production framework has been selected.
+The first dependency-free, read-only web prototype still loads a committed
+synthetic JSON sample by default. Two real trip JSON files have been copied from
+the legacy prototype into private `Calendar_Local` storage, but the UI does not
+yet load them directly. No production framework has been selected.
 
 ## Three layers
 
