@@ -57,6 +57,11 @@ grep -Fq '.day-heading { grid-template-columns: minmax(0, 1fr); gap: 0; padding-
 grep -Fq '.day-toggle { width: 100%; }' "$style_file"
 grep -Fq '.map-day-heading .day-label { font-size: 21px; white-space: nowrap; }' "$style_file"
 grep -Fq '.map-day-heading { grid-template-columns: 180px minmax(0, 1fr) auto; gap: 8px; }' "$style_file"
+grep -Fq '.map-day-heading .day-copy strong { color: var(--ink); }' "$style_file"
+grep -Fq '.map-day-heading .day-date {' "$style_file"
+grep -Fq 'font-variant-numeric: proportional-nums;' "$style_file"
+grep -Fq 'font-feature-settings: "pnum" 1;' "$style_file"
+grep -Fq 'letter-spacing: normal;' "$style_file"
 if grep -Fq '.map-day-heading { grid-template-columns: 112px' "$style_file"; then
   printf '%s\n' 'Itinerary and map day headings must share the same first-column width.' >&2
   exit 1

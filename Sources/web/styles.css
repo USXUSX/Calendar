@@ -687,6 +687,18 @@ body[data-page="home"] .trip-line span { color: #365452; font-weight: 700; }
   .booking-card { grid-column: auto; }
 }
 
+/* Issue #23: keep itinerary and map date-heading color and type rules identical. */
+.day-toggle .day-copy strong,
+.map-day-heading .day-copy strong { color: var(--ink); }
+.day-toggle .day-date,
+.map-day-heading .day-date {
+  color: var(--ink);
+  font-family: inherit;
+  font-variant-numeric: proportional-nums;
+  font-feature-settings: "pnum" 1;
+  letter-spacing: normal;
+}
+
 /* Issue #21 final device review; keep this block last so device rules win. */
 .top-controls { top: 72px; z-index: 24; box-shadow: 0 1px 0 rgba(24, 58, 58, .08); }
 .top-controls .day-switcher button,
