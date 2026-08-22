@@ -13,10 +13,14 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
+from validate_trip import DEFAULT_SCHEMA, validate_value
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LOCAL_DATA = REPO_ROOT.parents[1] / "LocalData" / "Calendar_Local"
 TRIP_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,99}\Z")
+with DEFAULT_SCHEMA.open(encoding="utf-8") as schema_handle:
+    TRIP_SCHEMA = json.load(schema_handle)
 
 
 class TripDataError(Exception):
@@ -31,6 +35,9 @@ def load_trip(path: Path, expected_id: str) -> dict:
         raise TripDataError(f"cannot read valid JSON for trip {expected_id}") from error
     if not isinstance(value, dict):
         raise TripDataError(f"trip {expected_id} does not contain a JSON object")
+    validation_errors = validate_value(value, TRIP_SCHEMA)
+    if validation_errors:
+        raise TripDataError(f"trip {expected_id} does not match the formal schema: {validation_errors[0]}")
     actual_id = value.get("id")
     if actual_id != expected_id:
         raise TripDataError(f"trip filename and JSON id do not match for {expected_id}")

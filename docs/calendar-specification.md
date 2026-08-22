@@ -209,10 +209,18 @@ AI への指示メモは Trip、Day、ScheduleItem、Transport、Booking 等の�
 
 ## 6. 未確定事項と実装時の契約化
 
-本書は概念と必須の振る舞いを確定する。次の詳細は、アプリケーション基盤の選定後、実装 Issue ごとに JSON Schema、合成サンプル、テストとして確定する。
+正式な機械可読契約は `Schemas/trip.schema.json` とする。ChatGPT は同スキーマと `docs/trip-json-generation.md` に従って完全 JSON を生成し、`scripts/validate_trip.py` の構造検証と参照整合性検証を通過したJSONだけをCalendarへ渡す。Calendarは旧形式の変換や不足値の自動補正を行わない。
 
-- 日付・時刻とタイムゾーンの具体的な表現
-- `range` の補助属性と検証規則
+時刻は `HH:MM`、日付は `YYYY-MM-DD` とする。`TimeSpec.mode` は次の契約で使う。
+
+- `fixed`: `start`を必須とし、終了が分かる場合だけ`end`を指定する
+- `range`: `start`と`end`を必須とし、その時間帯を表示する
+- `undecided`: `start`と`end`を`null`にする
+
+同じ説明を複数フィールドへ繰り返さない。`Day.title`は日付ではなくその日のテーマ、`routeSummary`は経路、`ScheduleItem.action`は行動、`summary`は短い補足、`details`は追加で必要な事実だけを保持する。Place名や時刻を`action`へ埋め込まない。
+
+次の詳細は引き続き別Issueで確定する。
+
 - 一時状態の保存期間と破棄条件
 - 外部評価の取得・更新方法
 - TripRecord と写真メタデータの詳細構造

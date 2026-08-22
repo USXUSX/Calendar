@@ -24,6 +24,8 @@ compatibility and candidate/history management are not part of the app.
 - `docs/workflow.md`: future Issue-to-PR workflow
 - `docs/decisions.md`: confirmed architectural decisions
 - `docs/calendar-specification.md`: confirmed Calendar data and AI-assisted update specification
+- `Schemas/trip.schema.json`: machine-readable formal trip JSON contract
+- `docs/trip-json-generation.md`: ChatGPT generation and correction instructions
 - `docs/operation.md`: private trip data and complete-JSON update operation
 - `Sources/`: application source code when implementation starts
 - `Tests/`: automated tests and test guidance
@@ -64,3 +66,9 @@ Tests can override the private-data root with `--local-data PATH` or the
 
 Real trip data is kept outside this repository. See
 [`docs/operation.md`](docs/operation.md) before viewing or updating it.
+
+Validate a ChatGPT-generated complete JSON before previewing it:
+
+```sh
+python3 scripts/validate_trip.py /path/to/trip.json
+```

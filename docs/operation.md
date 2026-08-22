@@ -20,7 +20,7 @@ Calendar_Local/
 
 ## 3. 閲覧
 
-1. JSON が `docs/calendar-specification.md` の正式構造であり、ファイル名と `id` が一致することを確認する。
+1. `python3 scripts/validate_trip.py Calendar_Local/trips/<trip-id>.json`を実行し、正式スキーマと参照整合性を確認する。ファイル名と`id`も一致させる。
 2. リポジトリ直下で `python3 scripts/serve_calendar.py` を実行する。
 3. `http://127.0.0.1:4174/Sources/web/` を開く。
 
