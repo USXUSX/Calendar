@@ -20,6 +20,9 @@ do
   grep -F "$required" "$operation" >/dev/null
 done
 
+grep -F 'python3 scripts/serve_calendar.py' "$operation" >/dev/null
+grep -F 'candidate.json`、`history/`' "$operation" >/dev/null
+
 grep -F '[`docs/operation.md`](docs/operation.md)' "$root/README.md" >/dev/null
 
 if git -C "$root" ls-files | grep -E '(^|/)current\.json$|(^|/)candidate\.json$|(^|/)history/' >/dev/null; then

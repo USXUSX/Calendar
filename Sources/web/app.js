@@ -74,9 +74,14 @@ function placeRating(place) {
   return `<span class="rating">${escapeHtml(place.rating.source)} ${place.rating.value.toFixed(2)}</span>`;
 }
 
-function renderHome(trip) {
+function renderHome(trips) {
   document.title = "Calendar | 旅の一覧";
-  const start = localDate(trip.dateRange.start);
+  const today = formatIsoLocalDate();
+  const upcoming = [...trips].filter((trip) => trip.dateRange.end >= today).sort((a, b) => a.dateRange.start.localeCompare(b.dateRange.start));
+  const past = [...trips].filter((trip) => trip.dateRange.end < today).sort((a, b) => b.dateRange.end.localeCompare(a.dateRange.end));
+  const referenceTrip = upcoming[0] ?? past[0];
+  if (!referenceTrip) throw new Error("採用済みの旅行がありません。Calendar_Localを確認してください。");
+  const start = localDate(referenceTrip.dateRange.start);
   const year = start.getFullYear();
   const month = start.getMonth();
   const firstDay = new Date(year, month, 1);
@@ -86,10 +91,11 @@ function renderHome(trip) {
   for (let day = 1; day <= lastDay; day += 1) {
     const date = new Date(year, month, day);
     const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const inTrip = iso >= trip.dateRange.start && iso <= trip.dateRange.end;
-    const startsTrip = iso === trip.dateRange.start;
-    cells.push(`<div class="calendar-cell ${inTrip ? "trip-span" : ""}"><span>${day}</span>${startsTrip ? `<a href="./trip.html?id=${encodeURIComponent(trip.id)}">${escapeHtml(trip.title)}</a>` : ""}</div>`);
+    const tripsOnDate = trips.filter((trip) => iso >= trip.dateRange.start && iso <= trip.dateRange.end);
+    const startingTrips = tripsOnDate.filter((trip) => iso === trip.dateRange.start);
+    cells.push(`<div class="calendar-cell ${tripsOnDate.length ? "trip-span" : ""}"><span>${day}</span>${startingTrips.map((trip) => `<a href="./trip.html?id=${encodeURIComponent(trip.id)}">${escapeHtml(trip.title)}</a>`).join("")}</div>`);
   }
+  const tripLink = (trip) => `<a class="trip-line" href="./trip.html?id=${encodeURIComponent(trip.id)}"><strong>${escapeHtml(trip.title)}</strong><span>${escapeHtml(formatShortDateRange(trip.dateRange))}</span></a>`;
   return `
     <header class="home-header"><h1>カレンダー</h1><time datetime="${formatIsoLocalDate()}">${formatCurrentDate()}</time></header>
     <section class="calendar-panel" aria-labelledby="calendar-title">
@@ -99,8 +105,112 @@ function renderHome(trip) {
     </section>
     <div class="home-columns">
       <section><h2>今後1週間の予定</h2><p class="empty-line">予定はありません</p></section>
-      <section><h2>旅行予定</h2><a class="trip-line" href="./trip.html?id=${encodeURIComponent(trip.id)}"><strong>${escapeHtml(trip.title)}</strong><span>${escapeHtml(formatShortDateRange(trip.dateRange))}</span></a><button class="past-trips" type="button">過去の旅行</button></section>
+      <section><h2>旅行予定</h2>${upcoming.map(tripLink).join("") || `<p class="empty-line">予定はありません</p>`}<button class="past-trips" type="button" aria-expanded="false" ${past.length ? "" : "disabled"}>過去の旅行</button><div class="past-trip-list" hidden>${past.map(tripLink).join("")}</div></section>
     </div>`;
+}
+
+function setupHomeInteractions(app) {
+  app.addEventListener("click", (event) => {
+    const button = event.target.closest(".past-trips");
+    if (!button || button.disabled) return;
+    const list = app.querySelector(".past-trip-list");
+    list.hidden = !list.hidden;
+    button.setAttribute("aria-expanded", String(!list.hidden));
+  });
+}
+
+const legacyCategory = (value) => {
+  const text = String(value ?? "").toLowerCase();
+  if (text.includes("食") || text.includes("meal") || text.includes("restaurant")) return "food";
+  if (text.includes("宿") || text.includes("hotel") || text.includes("accommodation")) return "accommodation";
+  if (text.includes("移") || text.includes("transport")) return "transport";
+  return "sightseeing";
+};
+
+function legacyTime(value) {
+  const clocks = String(value ?? "").match(/\d{1,2}:\d{2}/g) ?? [];
+  if (!clocks.length) return { mode: "undecided" };
+  return { mode: clocks.length > 1 ? "range" : "fixed", start: clocks[0], ...(clocks[1] ? { end: clocks[1] } : {}) };
+}
+
+function normalizeTrip(source) {
+  if (source?.id && source?.dateRange && Array.isArray(source.days)) return source;
+  const metadata = source?.trip;
+  if (!metadata?.id) throw new Error("旅行JSONにtrip.idがありません。");
+  const mapPoints = Array.isArray(source.mapPoints) ? source.mapPoints : [];
+  const places = mapPoints.map((point) => ({
+    id: point.id,
+    name: point.name,
+    summary: point.candidate ? "候補" : "",
+    category: legacyCategory(point.category) === "food" ? "restaurant" : legacyCategory(point.category) === "accommodation" ? "hotel" : "attraction",
+    location: Number.isFinite(point.latitude) && Number.isFinite(point.longitude) ? { latitude: point.latitude, longitude: point.longitude } : null,
+    rating: null,
+  }));
+  const placeIds = new Set(places.map((place) => place.id));
+  const itinerary = Array.isArray(source.itinerary) ? source.itinerary : [];
+  itinerary.forEach((item) => {
+    const id = item.mapPointId || `${item.id}-place`;
+    if (!placeIds.has(id)) {
+      places.push({ id, name: item.title || "場所未定", summary: item.summary || "", category: "attraction", location: null, rating: null });
+      placeIds.add(id);
+    }
+  });
+  const days = (Array.isArray(source.days) ? source.days : []).map((day, dayIndex) => {
+    const dayItems = itinerary.filter((item) => item.date === day.date);
+    return {
+      id: `day-${day.date}`,
+      date: day.date,
+      title: day.label || `第${day.dayNumber || dayIndex + 1}日`,
+      routeSummary: day.overview || (Array.isArray(day.areas) ? day.areas.join(" → ") : ""),
+      scheduleItems: dayItems.map((item, index) => {
+        const placeId = item.mapPointId || `${item.id}-place`;
+        return {
+          id: item.id,
+          dayId: `day-${day.date}`,
+          order: Number(item.displayOrder) || (index + 1) * 10,
+          action: item.title || "予定",
+          summary: item.summary || (Array.isArray(item.details) ? item.details[0] : ""),
+          details: Array.isArray(item.details) ? item.details : [],
+          category: legacyCategory(item.category || item.type),
+          time: legacyTime(item.time),
+          placeSelection: { candidatePlaceIds: [placeId], selection: item.selectionStatus === "未定" || item.status === "候補" ? [] : [placeId], minSelections: 1, maxSelections: 1 },
+        };
+      }),
+      transportIds: [],
+    };
+  });
+  const preparation = (Array.isArray(source.preparation) ? source.preparation : []).map((item, index) => ({
+    id: item.id,
+    label: item.label,
+    dueDate: item.dueDate || metadata.startDate,
+    completed: Boolean(item.defaultCompleted),
+    order: index + 1,
+  }));
+  const rioSource = source.rioPlan && typeof source.rioPlan === "object" ? source.rioPlan : {};
+  const rioItems = Array.isArray(rioSource.items) ? rioSource.items : [];
+  const rioPacking = rioItems.map((item, index) => typeof item === "string"
+    ? { id: `rio-${index + 1}`, label: item, completed: false, notNeeded: false, order: index + 1 }
+    : { id: item.id || `rio-${index + 1}`, label: item.label || item.name || "持参品", completed: Boolean(item.completed), notNeeded: Boolean(item.notNeeded), order: index + 1 });
+  const bookingCategory = (value) => String(value ?? "").includes("宿") ? "accommodation" : String(value ?? "").includes("交通") ? "transport" : String(value ?? "").includes("観光") ? "activity" : "other";
+  return {
+    id: metadata.id,
+    title: metadata.name,
+    dateRange: { start: metadata.startDate, end: metadata.endDate },
+    days,
+    places,
+    transports: [],
+    preparation: { id: `${metadata.id}-preparation`, tasks: preparation },
+    rioPlan: { id: `${metadata.id}-rio`, applicable: rioPacking.length > 0, careMode: rioSource.mode === "預ける" ? "leave" : "accompany", packingItems: rioPacking },
+    bookings: (Array.isArray(source.bookings) ? source.bookings : []).map((booking) => ({
+      id: booking.id,
+      category: bookingCategory(booking.type),
+      status: booking.status === "確定" ? "booked" : "pending",
+      targetDate: booking.dueDate || metadata.startDate,
+      amount: Number(booking.amount) || 0,
+      currency: booking.currency || "JPY",
+      notes: booking.note || "",
+    })),
+  };
 }
 
 const filterLabels = { all: "全て", transport: "移動", sightseeing: "観光", food: "食事", accommodation: "宿泊" };
@@ -574,16 +684,52 @@ function setupTripInteractions(app, trip) {
   activateTab(available ? requested : "itinerary", false);
 }
 
+async function responseJson(response, context) {
+  if (!response.ok) {
+    let message = `${context}: HTTP ${response.status}`;
+    try {
+      const body = await response.json();
+      if (body?.error) message = body.error;
+    } catch (_) {
+      // Public static hosts commonly return an HTML 404 for the local-only API.
+    }
+    throw new Error(message);
+  }
+  return response.json();
+}
+
+async function loadData(page) {
+  const indexResponse = await fetch("/api/trips", { cache: "no-store" });
+  if (indexResponse.status === 404) {
+    const sampleResponse = await fetch(SAMPLE_URL, { cache: "no-store" });
+    const sample = await responseJson(sampleResponse, "合成JSONを読み込めませんでした");
+    return page === "trip" ? normalizeTrip(sample) : [tripSummary(sample)];
+  }
+  const trips = await responseJson(indexResponse, "旅行一覧を読み込めませんでした");
+  if (!Array.isArray(trips) || trips.length === 0) throw new Error("採用済みの旅行がありません。Calendar_Localを確認してください。");
+  if (page === "home") return trips;
+  const tripId = new URLSearchParams(location.search).get("id");
+  if (!tripId) throw new Error("URLにTrip IDがありません。");
+  if (!trips.some((trip) => trip.id === tripId)) throw new Error(`旅行が見つかりません: ${tripId}`);
+  const currentResponse = await fetch(`/api/trips/${encodeURIComponent(tripId)}/current`, { cache: "no-store" });
+  return normalizeTrip(await responseJson(currentResponse, "旅行JSONを読み込めませんでした"));
+}
+
+function tripSummary(source) {
+  const trip = normalizeTrip(source);
+  return { id: trip.id, title: trip.title, dateRange: trip.dateRange };
+}
+
 async function start() {
   const app = document.querySelector("#app");
   try {
-    const response = await fetch(SAMPLE_URL, { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const trip = await response.json();
-    app.innerHTML = document.body.dataset.page === "trip" ? renderTrip(trip) : renderHome(trip);
-    if (document.body.dataset.page === "trip") setupTripInteractions(app, trip);
+    const page = document.body.dataset.page;
+    const data = await loadData(page);
+    app.innerHTML = page === "trip" ? renderTrip(data) : renderHome(data);
+    if (page === "trip") setupTripInteractions(app, data);
+    else setupHomeInteractions(app);
   } catch (error) {
-    app.innerHTML = `<section class="error-state"><h1>旅行情報を表示できませんでした</h1><p>${escapeHtml(error.message)}</p><p>リポジトリ直下をローカルHTTPサーバーで配信してください。</p></section>`;
+    app.innerHTML = `<section class="error-state"><h1>旅行情報を表示できませんでした</h1><p>${escapeHtml(error.message)}</p><p>ローカル利用時は <code>python3 scripts/serve_calendar.py</code> で起動してください。</p></section>`;
   }
 }
 
