@@ -62,6 +62,14 @@ if grep -Fq '.map-day-heading { grid-template-columns: 112px' "$style_file"; the
 fi
 grep -Fq 'grid-template-columns: repeat(2, minmax(0, 1fr));' "$style_file"
 grep -Fq 'class="candidate-copy"' "$app_file"
+grep -Fq 'draftState.itineraryDay === selectedDay ? "all" : selectedDay' "$app_file"
+grep -Fq 'draftState.collapsedDays.delete(draftState.itineraryDay)' "$app_file"
+grep -Fq 'draftState.itineraryCategory === selectedCategory ? "all" : selectedCategory' "$app_file"
+grep -Fq 'formatDateWithWeekday(item.dueDate)' "$app_file"
+grep -Fq 'formatDateWithWeekday(booking.targetDate)' "$app_file"
+grep -Fq '.map-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }' "$style_file"
+grep -Fq '.candidate-copy small { font-size: inherit;' "$style_file"
+grep -Fq 'grid-template-columns: 30px 112px 132px minmax(0, 1fr) 88px;' "$style_file"
 if grep -Fq 'class="cost-summary"' "$app_file"; then
   printf '%s\n' 'Preparation must not render the removed cost total block.' >&2
   exit 1
@@ -113,6 +121,8 @@ assert all(day["routeSummary"] for day in trip["days"])
 assert all(item["category"] in {"sightseeing", "food", "accommodation"} for day in trip["days"] for item in day["scheduleItems"])
 assert trip["rioPlan"]["applicable"] is True
 assert all({"targetDate", "reserved"} <= booking.keys() for booking in trip["bookings"])
+restaurants = [place for place in trip["places"] if place["category"] == "restaurant"]
+assert any(place.get("summary") for place in restaurants)
 PY
 
 printf '%s\n' 'Browse-first UI check passed.'

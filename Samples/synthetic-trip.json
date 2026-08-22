@@ -308,6 +308,7 @@
     {
       "id": "place-seafood-table",
       "name": "島魚食堂 うみの庭",
+      "summary": "朝どれの島魚を使った定食",
       "category": "restaurant",
       "address": "香川県光島町本町4-7",
       "location": { "latitude": 34.461, "longitude": 133.998 },
@@ -317,6 +318,7 @@
     {
       "id": "place-garden-bistro",
       "name": "庭園ビストロ 灯",
+      "summary": "庭を眺める瀬戸内食材のコース",
       "category": "restaurant",
       "address": "香川県光島町本町6-2",
       "location": { "latitude": 34.466, "longitude": 134.002 },
@@ -353,6 +355,7 @@
     {
       "id": "place-roastery",
       "name": "古町ロースタリー",
+      "summary": "自家焙煎珈琲と焼き菓子",
       "category": "restaurant",
       "address": "香川県青凪市古町2-3",
       "location": { "latitude": 34.332, "longitude": 134.064 },

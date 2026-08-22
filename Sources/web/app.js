@@ -124,6 +124,7 @@ const filterLabels = { all: "全て", transport: "移動", sightseeing: "観光"
 const placeCategory = (place) => place?.category === "restaurant" ? "food" : place?.category === "hotel" ? "accommodation" : "sightseeing";
 const entryCategory = (entry, placesById) => entry.kind === "transport" ? "transport" : (entry.category || placeCategory(placesById.get(entry.placeSelection.selection[0])));
 const categoryFilter = (scope, active) => `<nav class="category-filter" aria-label="分類">${Object.entries(filterLabels).map(([key, label]) => `<button type="button" data-${scope}-category="${key}" class="${active === key ? "active" : ""}">${label}</button>`).join("")}</nav>`;
+const formatDateWithWeekday = (value) => `${formatDate(value)}（${weekdayFormatter.format(localDate(value))}）`;
 
 function timeBlock(time) {
   if (time.end) return `<time>${formatClock(time.start)}</time><span>⋮</span><time>${formatClock(time.end)}</time>`;
@@ -214,12 +215,12 @@ function renderMap(trip) {
 
 const preparationChecklist = (items) => `<ul class="check-list task-list">${items.map((item) => {
   const completed = draftState.preparation.get(item.id) ?? item.completed;
-  return `<li class="${completed ? "completed" : "pending"}"><label><input type="checkbox" data-preparation-id="${escapeHtml(item.id)}" ${completed ? "checked" : ""}><span class="check-icon" aria-hidden="true">${completed ? "✓" : "○"}</span><time>${escapeHtml(formatDate(item.dueDate))}</time><span class="task-copy"><strong>${escapeHtml(item.label)}</strong></span></label></li>`;
+  return `<li class="${completed ? "completed" : "pending"}"><label><input type="checkbox" data-preparation-id="${escapeHtml(item.id)}" ${completed ? "checked" : ""}><span class="check-icon" aria-hidden="true">${completed ? "✓" : ""}</span><time>${escapeHtml(formatDateWithWeekday(item.dueDate))}</time><span class="task-copy"><strong>${escapeHtml(item.label)}</strong></span></label></li>`;
 }).join("")}</ul>`;
 
 const rioChecklist = (items) => `<ul class="check-list rio-list">${items.map((item) => {
   const value = draftState.rioPacking.get(item.id) ?? (item.notNeeded ? "notNeeded" : item.completed ? "completed" : "pending");
-  return `<li class="${value === "completed" ? "completed" : "pending"} ${value === "notNeeded" ? "not-needed" : ""}"><label><input type="checkbox" data-rio-packing-id="${escapeHtml(item.id)}" ${value === "completed" ? "checked" : ""}><span class="check-icon" aria-hidden="true">${value === "completed" ? "✓" : "○"}</span><span>${escapeHtml(item.label)}${value === "notNeeded" ? "（持参しない）" : ""}</span></label></li>`;
+  return `<li class="${value === "completed" ? "completed" : "pending"} ${value === "notNeeded" ? "not-needed" : ""}"><label><input type="checkbox" data-rio-packing-id="${escapeHtml(item.id)}" ${value === "completed" ? "checked" : ""}><span class="check-icon" aria-hidden="true">${value === "completed" ? "✓" : ""}</span><span>${escapeHtml(item.label)}${value === "notNeeded" ? "（持参しない）" : ""}</span></label></li>`;
 }).join("")}</ul>`;
 
 function renderPreparation(trip, placesById) {
@@ -243,7 +244,7 @@ function renderPreparation(trip, placesById) {
           const transportName = transport ? `${transportLabels[transport.mode] ?? transport.mode} ${placesById.get(transport.fromPlaceId).name} → ${placesById.get(transport.toPlaceId).name}` : null;
           const bookingName = target?.name ?? transportName ?? "予約";
           const importantNote = booking.reserved ? "" : booking.notes;
-          return `<div class="booking-row" role="row"><span class="booking-check" aria-label="${booking.reserved ? "予約済み" : "未予約"}">${booking.reserved ? "✓" : "○"}</span><time>${escapeHtml(formatDate(booking.targetDate))}</time><span class="booking-category">${categoryLabels[booking.category]}</span><div class="booking-content" role="cell"><strong>${escapeHtml(bookingName)}</strong>${importantNote ? `<small class="official-note">${escapeHtml(importantNote)}</small>` : ""}</div><b class="booking-amount">${moneyFormatter.format(booking.amount)}</b></div>`;
+          return `<div class="booking-row" role="row"><span class="booking-check" aria-label="${booking.reserved ? "予約済み" : "未予約"}">${booking.reserved ? "✓" : ""}</span><time>${escapeHtml(formatDateWithWeekday(booking.targetDate))}</time><span class="booking-category">${categoryLabels[booking.category]}</span><div class="booking-content" role="cell"><strong>${escapeHtml(bookingName)}</strong>${importantNote ? `<small class="official-note">${escapeHtml(importantNote)}</small>` : ""}</div><b class="booking-amount">${moneyFormatter.format(booking.amount)}</b></div>`;
         }).join("")}</div>
       </section>
     </div>
@@ -450,7 +451,9 @@ function setupTripInteractions(app, trip) {
     }
     const itineraryDay = event.target.closest("[data-itinerary-day]");
     if (itineraryDay) {
-      draftState.itineraryDay = itineraryDay.dataset.itineraryDay;
+      const selectedDay = itineraryDay.dataset.itineraryDay;
+      draftState.itineraryDay = selectedDay !== "all" && draftState.itineraryDay === selectedDay ? "all" : selectedDay;
+      if (draftState.itineraryDay !== "all") draftState.collapsedDays.delete(draftState.itineraryDay);
       rerender();
     }
     const dayToggle = event.target.closest("[data-toggle-day]");
@@ -462,7 +465,8 @@ function setupTripInteractions(app, trip) {
     }
     const itineraryCategory = event.target.closest("[data-itinerary-category]");
     if (itineraryCategory) {
-      draftState.itineraryCategory = itineraryCategory.dataset.itineraryCategory;
+      const selectedCategory = itineraryCategory.dataset.itineraryCategory;
+      draftState.itineraryCategory = selectedCategory !== "all" && draftState.itineraryCategory === selectedCategory ? "all" : selectedCategory;
       rerender();
     }
     const mapDay = event.target.closest("[data-map-day]");

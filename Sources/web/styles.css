@@ -686,3 +686,51 @@ body[data-page="home"] .trip-line span { color: #365452; font-weight: 700; }
   .map-card { position: relative; top: auto; height: 42vh; }
   .booking-card { grid-column: auto; }
 }
+
+/* Issue #21 final device review; keep this block last so device rules win. */
+.top-controls { top: 72px; z-index: 24; box-shadow: 0 1px 0 rgba(24, 58, 58, .08); }
+.top-controls .day-switcher button,
+.top-controls .category-filter button {
+  min-height: 40px;
+  padding: 8px 10px;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.top-controls .day-switcher button.active,
+.top-controls .category-filter button.active { border-bottom-color: #4f8060; background: #e6f0e8; color: var(--ink); }
+.day-toggle > .day-label,
+.day-toggle .day-date { font-size: 21px; }
+.itinerary-row { grid-template-columns: 94px 80px minmax(0, 1fr); }
+.candidate-copy small { font-size: inherit; line-height: inherit; }
+.map-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.map-card { position: sticky; top: 174px; z-index: 2; width: 100%; min-height: min(440px, 38vh); height: min(440px, 38vh); }
+.map-place-list { width: 100%; max-height: none; overflow: visible; }
+.check-list li > label { grid-template-columns: 34px 112px minmax(0, 1fr); }
+.rio-list li > label { grid-template-columns: 34px minmax(0, 1fr); }
+.check-list time { color: var(--ink); font-size: 16px; font-weight: 700; white-space: nowrap; }
+.check-icon,
+.booking-check { width: 25px; height: 25px; display: grid; place-items: center; box-sizing: border-box; border: 2px solid #52645f; border-radius: 5px; background: #fff; color: #fff; font-size: 16px; font-weight: 900; line-height: 1; }
+.booking-row .booking-check { color: #fff; font-size: 16px; }
+.completed .check-icon,
+.booking-check[aria-label="予約済み"] { border-color: var(--teal); background: var(--teal); }
+.booking-row { grid-template-columns: 30px 112px 132px minmax(0, 1fr) 88px; gap: 10px; }
+.booking-row > time { color: var(--ink); font-size: 16px; font-weight: 700; white-space: nowrap; }
+.booking-row .booking-category { white-space: nowrap; }
+.booking-amount { color: var(--ink-soft); font-size: 16px !important; font-weight: 400; }
+
+@media (max-width: 820px) {
+  .itinerary-row { grid-template-columns: 94px 80px minmax(0, 1fr); }
+  .map-layout { grid-template-columns: minmax(0, 1fr); }
+  .booking-row { grid-template-columns: 28px 108px 124px minmax(0, 1fr) 82px; gap: 8px; }
+}
+
+@media (max-width: 680px) {
+  .map-card { position: relative; top: auto; height: 42vh; }
+  .preparation-grid { grid-template-columns: 1fr; }
+  .booking-card { grid-column: auto; }
+}
