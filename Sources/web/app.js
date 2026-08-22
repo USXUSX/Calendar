@@ -150,15 +150,15 @@ function itineraryEntry(entry, placesById) {
   const candidates = selection.candidatePlaceIds.map((id) => placesById.get(id));
   const category = entryCategory(entry, placesById);
   const confirmedPlace = candidates.length === 1 && selected.has(candidates[0].id) ? candidates[0] : null;
-  const title = confirmedPlace ? `${confirmedPlace.name}で${entry.action.replace(/^(港で)?/, "")}` : entry.action;
+  const title = entry.action;
   return `<article class="itinerary-row schedule-row">
     <div class="entry-time">${timeBlock(entry.time)}</div>
     <div class="entry-classification"><span aria-hidden="true">${category === "food" ? "●" : category === "accommodation" ? "◆" : "▲"}</span><small>${filterLabels[category]}</small></div>
-    <div class="row-main"><strong>${escapeHtml(title)}</strong>${entry.summary ? `<p>${escapeHtml(entry.summary)}</p>` : ""}${confirmedPlace ? "" : `<div class="candidate-inline">${candidates.map((place) => {
+    <div class="row-main"><strong>${escapeHtml(title)}</strong>${confirmedPlace ? `<p class="entry-place">${escapeHtml(confirmedPlace.name)}</p>` : ""}${entry.summary ? `<p>${escapeHtml(entry.summary)}</p>` : ""}${confirmedPlace ? "" : `<div class="candidate-inline">${candidates.map((place) => {
         const checked = selected.has(place.id);
         const atMaximum = selection.maxSelections !== null && selected.size >= selection.maxSelections;
         return `<label class="candidate-chip ${checked ? "selected" : ""}"><input type="checkbox" data-place-selection="${escapeHtml(entry.id)}" data-place-id="${escapeHtml(place.id)}" ${checked ? "checked" : ""} ${!checked && atMaximum ? "disabled" : ""}><span class="candidate-check" aria-hidden="true">${checked ? "✓" : ""}</span><span class="candidate-copy"><strong>${escapeHtml(place.name)}</strong>${place.summary ? `<small>${escapeHtml(place.summary)}</small>` : ""}</span>${placeRating(place)}</label>`;
-      }).join("")}</div>`}${entry.details?.length ? `<p class="entry-detail">${escapeHtml(entry.details[0])}</p>` : ""}</div>
+      }).join("")}</div>`}${entry.details?.map((detail) => `<p class="entry-detail">${escapeHtml(detail)}</p>`).join("") ?? ""}</div>
   </article>`;
 }
 
@@ -245,7 +245,7 @@ function renderPreparation(trip, placesById) {
           const transportName = transport ? `${transportLabels[transport.mode] ?? transport.mode} ${placesById.get(transport.fromPlaceId).name} → ${placesById.get(transport.toPlaceId).name}` : null;
           const bookingName = target?.name ?? transportName ?? booking.label ?? "予約";
           const reserved = booking.status === "booked";
-          const importantNote = reserved ? "" : booking.notes;
+          const importantNote = booking.notes;
           const amount = booking.amount === null || booking.amount === undefined ? "金額未定" : moneyFormatter.format(booking.amount);
           return `<div class="booking-row" role="row"><span class="booking-check" aria-label="${reserved ? "予約済み" : "未予約"}">${reserved ? "✓" : ""}</span><time>${escapeHtml(formatDateWithWeekday(booking.targetDate))}</time><span class="booking-category">${categoryLabels[booking.category]}</span><div class="booking-content" role="cell"><strong>${escapeHtml(bookingName)}</strong>${importantNote ? `<small class="official-note">${escapeHtml(importantNote)}</small>` : ""}</div><b class="booking-amount">${amount}</b></div>`;
         }).join("")}</div>
