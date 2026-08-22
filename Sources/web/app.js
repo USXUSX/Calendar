@@ -23,6 +23,7 @@ const targetKey = (type, id) => `${type}:${id}`;
 
 const shortDateFormatter = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" });
 const weekdayFormatter = new Intl.DateTimeFormat("ja-JP", { weekday: "short" });
+const currentDateFormatter = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "numeric", day: "numeric", weekday: "short" });
 const moneyFormatter = new Intl.NumberFormat("ja-JP", {
   style: "currency",
   currency: "JPY",
@@ -49,6 +50,8 @@ const formatDateRange = ({ start, end }) => {
 const formatShortDateRange = ({ start, end }) => `${formatDate(start)}〜${formatDate(end)}`;
 
 const formatClock = (value) => value ? value.replace(/^0/, "") : "";
+const formatCurrentDate = (date = new Date()) => currentDateFormatter.format(date).replace(/\(([^)]+)\)$/, "（$1）");
+const formatIsoLocalDate = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 const modeLabels = {
   fixed: "時刻確定",
@@ -108,7 +111,7 @@ function renderHome(trip) {
     cells.push(`<div class="calendar-cell ${inTrip ? "trip-span" : ""}"><span>${day}</span>${startsTrip ? `<a href="./trip.html?id=${encodeURIComponent(trip.id)}">${escapeHtml(trip.title)}</a>` : ""}</div>`);
   }
   return `
-    <header class="home-header"><h1>カレンダー</h1><time>2026/8/21（金）</time></header>
+    <header class="home-header"><h1>カレンダー</h1><time datetime="${formatIsoLocalDate()}">${formatCurrentDate()}</time></header>
     <section class="calendar-panel" aria-labelledby="calendar-title">
       <div class="month-heading"><button type="button" aria-label="前月">‹</button><h2 id="calendar-title">${year}年${month + 1}月</h2><button type="button" aria-label="翌月">›</button></div>
       <div class="calendar-weekdays">${["日", "月", "火", "水", "木", "金", "土"].map((day) => `<span>${day}</span>`).join("")}</div>
@@ -243,8 +246,9 @@ function renderPreparation(trip, placesById) {
           const transport = transportsById.get(booking.transportId);
           const transportName = transport ? `${transportLabels[transport.mode] ?? transport.mode} ${placesById.get(transport.fromPlaceId).name} → ${placesById.get(transport.toPlaceId).name}` : null;
           const bookingName = target?.name ?? transportName ?? "予約";
-          const importantNote = booking.reserved ? "" : booking.notes;
-          return `<div class="booking-row" role="row"><span class="booking-check" aria-label="${booking.reserved ? "予約済み" : "未予約"}">${booking.reserved ? "✓" : ""}</span><time>${escapeHtml(formatDateWithWeekday(booking.targetDate))}</time><span class="booking-category">${categoryLabels[booking.category]}</span><div class="booking-content" role="cell"><strong>${escapeHtml(bookingName)}</strong>${importantNote ? `<small class="official-note">${escapeHtml(importantNote)}</small>` : ""}</div><b class="booking-amount">${moneyFormatter.format(booking.amount)}</b></div>`;
+          const reserved = booking.status === "booked";
+          const importantNote = reserved ? "" : booking.notes;
+          return `<div class="booking-row" role="row"><span class="booking-check" aria-label="${reserved ? "予約済み" : "未予約"}">${reserved ? "✓" : ""}</span><time>${escapeHtml(formatDateWithWeekday(booking.targetDate))}</time><span class="booking-category">${categoryLabels[booking.category]}</span><div class="booking-content" role="cell"><strong>${escapeHtml(bookingName)}</strong>${importantNote ? `<small class="official-note">${escapeHtml(importantNote)}</small>` : ""}</div><b class="booking-amount">${moneyFormatter.format(booking.amount)}</b></div>`;
         }).join("")}</div>
       </section>
     </div>
@@ -374,6 +378,16 @@ function updateMaterialText(trip, materials) {
 }
 
 function renderNotes(trip, placesById) {
+  const commentTargets = [
+    { type: "trip", id: trip.id },
+    ...trip.days.flatMap((day) => [
+      ...day.scheduleItems.map((item) => ({ type: "scheduleItem", id: item.id })),
+      ...trip.transports.filter((item) => day.transportIds.includes(item.id)).map((item) => ({ type: "transport", id: item.id })),
+    ]),
+    ...trip.preparation.tasks.map((item) => ({ type: "preparation", id: item.id })),
+    ...trip.rioPlan.packingItems.map((item) => ({ type: "rioPlan", id: item.id })),
+    ...trip.bookings.map((item) => ({ type: "booking", id: item.id })),
+  ];
   const comments = [...draftState.instructions.entries()].filter(([, value]) => value.trim()).map(([key, value]) => {
     const editing = draftState.editingCommentKey === key;
     const body = editing
@@ -383,7 +397,7 @@ function renderNotes(trip, placesById) {
   }).join("");
   return `<div class="tab-panel" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" hidden>
     <section class="comments-workspace">
-      <h2>コメント</h2>
+      <div class="comments-heading"><h2>コメント</h2><div class="comment-actions"><label><span class="visually-hidden">コメント対象</span><select data-comment-target>${commentTargets.map((target) => { const key = targetKey(target.type, target.id); return `<option value="${escapeHtml(key)}">${escapeHtml(instructionTargetLabel(trip, key, placesById))}</option>`; }).join("")}</select></label><button type="button" data-open-comment-target>コメントを追加</button><button type="button" data-copy-update ${draftCount() ? "" : "disabled"}>AI更新材料をコピー</button></div></div>
       <p class="copy-status" data-copy-status role="status"></p>
       <div class="comment-list">${comments || `<p class="empty-line">未処理のコメントはありません</p>`}</div>
       <div class="trip-comment"><label><span>旅行全体へのコメントを追加</span><textarea data-new-trip-comment placeholder="コメントを入力">${escapeHtml(draftState.pendingTripComment)}</textarea></label><button type="button" data-add-trip-comment ${draftState.pendingTripComment.trim() ? "" : "disabled"}>追加</button></div>
@@ -522,6 +536,17 @@ function setupTripInteractions(app, trip) {
         const status = app.querySelector("[data-copy-status]");
         if (status) status.textContent = "コピーできませんでした。ブラウザのクリップボード許可を確認してください。";
       });
+    }
+    if (event.target.closest("[data-open-comment-target]")) {
+      const selected = app.querySelector("[data-comment-target]")?.value;
+      if (selected) {
+        const [type, id] = selected.split(":");
+        const placesById = new Map(trip.places.map((place) => [place.id, place]));
+        draftState.aiTarget = { type, id, name: instructionTargetLabel(trip, selected, placesById) };
+        draftState.aiPanelOpen = true;
+        rerender();
+        app.querySelector("[data-instruction-key]")?.focus();
+      }
     }
     const aiTarget = event.target.closest("[data-ai-target-type]");
     if (aiTarget) {

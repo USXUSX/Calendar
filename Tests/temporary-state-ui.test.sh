@@ -22,6 +22,8 @@ grep -Fq '旅程 › ${item.action}' "$app_file"
 grep -Fq '旅程 › ${placesById.get(transport.fromPlaceId)?.name' "$app_file"
 grep -Fq '準備 › ${placesById.get(booking?.placeId)?.name' "$app_file"
 grep -Fq 'data-comment-count' "$app_file"
+grep -Fq 'data-comment-target' "$app_file"
+grep -Fq 'data-open-comment-target' "$app_file"
 grep -Fq 'class="official-note"' "$app_file"
 
 if grep -Fq 'data-instruction-toggle=' "$app_file"; then

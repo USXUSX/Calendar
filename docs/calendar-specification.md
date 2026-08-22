@@ -41,6 +41,7 @@ Calendar は旅行計画の閲覧を主目的とする。AI 変更指示は補�
 - `id`: 安定 ID
 - `date`: 対象日
 - `title`: その日の見出し
+- `routeSummary`: その日の主な経路を短く表示する任意項目
 - `scheduleItems`: `ScheduleItem` の配列
 - `transportIds`: その日に表示する `Transport` への参照
 
@@ -54,6 +55,7 @@ Day 内の表示順は配列位置だけに依存せず、各表示対象が持�
 - `dayId`: 所属する Day の ID
 - `order`: Day 内の表示順
 - `action`: 何をするかという「行動」
+- `summary`: 予定の補足を短く表示する任意項目
 - `time`: `TimeSpec`
 - `placeSelection`: `PlaceSelection`
 
@@ -107,6 +109,7 @@ ScheduleItem、Transport、Booking、将来の TripRecord から共通参照す�
 
 - `id`: 安定 ID
 - `name`: 表示名
+- `summary`: 候補名の横に短く表示する任意の補足コメント
 - `category`: restaurant / hotel / station / attraction / other 等
 - `address`: 住所
 - `location`: 緯度・経度
@@ -147,6 +150,7 @@ Booking は予約と費用を管理する。
 - `id`: 安定 ID
 - `category`: `accommodation`（宿泊費）/ `transport`（交通費）/ `activity`（観光・チケット）/ `other`（その他）
 - `status`: 未予約、予約済み、変更・取消等を表す状態
+- `targetDate`: 予約・手配の対象日を表す任意の日付。予約済みかどうかは `status` を正本とし、別の真偽値には重複保持しない
 - `placeId` または `transportId`: 対象への参照
 - `amount`: 金額
 - `currency`: 通貨

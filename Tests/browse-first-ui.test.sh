@@ -36,7 +36,8 @@ grep -Fq 'カレンダー</a>' "$app_file"
 grep -Fq 'data-comment-count' "$app_file"
 grep -Fq 'function commentCount()' "$app_file"
 grep -Fq 'formatDateRange' "$app_file"
-grep -Fq '<header class="home-header"><h1>カレンダー</h1><time>2026/8/21（金）</time></header>' "$app_file"
+grep -Fq 'formatCurrentDate = (date = new Date())' "$app_file"
+grep -Fq '<time datetime="${formatIsoLocalDate()}">${formatCurrentDate()}</time>' "$app_file"
 grep -Fq 'class="trip-summary"><h1>${escapeHtml(trip.title)}<span>（' "$app_file"
 grep -Fq 'data-new-trip-comment' "$app_file"
 grep -Fq 'data-add-trip-comment' "$app_file"
@@ -67,6 +68,7 @@ grep -Fq 'draftState.collapsedDays.delete(draftState.itineraryDay)' "$app_file"
 grep -Fq 'draftState.itineraryCategory === selectedCategory ? "all" : selectedCategory' "$app_file"
 grep -Fq 'formatDateWithWeekday(item.dueDate)' "$app_file"
 grep -Fq 'formatDateWithWeekday(booking.targetDate)' "$app_file"
+grep -Fq 'const reserved = booking.status === "booked"' "$app_file"
 grep -Fq '.map-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }' "$style_file"
 grep -Fq '.candidate-copy small { font-size: inherit;' "$style_file"
 grep -Fq 'grid-template-columns: 30px 112px 132px minmax(0, 1fr) 88px;' "$style_file"
@@ -88,10 +90,8 @@ if grep -Eq '候補件数|件選択中|あと[0-9]+件選択してください|�
   exit 1
 fi
 
-if grep -Fq '更新材料をコピー</button>' "$app_file"; then
-  printf '%s\n' 'Comment screen must not expose a persistent update-material copy button.' >&2
-  exit 1
-fi
+grep -Fq 'data-open-comment-target' "$app_file"
+grep -Fq 'data-copy-update' "$app_file"
 
 if grep -Fq 'itinerary-grid' "$app_file" || grep -Fq '.itinerary-grid' "$style_file"; then
   printf '%s\n' 'Itinerary must show all days vertically instead of placing days in a grid.' >&2
@@ -120,7 +120,8 @@ assert len({task["id"] for task in preparation["tasks"]}) == len(preparation["ta
 assert all(day["routeSummary"] for day in trip["days"])
 assert all(item["category"] in {"sightseeing", "food", "accommodation"} for day in trip["days"] for item in day["scheduleItems"])
 assert trip["rioPlan"]["applicable"] is True
-assert all({"targetDate", "reserved"} <= booking.keys() for booking in trip["bookings"])
+assert all({"targetDate", "status"} <= booking.keys() for booking in trip["bookings"])
+assert all("reserved" not in booking for booking in trip["bookings"])
 restaurants = [place for place in trip["places"] if place["category"] == "restaurant"]
 assert any(place.get("summary") for place in restaurants)
 PY
