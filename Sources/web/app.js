@@ -1,3 +1,5 @@
+import { normalizeTrip } from "./trip-normalizer.mjs";
+
 const SAMPLE_URL = "../../Samples/synthetic-trip.json";
 
 // The adopted JSON remains read-only. Every interaction in this stage lives
@@ -119,100 +121,6 @@ function setupHomeInteractions(app) {
   });
 }
 
-const legacyCategory = (value) => {
-  const text = String(value ?? "").toLowerCase();
-  if (text.includes("食") || text.includes("meal") || text.includes("restaurant")) return "food";
-  if (text.includes("宿") || text.includes("hotel") || text.includes("accommodation")) return "accommodation";
-  if (text.includes("移") || text.includes("transport")) return "transport";
-  return "sightseeing";
-};
-
-function legacyTime(value) {
-  const clocks = String(value ?? "").match(/\d{1,2}:\d{2}/g) ?? [];
-  if (!clocks.length) return { mode: "undecided" };
-  return { mode: clocks.length > 1 ? "range" : "fixed", start: clocks[0], ...(clocks[1] ? { end: clocks[1] } : {}) };
-}
-
-function normalizeTrip(source) {
-  if (source?.id && source?.dateRange && Array.isArray(source.days)) return source;
-  const metadata = source?.trip;
-  if (!metadata?.id) throw new Error("旅行JSONにtrip.idがありません。");
-  const mapPoints = Array.isArray(source.mapPoints) ? source.mapPoints : [];
-  const places = mapPoints.map((point) => ({
-    id: point.id,
-    name: point.name,
-    summary: point.candidate ? "候補" : "",
-    category: legacyCategory(point.category) === "food" ? "restaurant" : legacyCategory(point.category) === "accommodation" ? "hotel" : "attraction",
-    location: Number.isFinite(point.latitude) && Number.isFinite(point.longitude) ? { latitude: point.latitude, longitude: point.longitude } : null,
-    rating: null,
-  }));
-  const placeIds = new Set(places.map((place) => place.id));
-  const itinerary = Array.isArray(source.itinerary) ? source.itinerary : [];
-  itinerary.forEach((item) => {
-    const id = item.mapPointId || `${item.id}-place`;
-    if (!placeIds.has(id)) {
-      places.push({ id, name: item.title || "場所未定", summary: item.summary || "", category: "attraction", location: null, rating: null });
-      placeIds.add(id);
-    }
-  });
-  const days = (Array.isArray(source.days) ? source.days : []).map((day, dayIndex) => {
-    const dayItems = itinerary.filter((item) => item.date === day.date);
-    return {
-      id: `day-${day.date}`,
-      date: day.date,
-      title: day.label || `第${day.dayNumber || dayIndex + 1}日`,
-      routeSummary: day.overview || (Array.isArray(day.areas) ? day.areas.join(" → ") : ""),
-      scheduleItems: dayItems.map((item, index) => {
-        const placeId = item.mapPointId || `${item.id}-place`;
-        return {
-          id: item.id,
-          dayId: `day-${day.date}`,
-          order: Number(item.displayOrder) || (index + 1) * 10,
-          action: item.title || "予定",
-          summary: item.summary || (Array.isArray(item.details) ? item.details[0] : ""),
-          details: Array.isArray(item.details) ? item.details : [],
-          category: legacyCategory(item.category || item.type),
-          time: legacyTime(item.time),
-          placeSelection: { candidatePlaceIds: [placeId], selection: item.selectionStatus === "未定" || item.status === "候補" ? [] : [placeId], minSelections: 1, maxSelections: 1 },
-        };
-      }),
-      transportIds: [],
-    };
-  });
-  const preparation = (Array.isArray(source.preparation) ? source.preparation : []).map((item, index) => ({
-    id: item.id,
-    label: item.label,
-    dueDate: item.dueDate || metadata.startDate,
-    completed: Boolean(item.defaultCompleted),
-    order: index + 1,
-  }));
-  const rioSource = source.rioPlan && typeof source.rioPlan === "object" ? source.rioPlan : {};
-  const rioItems = Array.isArray(rioSource.items) ? rioSource.items : [];
-  const rioPacking = rioItems.map((item, index) => typeof item === "string"
-    ? { id: `rio-${index + 1}`, label: item, completed: false, notNeeded: false, order: index + 1 }
-    : { id: item.id || `rio-${index + 1}`, label: item.label || item.name || "持参品", completed: Boolean(item.completed), notNeeded: Boolean(item.notNeeded), order: index + 1 });
-  const bookingCategory = (value) => String(value ?? "").includes("宿") ? "accommodation" : String(value ?? "").includes("交通") ? "transport" : String(value ?? "").includes("観光") ? "activity" : "other";
-  return {
-    id: metadata.id,
-    title: metadata.name,
-    dateRange: { start: metadata.startDate, end: metadata.endDate },
-    days,
-    places,
-    transports: [],
-    preparation: { id: `${metadata.id}-preparation`, tasks: preparation },
-    rioPlan: { id: `${metadata.id}-rio`, applicable: rioPacking.length > 0, careMode: rioSource.mode === "預ける" ? "leave" : "accompany", packingItems: rioPacking },
-    bookings: (Array.isArray(source.bookings) ? source.bookings : []).map((booking) => ({
-      id: booking.id,
-      category: bookingCategory(booking.type),
-      status: booking.status === "確定" ? "booked" : "pending",
-      targetDate: booking.dueDate || metadata.startDate,
-      amount: Number(booking.amount) || 0,
-      currency: booking.currency || "JPY",
-      notes: booking.note || "",
-    })),
-  };
-}
-
 const filterLabels = { all: "全て", transport: "移動", sightseeing: "観光", food: "食事", accommodation: "宿泊" };
 const filterStateKeys = ["itineraryDay", "itineraryCategory", "mapDay", "mapCategory"];
 const placeCategory = (place) => place?.category === "restaurant" ? "food" : place?.category === "hotel" ? "accommodation" : "sightseeing";
@@ -234,7 +142,7 @@ function itineraryEntry(entry, placesById) {
     return `<article class="itinerary-row transport-row">
       <div class="entry-time">${timeBlock(entry.time)}</div>
       <div class="entry-classification"><span aria-hidden="true">↗</span><small>${escapeHtml(transportLabels[entry.mode] ?? entry.mode)}</small></div>
-      <div class="row-main"><strong>${escapeHtml(transportName)}</strong><p>${entry.time.durationMinutes}分</p></div>
+      <div class="row-main"><strong>${escapeHtml(transportName)}</strong>${entry.time.durationMinutes ? `<p>${entry.time.durationMinutes}分</p>` : ""}</div>
     </article>`;
   }
 
