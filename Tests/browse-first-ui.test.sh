@@ -22,6 +22,13 @@ grep -Fq 'data-toggle-day=' "$app_file"
 grep -Fq 'class="all-days"' "$app_file"
 grep -Fq 'class="itinerary-row' "$app_file"
 grep -Fq 'data-map-day=' "$app_file"
+grep -Fq 'class="map-day-heading"><span class="day-label"><strong class="day-number">' "$app_file"
+grep -Fq '<span class="day-date">${formatDate(day.date)}' "$app_file"
+grep -Fq '<span class="day-copy"><strong>${escapeHtml(day.title)}</strong>' "$app_file"
+if grep -Eq '^\.day-toggle strong .*Georgia' "$style_file"; then
+  echo "Itinerary day themes must use the shared font family" >&2
+  exit 1
+fi
 grep -Fq 'categoryFilter("map", draftState.mapCategory)' "$app_file"
 grep -Fq 'カレンダー</a>' "$app_file"
 grep -Fq 'data-comment-count' "$app_file"
