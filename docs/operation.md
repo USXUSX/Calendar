@@ -37,6 +37,10 @@ Calendar は JSON の直接編集、旧形式からの自動変換、自動採�
 
 ## 5. 新規旅行
 
-1. Chat に旅行情報と正式仕様を渡し、完全 JSON の作成を依頼する。
-2. JSON の構造、安定 ID、参照関係、内容を確認する。
-3. `Calendar_Local/trips/<trip-id>.json` として保存し、Calendar で表示を確認する。
+1. Chat に旅行計画資料、`Schemas/trip.schema.json`、`docs/trip-json-generation.md`の生成指示を渡し、完全 JSON の作成を依頼する。
+2. 生成JSONを`trips/`以外の一時作業場所へ保存し、`python3 scripts/validate_trip.py <生成JSON>`を実行する。
+3. エラーがあればエラーパスだけをChatへ返し、修正済みの完全JSONを再生成して再検証する。部分JSONやCalendar側の補正では直さない。
+4. 検証成功後、JSONの内容、安定ID、参照関係を確認する。
+5. ファイル名を`id`と一致させて`Calendar_Local/trips/<trip-id>.json`へ配置し、Calendarの一覧と5画面を確認する。
+
+既存旅行を変更する場合も、現在の完全JSONと変更依頼をChatへ渡し、既存IDと変更対象外の内容を維持した次版の完全JSONを生成する。同じ検証と表示確認を通過してから置き換える。
