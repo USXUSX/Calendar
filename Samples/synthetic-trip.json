@@ -278,6 +278,7 @@
     {
       "id": "place-art-museum",
       "name": "光島現代美術館",
+      "summary": "欧米美術中心の展示",
       "category": "attraction",
       "address": "香川県光島町浜5-2",
       "location": { "latitude": 34.463, "longitude": 133.987 },
@@ -287,6 +288,7 @@
     {
       "id": "place-seaside-gallery",
       "name": "潮風ギャラリー",
+      "summary": "海辺の小規模企画展",
       "category": "attraction",
       "address": "香川県光島町浜7-4",
       "location": { "latitude": 34.469, "longitude": 133.981 },
@@ -296,6 +298,7 @@
     {
       "id": "place-hill-studio",
       "name": "丘の上の工房",
+      "summary": "作家の制作風景を見学",
       "category": "attraction",
       "address": "香川県光島町丘3-1",
       "location": { "latitude": 34.476, "longitude": 133.991 },
@@ -305,6 +308,7 @@
     {
       "id": "place-seafood-table",
       "name": "島魚食堂 うみの庭",
+      "summary": "朝どれの島魚を使った定食",
       "category": "restaurant",
       "address": "香川県光島町本町4-7",
       "location": { "latitude": 34.461, "longitude": 133.998 },
@@ -314,6 +318,7 @@
     {
       "id": "place-garden-bistro",
       "name": "庭園ビストロ 灯",
+      "summary": "庭を眺める瀬戸内食材のコース",
       "category": "restaurant",
       "address": "香川県光島町本町6-2",
       "location": { "latitude": 34.466, "longitude": 134.002 },
@@ -350,6 +355,7 @@
     {
       "id": "place-roastery",
       "name": "古町ロースタリー",
+      "summary": "自家焙煎珈琲と焼き菓子",
       "category": "restaurant",
       "address": "香川県青凪市古町2-3",
       "location": { "latitude": 34.332, "longitude": 134.064 },
@@ -413,7 +419,6 @@
       "category": "accommodation",
       "status": "booked",
       "targetDate": "2027-05-14",
-      "reserved": true,
       "placeId": "place-bay-hotel",
       "transportId": null,
       "amount": 52800,
@@ -425,7 +430,6 @@
       "category": "transport",
       "status": "booked",
       "targetDate": "2027-05-14",
-      "reserved": true,
       "placeId": null,
       "transportId": "transport-ferry",
       "amount": 4800,
@@ -437,7 +441,6 @@
       "category": "activity",
       "status": "pending",
       "targetDate": "2027-05-14",
-      "reserved": false,
       "placeId": "place-art-museum",
       "transportId": null,
       "amount": 5200,
@@ -449,7 +452,6 @@
       "category": "transport",
       "status": "booked",
       "targetDate": "2027-05-16",
-      "reserved": true,
       "placeId": null,
       "transportId": "transport-airport-bus",
       "amount": 2400,
@@ -461,7 +463,6 @@
       "category": "other",
       "status": "booked",
       "targetDate": "2027-05-14",
-      "reserved": true,
       "placeId": null,
       "transportId": null,
       "amount": 1800,

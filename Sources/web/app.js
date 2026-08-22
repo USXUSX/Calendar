@@ -10,20 +10,20 @@ const draftState = {
   aiPanelOpen: false,
   aiTarget: null,
   collapsedDays: new Set(),
+  collapsedMapDays: new Set(),
+  itineraryDay: "all",
   itineraryCategory: "all",
   mapDay: "all",
   mapCategory: "all",
   pendingTripComment: "",
+  editingCommentKey: null,
 };
 
 const targetKey = (type, id) => `${type}:${id}`;
 
-function aiTargetButton(type, id, name, label = "AIへ変更を指示") {
-  return `<button type="button" class="row-action" data-ai-target-type="${escapeHtml(type)}" data-ai-target-id="${escapeHtml(id)}" data-ai-target-name="${escapeHtml(name)}" aria-label="${escapeHtml(`${name}：${label}`)}">…</button>`;
-}
-
 const shortDateFormatter = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" });
 const weekdayFormatter = new Intl.DateTimeFormat("ja-JP", { weekday: "short" });
+const currentDateFormatter = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "numeric", day: "numeric", weekday: "short" });
 const moneyFormatter = new Intl.NumberFormat("ja-JP", {
   style: "currency",
   currency: "JPY",
@@ -47,7 +47,11 @@ const formatDateRange = ({ start, end }) => {
   return `${first.getFullYear()}/${first.getMonth() + 1}/${first.getDate()}〜${formatDate(end)}`;
 };
 
+const formatShortDateRange = ({ start, end }) => `${formatDate(start)}〜${formatDate(end)}`;
+
 const formatClock = (value) => value ? value.replace(/^0/, "") : "";
+const formatCurrentDate = (date = new Date()) => currentDateFormatter.format(date).replace(/\(([^)]+)\)$/, "（$1）");
+const formatIsoLocalDate = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 const modeLabels = {
   fixed: "時刻確定",
@@ -58,8 +62,10 @@ const modeLabels = {
 const transportLabels = {
   ferry: "フェリー",
   walk: "徒歩",
-  train: "鉄道",
+  train: "電車",
   bus: "バス",
+  car: "車",
+  flight: "飛行機",
 };
 
 const categoryLabels = {
@@ -105,7 +111,7 @@ function renderHome(trip) {
     cells.push(`<div class="calendar-cell ${inTrip ? "trip-span" : ""}"><span>${day}</span>${startsTrip ? `<a href="./trip.html?id=${encodeURIComponent(trip.id)}">${escapeHtml(trip.title)}</a>` : ""}</div>`);
   }
   return `
-    <header class="home-header"><h1>カレンダー</h1><time>2026/8/21（金）</time></header>
+    <header class="home-header"><h1>カレンダー</h1><time datetime="${formatIsoLocalDate()}">${formatCurrentDate()}</time></header>
     <section class="calendar-panel" aria-labelledby="calendar-title">
       <div class="month-heading"><button type="button" aria-label="前月">‹</button><h2 id="calendar-title">${year}年${month + 1}月</h2><button type="button" aria-label="翌月">›</button></div>
       <div class="calendar-weekdays">${["日", "月", "火", "水", "木", "金", "土"].map((day) => `<span>${day}</span>`).join("")}</div>
@@ -113,7 +119,7 @@ function renderHome(trip) {
     </section>
     <div class="home-columns">
       <section><h2>今後1週間の予定</h2><p class="empty-line">予定はありません</p></section>
-      <section><h2>旅行予定</h2><a class="trip-line" href="./trip.html?id=${encodeURIComponent(trip.id)}"><strong>${escapeHtml(trip.title)}</strong><span>${escapeHtml(formatDateRange(trip.dateRange))}</span></a><button class="past-trips" type="button">過去の旅行</button></section>
+      <section><h2>旅行予定</h2><a class="trip-line" href="./trip.html?id=${encodeURIComponent(trip.id)}"><strong>${escapeHtml(trip.title)}</strong><span>${escapeHtml(formatShortDateRange(trip.dateRange))}</span></a><button class="past-trips" type="button">過去の旅行</button></section>
     </div>`;
 }
 
@@ -121,6 +127,7 @@ const filterLabels = { all: "全て", transport: "移動", sightseeing: "観光"
 const placeCategory = (place) => place?.category === "restaurant" ? "food" : place?.category === "hotel" ? "accommodation" : "sightseeing";
 const entryCategory = (entry, placesById) => entry.kind === "transport" ? "transport" : (entry.category || placeCategory(placesById.get(entry.placeSelection.selection[0])));
 const categoryFilter = (scope, active) => `<nav class="category-filter" aria-label="分類">${Object.entries(filterLabels).map(([key, label]) => `<button type="button" data-${scope}-category="${key}" class="${active === key ? "active" : ""}">${label}</button>`).join("")}</nav>`;
+const formatDateWithWeekday = (value) => `${formatDate(value)}（${weekdayFormatter.format(localDate(value))}）`;
 
 function timeBlock(time) {
   if (time.end) return `<time>${formatClock(time.start)}</time><span>⋮</span><time>${formatClock(time.end)}</time>`;
@@ -134,9 +141,8 @@ function itineraryEntry(entry, placesById) {
     const transportName = `${from.name} → ${to.name}`;
     return `<article class="itinerary-row transport-row">
       <div class="entry-time">${timeBlock(entry.time)}</div>
-      <div class="entry-classification"><span aria-hidden="true">↗</span><small>移動</small></div>
-      <div class="row-main"><strong>${escapeHtml(transportName)}</strong><p>${escapeHtml(transportLabels[entry.mode] ?? entry.mode)}　${entry.time.durationMinutes}分</p></div>
-      ${aiTargetButton("transport", entry.id, transportName)}
+      <div class="entry-classification"><span aria-hidden="true">↗</span><small>${escapeHtml(transportLabels[entry.mode] ?? entry.mode)}</small></div>
+      <div class="row-main"><strong>${escapeHtml(transportName)}</strong><p>${entry.time.durationMinutes}分</p></div>
     </article>`;
   }
 
@@ -153,23 +159,22 @@ function itineraryEntry(entry, placesById) {
     <div class="row-main"><strong>${escapeHtml(title)}</strong>${entry.summary ? `<p>${escapeHtml(entry.summary)}</p>` : ""}${confirmedPlace ? "" : `<div class="candidate-inline">${candidates.map((place) => {
         const checked = selected.has(place.id);
         const atMaximum = selection.maxSelections !== null && selected.size >= selection.maxSelections;
-        return `<label class="candidate-chip ${checked ? "selected" : ""}"><input type="checkbox" data-place-selection="${escapeHtml(entry.id)}" data-place-id="${escapeHtml(place.id)}" ${checked ? "checked" : ""} ${!checked && atMaximum ? "disabled" : ""}><span>${escapeHtml(place.name)}</span>${placeRating(place)}</label>`;
+        return `<label class="candidate-chip ${checked ? "selected" : ""}"><input type="checkbox" data-place-selection="${escapeHtml(entry.id)}" data-place-id="${escapeHtml(place.id)}" ${checked ? "checked" : ""} ${!checked && atMaximum ? "disabled" : ""}><span class="candidate-check" aria-hidden="true">${checked ? "✓" : ""}</span><span class="candidate-copy"><strong>${escapeHtml(place.name)}</strong>${place.summary ? `<small>${escapeHtml(place.summary)}</small>` : ""}</span>${placeRating(place)}</label>`;
       }).join("")}</div>`}${entry.details?.length ? `<p class="entry-detail">${escapeHtml(entry.details[0])}</p>` : ""}</div>
-    ${aiTargetButton("scheduleItem", entry.id, entry.action)}
   </article>`;
 }
 
 function renderItinerary(trip, placesById) {
   return `<div class="tab-panel" id="panel-itinerary" role="tabpanel" aria-labelledby="tab-itinerary">
-    <nav class="day-switcher" aria-label="日付へ移動"><button type="button" data-day-anchor="all">全日程</button>${trip.days.map((day) => `<button type="button" data-day-anchor="${escapeHtml(day.id)}">${escapeHtml(formatDate(day.date))}</button>`).join("")}</nav>
-    ${categoryFilter("itinerary", draftState.itineraryCategory)}
+    <div class="top-controls"><nav class="day-switcher" aria-label="旅程の日付">${[["all", "全日程"], ...trip.days.map((day) => [day.id, formatDate(day.date)])].map(([key, label]) => `<button type="button" data-itinerary-day="${escapeHtml(key)}" class="${draftState.itineraryDay === key ? "active" : ""}">${escapeHtml(label)}</button>`).join("")}</nav>${categoryFilter("itinerary", draftState.itineraryCategory)}</div>
     <div class="all-days">${trip.days.map((day, dayIndex) => {
+      if (draftState.itineraryDay !== "all" && draftState.itineraryDay !== day.id) return "";
       const transports = trip.transports.filter((item) => day.transportIds.includes(item.id));
       const entries = [...day.scheduleItems.map((item) => ({ ...item, kind: "schedule" })), ...transports.map((item) => ({ ...item, kind: "transport" }))].sort((a, b) => a.order - b.order);
       const visibleEntries = entries.filter((entry) => draftState.itineraryCategory === "all" || entryCategory(entry, placesById) === draftState.itineraryCategory);
       const collapsed = draftState.collapsedDays.has(day.id);
       return `<section class="day-section" id="${escapeHtml(day.id)}" style="--day-color: var(--day-${dayIndex % 5 + 1})">
-        <div class="day-heading"><button type="button" class="day-toggle" data-toggle-day="${escapeHtml(day.id)}" aria-expanded="${!collapsed}"><span>第${dayIndex + 1}日 ${escapeHtml(formatDate(day.date))}（${weekdayFormatter.format(localDate(day.date))}）</span><span class="day-copy"><strong>${escapeHtml(day.title)}</strong><small>${escapeHtml(day.routeSummary || "")}</small></span><b aria-hidden="true">${collapsed ? "⌄" : "⌃"}</b></button>${aiTargetButton("day", day.id, `${formatDate(day.date)} ${day.title}`)}</div>
+        <div class="day-heading"><button type="button" class="day-toggle" data-toggle-day="${escapeHtml(day.id)}" aria-expanded="${!collapsed}"><span class="day-label"><strong class="day-number">第${dayIndex + 1}日</strong> <span class="day-date">${escapeHtml(formatDate(day.date))}（${weekdayFormatter.format(localDate(day.date))}）</span></span><span class="day-copy"><strong>${escapeHtml(day.title)}</strong><small>${escapeHtml(day.routeSummary || "")}</small></span><b aria-hidden="true">${collapsed ? "⌄" : "⌃"}</b></button></div>
         <div class="itinerary-list" ${collapsed ? "hidden" : ""}>${visibleEntries.map((entry) => itineraryEntry(entry, placesById)).join("")}</div>
       </section>`;
     }).join("")}</div>
@@ -198,8 +203,7 @@ function renderMap(trip) {
     return `<button class="map-pin ${place.category}" style="left:${x}%;top:${y}%;--pin-color:var(--day-${place.map.dayIndex % 5 + 1})" aria-label="${escapeHtml(place.name)}" data-place-index="${index}"><span>${dayPoints.length}</span></button>`;
   }).join("");
   return `<div class="tab-panel" id="panel-map" role="tabpanel" aria-labelledby="tab-map" hidden>
-    <nav class="day-switcher map-days" aria-label="地図の日付">${[["all", "全日程"], ...trip.days.map((day) => [day.id, formatDate(day.date)])].map(([key, label]) => `<button type="button" data-map-day="${escapeHtml(key)}" class="${draftState.mapDay === key ? "active" : ""}">${escapeHtml(label)}</button>`).join("")}</nav>
-    ${categoryFilter("map", draftState.mapCategory)}
+    <div class="top-controls"><nav class="day-switcher map-days" aria-label="地図の日付">${[["all", "全日程"], ...trip.days.map((day) => [day.id, formatDate(day.date)])].map(([key, label]) => `<button type="button" data-map-day="${escapeHtml(key)}" class="${draftState.mapDay === key ? "active" : ""}">${escapeHtml(label)}</button>`).join("")}</nav>${categoryFilter("map", draftState.mapCategory)}</div>
     <div class="map-layout">
       <div class="map-card">
         <div class="map-watermark">SETONAIKAI</div>
@@ -207,37 +211,32 @@ function renderMap(trip) {
         ${mapped}
         <div class="map-note">外部地図APIを使わない位置確認図</div>
       </div>
-      <div class="map-place-list">${trip.days.map((day, dayIndex) => { const dayPoints = points.filter((place) => place.map.day.id === day.id); if (!dayPoints.length) return ""; return `<section style="--day-color:var(--day-${dayIndex % 5 + 1})"><div class="map-day-heading"><strong>第${dayIndex + 1}日 ${formatDate(day.date)}（${weekdayFormatter.format(localDate(day.date))}）</strong><span><b>${escapeHtml(day.title)}</b><small>${escapeHtml(day.routeSummary || "")}</small></span></div><ol class="place-index">${dayPoints.map((place, index) => `<li><span>${index + 1}</span><time>${escapeHtml(formatClock(place.map.time.start) || "未定")}</time><i>●</i><strong>${escapeHtml(place.name)}</strong><small>${filterLabels[place.map.category]}</small></li>`).join("")}</ol></section>`; }).join("")}</div>
+      <div class="map-place-list">${trip.days.map((day, dayIndex) => { const dayPoints = points.filter((place) => place.map.day.id === day.id); if (!dayPoints.length) return ""; const collapsed = draftState.collapsedMapDays.has(day.id); return `<section style="--day-color:var(--day-${dayIndex % 5 + 1})"><button type="button" class="map-day-heading" data-toggle-map-day="${escapeHtml(day.id)}" aria-expanded="${!collapsed}"><span class="day-label"><strong class="day-number">第${dayIndex + 1}日</strong> <span class="day-date">${formatDate(day.date)}（${weekdayFormatter.format(localDate(day.date))}）</span></span><span class="day-copy"><strong>${escapeHtml(day.title)}</strong><small>${escapeHtml(day.routeSummary || "")}</small></span><b aria-hidden="true">${collapsed ? "⌄" : "⌃"}</b></button><ol class="place-index" ${collapsed ? "hidden" : ""}>${dayPoints.map((place, index) => `<li><span>${index + 1}</span><time>${escapeHtml(formatClock(place.map.time.start) || "未定")}</time><i>●</i><strong>${escapeHtml(place.name)}</strong><small>${filterLabels[place.map.category]}</small></li>`).join("")}</ol></section>`; }).join("")}</div>
     </div>
   </div>`;
 }
 
 const preparationChecklist = (items) => `<ul class="check-list task-list">${items.map((item) => {
   const completed = draftState.preparation.get(item.id) ?? item.completed;
-  return `<li class="${completed ? "completed" : "pending"}"><label><input type="checkbox" data-preparation-id="${escapeHtml(item.id)}" ${completed ? "checked" : ""}><span class="check-icon" aria-hidden="true">${completed ? "✓" : "○"}</span><time>${escapeHtml(formatDate(item.dueDate))}</time><span class="task-copy"><strong>${escapeHtml(item.label)}</strong></span></label></li>`;
+  return `<li class="${completed ? "completed" : "pending"}"><label><input type="checkbox" data-preparation-id="${escapeHtml(item.id)}" ${completed ? "checked" : ""}><span class="check-icon" aria-hidden="true">${completed ? "✓" : ""}</span><time>${escapeHtml(formatDateWithWeekday(item.dueDate))}</time><span class="task-copy"><strong>${escapeHtml(item.label)}</strong></span></label></li>`;
 }).join("")}</ul>`;
 
 const rioChecklist = (items) => `<ul class="check-list rio-list">${items.map((item) => {
   const value = draftState.rioPacking.get(item.id) ?? (item.notNeeded ? "notNeeded" : item.completed ? "completed" : "pending");
-  return `<li class="${value === "completed" ? "completed" : "pending"} ${value === "notNeeded" ? "not-needed" : ""}"><label><input type="checkbox" data-rio-packing-id="${escapeHtml(item.id)}" ${value === "completed" ? "checked" : ""}><span class="check-icon" aria-hidden="true">${value === "completed" ? "✓" : "○"}</span><span>${escapeHtml(item.label)}${value === "notNeeded" ? "（持参しない）" : ""}</span></label></li>`;
+  return `<li class="${value === "completed" ? "completed" : "pending"} ${value === "notNeeded" ? "not-needed" : ""}"><label><input type="checkbox" data-rio-packing-id="${escapeHtml(item.id)}" ${value === "completed" ? "checked" : ""}><span class="check-icon" aria-hidden="true">${value === "completed" ? "✓" : ""}</span><span>${escapeHtml(item.label)}${value === "notNeeded" ? "（持参しない）" : ""}</span></label></li>`;
 }).join("")}</ul>`;
 
 function renderPreparation(trip, placesById) {
   const transportsById = new Map(trip.transports.map((transport) => [transport.id, transport]));
   const rioItems = [...trip.rioPlan.packingItems].sort((a, b) => a.order - b.order);
-  const total = trip.bookings.reduce((sum, booking) => sum + booking.amount, 0);
-  const totals = Object.entries(categoryLabels).map(([category, label]) => {
-    const value = trip.bookings.filter((booking) => booking.category === category).reduce((sum, booking) => sum + booking.amount, 0);
-    return `<div><span>${label}</span><strong>${moneyFormatter.format(value)}</strong></div>`;
-  }).join("");
   return `<div class="tab-panel" id="panel-preparation" role="tabpanel" aria-labelledby="tab-preparation" hidden>
     <div class="preparation-grid">
       <section class="prep-card wife-card">
-        <div class="card-heading"><h3>準備すること</h3>${aiTargetButton("preparation", trip.preparation.id, "準備すること")}</div>
+        <div class="card-heading"><h3>準備すること</h3></div>
         ${preparationChecklist([...trip.preparation.tasks].sort((a, b) => a.order - b.order))}
       </section>
       ${trip.rioPlan.applicable === false ? "" : `<section class="prep-card rio-card">
-        <div class="card-heading"><h3>リオ　${trip.rioPlan.careMode === "leave" ? "預ける" : "同行"}</h3>${aiTargetButton("rioPlan", trip.rioPlan.id, "リオ")}</div>
+        <div class="card-heading"><h3>リオ　${trip.rioPlan.careMode === "leave" ? "預ける" : "同行"}</h3></div>
         ${rioChecklist(rioItems)}
       </section>`}
       <section class="prep-card booking-card">
@@ -247,9 +246,10 @@ function renderPreparation(trip, placesById) {
           const transport = transportsById.get(booking.transportId);
           const transportName = transport ? `${transportLabels[transport.mode] ?? transport.mode} ${placesById.get(transport.fromPlaceId).name} → ${placesById.get(transport.toPlaceId).name}` : null;
           const bookingName = target?.name ?? transportName ?? "予約";
-          return `<div class="booking-row" role="row"><span class="booking-check" aria-label="${booking.reserved ? "予約済み" : "未予約"}">${booking.reserved ? "✓" : "○"}</span><time>${escapeHtml(formatDate(booking.targetDate))}</time><span>${categoryLabels[booking.category]}</span><div role="cell"><strong>${escapeHtml(bookingName)}</strong><small class="official-note">${escapeHtml(booking.notes)}</small></div><b>${moneyFormatter.format(booking.amount)}</b>${aiTargetButton("booking", booking.id, bookingName)}</div>`;
+          const reserved = booking.status === "booked";
+          const importantNote = reserved ? "" : booking.notes;
+          return `<div class="booking-row" role="row"><span class="booking-check" aria-label="${reserved ? "予約済み" : "未予約"}">${reserved ? "✓" : ""}</span><time>${escapeHtml(formatDateWithWeekday(booking.targetDate))}</time><span class="booking-category">${categoryLabels[booking.category]}</span><div class="booking-content" role="cell"><strong>${escapeHtml(bookingName)}</strong>${importantNote ? `<small class="official-note">${escapeHtml(importantNote)}</small>` : ""}</div><b class="booking-amount">${moneyFormatter.format(booking.amount)}</b></div>`;
         }).join("")}</div>
-        <div class="cost-summary"><div><span>費用合計</span><strong>${moneyFormatter.format(total)}</strong></div><div class="cost-breakdown">${totals}</div></div>
       </section>
     </div>
   </div>`;
@@ -260,35 +260,39 @@ function draftCount() {
   return draftState.preparation.size + draftState.rioPacking.size + draftState.placeSelections.size + notes;
 }
 
+function commentCount() {
+  return [...draftState.instructions.values()].filter((value) => value.trim()).length;
+}
+
 function instructionTargetLabel(trip, key, placesById) {
   const [type, id] = key.split(":");
-  if (type === "trip") return `旅行全体：${trip.title}`;
+  if (type === "trip") return "旅行全体";
   if (type === "day") {
     const day = trip.days.find((item) => item.id === id);
     return day ? `日程：${formatDate(day.date)} ${day.title}` : "日程";
   }
   if (type === "scheduleItem") {
     const item = trip.days.flatMap((day) => day.scheduleItems).find((candidate) => candidate.id === id);
-    return item ? `予定：${item.action}` : "予定";
+    return item ? `旅程 › ${item.action}` : "旅程";
   }
   if (type === "transport") {
     const transport = trip.transports.find((item) => item.id === id);
-    if (transport) return `移動：${placesById.get(transport.fromPlaceId)?.name ?? "出発地"} → ${placesById.get(transport.toPlaceId)?.name ?? "到着地"}`;
-    return "移動";
+    if (transport) return `旅程 › ${placesById.get(transport.fromPlaceId)?.name ?? "出発地"} → ${placesById.get(transport.toPlaceId)?.name ?? "到着地"}`;
+    return "旅程 › 移動";
   }
   if (type === "booking") {
     const booking = trip.bookings.find((item) => item.id === id);
     const transport = trip.transports.find((item) => item.id === booking?.transportId);
     const transportName = transport ? `${placesById.get(transport.fromPlaceId)?.name ?? "出発地"} → ${placesById.get(transport.toPlaceId)?.name ?? "到着地"}` : null;
-    return `予約：${placesById.get(booking?.placeId)?.name ?? transportName ?? "予約項目"}`;
+    return `準備 › ${placesById.get(booking?.placeId)?.name ?? transportName ?? "予約項目"}`;
   }
   if (type === "preparation") {
     const task = trip.preparation.tasks.find((item) => item.id === id);
-    return task ? `準備：${task.label}` : "妻の準備";
+    return task ? `準備 › ${task.label}` : "準備";
   }
   if (type === "rioPlan") {
     const item = trip.rioPlan.packingItems.find((candidate) => candidate.id === id);
-    return item ? `Rio持参品：${item.label}` : "Rioの予定";
+    return item ? `準備 › リオ › ${item.label}` : "準備 › リオ";
   }
   return "関連項目";
 }
@@ -374,11 +378,28 @@ function updateMaterialText(trip, materials) {
 }
 
 function renderNotes(trip, placesById) {
+  const commentTargets = [
+    { type: "trip", id: trip.id },
+    ...trip.days.flatMap((day) => [
+      ...day.scheduleItems.map((item) => ({ type: "scheduleItem", id: item.id })),
+      ...trip.transports.filter((item) => day.transportIds.includes(item.id)).map((item) => ({ type: "transport", id: item.id })),
+    ]),
+    ...trip.preparation.tasks.map((item) => ({ type: "preparation", id: item.id })),
+    ...trip.rioPlan.packingItems.map((item) => ({ type: "rioPlan", id: item.id })),
+    ...trip.bookings.map((item) => ({ type: "booking", id: item.id })),
+  ];
+  const comments = [...draftState.instructions.entries()].filter(([, value]) => value.trim()).map(([key, value]) => {
+    const editing = draftState.editingCommentKey === key;
+    const body = editing
+      ? `<textarea data-instruction-key="${escapeHtml(key)}" aria-label="コメントを編集" autofocus>${escapeHtml(value)}</textarea>`
+      : `<button type="button" class="comment-text" data-edit-comment="${escapeHtml(key)}">${escapeHtml(value)}</button>`;
+    return `<article><span>${escapeHtml(instructionTargetLabel(trip, key, placesById))}</span><div class="comment-body">${body}<button type="button" class="cancel-comment" data-cancel-comment="${escapeHtml(key)}">取消</button></div></article>`;
+  }).join("");
   return `<div class="tab-panel" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" hidden>
     <section class="comments-workspace">
-      <h2>コメント</h2>
+      <div class="comments-heading"><h2>コメント</h2><div class="comment-actions"><label><span class="visually-hidden">コメント対象</span><select data-comment-target>${commentTargets.map((target) => { const key = targetKey(target.type, target.id); return `<option value="${escapeHtml(key)}">${escapeHtml(instructionTargetLabel(trip, key, placesById))}</option>`; }).join("")}</select></label><button type="button" data-open-comment-target>コメントを追加</button><button type="button" data-copy-update ${draftCount() ? "" : "disabled"}>AI更新材料をコピー</button></div></div>
       <p class="copy-status" data-copy-status role="status"></p>
-      <div class="comment-list">${[...draftState.instructions.entries()].filter(([, value]) => value.trim()).map(([key, value]) => `<article><span>${escapeHtml(instructionTargetLabel(trip, key, placesById))}</span><div class="comment-body"><textarea data-instruction-key="${escapeHtml(key)}" aria-label="コメントを編集">${escapeHtml(value)}</textarea><button type="button" data-cancel-comment="${escapeHtml(key)}">取消</button></div></article>`).join("") || `<p class="empty-line">未処理のコメントはありません</p>`}</div>
+      <div class="comment-list">${comments || `<p class="empty-line">未処理のコメントはありません</p>`}</div>
       <div class="trip-comment"><label><span>旅行全体へのコメントを追加</span><textarea data-new-trip-comment placeholder="コメントを入力">${escapeHtml(draftState.pendingTripComment)}</textarea></label><button type="button" data-add-trip-comment ${draftState.pendingTripComment.trim() ? "" : "disabled"}>追加</button></div>
     </section>
   </div>`;
@@ -398,13 +419,13 @@ function renderAiPanel(trip) {
 function renderTrip(trip) {
   document.title = `${trip.title} | Calendar`;
   const placesById = new Map(trip.places.map((place) => [place.id, place]));
-  return `<section class="trip-summary"><h1>${escapeHtml(trip.title)}</h1><p>${escapeHtml(formatDateRange(trip.dateRange))}</p></section>
+  return `<section class="trip-summary"><h1>${escapeHtml(trip.title)}<span>（${escapeHtml(formatDateRange(trip.dateRange))}）</span></h1></section>
     <nav class="tabs bottom-nav" aria-label="旅行詳細">
       <a class="tab" href="./index.html">カレンダー</a>
       <button id="tab-itinerary" class="tab active" role="tab" aria-selected="true" aria-controls="panel-itinerary" data-tab="itinerary">旅程</button>
       <button id="tab-map" class="tab" role="tab" aria-selected="false" aria-controls="panel-map" data-tab="map">地図</button>
       <button id="tab-preparation" class="tab" role="tab" aria-selected="false" aria-controls="panel-preparation" data-tab="preparation">準備</button>
-      <button id="tab-notes" class="tab" role="tab" aria-selected="false" aria-controls="panel-notes" data-tab="notes">コメント <span class="draft-count" data-draft-count>${draftCount()}</span></button>
+      <button id="tab-notes" class="tab" role="tab" aria-selected="false" aria-controls="panel-notes" data-tab="notes">コメント${commentCount() ? ` <span class="draft-count" data-comment-count>${commentCount()}</span>` : ""}</button>
     </nav>
     ${renderItinerary(trip, placesById)}
     ${renderMap(trip)}
@@ -442,10 +463,12 @@ function setupTripInteractions(app, trip) {
       if (tab.dataset.tab === "notes") rerender();
       else activateTab(tab.dataset.tab, false);
     }
-    const dayAnchor = event.target.closest("[data-day-anchor]");
-    if (dayAnchor) {
-      const target = dayAnchor.dataset.dayAnchor === "all" ? app.querySelector(".all-days") : app.querySelector(`#${CSS.escape(dayAnchor.dataset.dayAnchor)}`);
-      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const itineraryDay = event.target.closest("[data-itinerary-day]");
+    if (itineraryDay) {
+      const selectedDay = itineraryDay.dataset.itineraryDay;
+      draftState.itineraryDay = selectedDay !== "all" && draftState.itineraryDay === selectedDay ? "all" : selectedDay;
+      if (draftState.itineraryDay !== "all") draftState.collapsedDays.delete(draftState.itineraryDay);
+      rerender();
     }
     const dayToggle = event.target.closest("[data-toggle-day]");
     if (dayToggle) {
@@ -456,12 +479,20 @@ function setupTripInteractions(app, trip) {
     }
     const itineraryCategory = event.target.closest("[data-itinerary-category]");
     if (itineraryCategory) {
-      draftState.itineraryCategory = itineraryCategory.dataset.itineraryCategory;
+      const selectedCategory = itineraryCategory.dataset.itineraryCategory;
+      draftState.itineraryCategory = selectedCategory !== "all" && draftState.itineraryCategory === selectedCategory ? "all" : selectedCategory;
       rerender();
     }
     const mapDay = event.target.closest("[data-map-day]");
     if (mapDay) {
       draftState.mapDay = mapDay.dataset.mapDay;
+      rerender();
+    }
+    const mapDayToggle = event.target.closest("[data-toggle-map-day]");
+    if (mapDayToggle) {
+      const id = mapDayToggle.dataset.toggleMapDay;
+      if (draftState.collapsedMapDays.has(id)) draftState.collapsedMapDays.delete(id);
+      else draftState.collapsedMapDays.add(id);
       rerender();
     }
     const mapCategory = event.target.closest("[data-map-category]");
@@ -472,7 +503,14 @@ function setupTripInteractions(app, trip) {
     const cancelledComment = event.target.closest("[data-cancel-comment]");
     if (cancelledComment) {
       draftState.instructions.delete(cancelledComment.dataset.cancelComment);
+      if (draftState.editingCommentKey === cancelledComment.dataset.cancelComment) draftState.editingCommentKey = null;
       rerender();
+    }
+    const editableComment = event.target.closest("[data-edit-comment]");
+    if (editableComment) {
+      draftState.editingCommentKey = editableComment.dataset.editComment;
+      rerender();
+      app.querySelector(`[data-instruction-key="${CSS.escape(draftState.editingCommentKey)}"]`)?.focus();
     }
     if (event.target.closest("[data-add-trip-comment]")) {
       const value = draftState.pendingTripComment.trim();
@@ -498,6 +536,17 @@ function setupTripInteractions(app, trip) {
         const status = app.querySelector("[data-copy-status]");
         if (status) status.textContent = "コピーできませんでした。ブラウザのクリップボード許可を確認してください。";
       });
+    }
+    if (event.target.closest("[data-open-comment-target]")) {
+      const selected = app.querySelector("[data-comment-target]")?.value;
+      if (selected) {
+        const [type, id] = selected.split(":");
+        const placesById = new Map(trip.places.map((place) => [place.id, place]));
+        draftState.aiTarget = { type, id, name: instructionTargetLabel(trip, selected, placesById) };
+        draftState.aiPanelOpen = true;
+        rerender();
+        app.querySelector("[data-instruction-key]")?.focus();
+      }
     }
     const aiTarget = event.target.closest("[data-ai-target-type]");
     if (aiTarget) {
@@ -533,7 +582,7 @@ function setupTripInteractions(app, trip) {
     if (!key) return;
     if (event.target.value.trim()) draftState.instructions.set(key, event.target.value);
     else draftState.instructions.delete(key);
-    app.querySelectorAll("[data-draft-count]").forEach((item) => { item.textContent = draftCount(); });
+    app.querySelectorAll("[data-comment-count]").forEach((item) => { item.textContent = commentCount(); });
     app.querySelectorAll("[data-reset-draft]").forEach((item) => { item.disabled = draftCount() === 0; });
     const updateCount = app.querySelector("[data-update-count]");
     const copyButton = app.querySelector("[data-copy-update]");
