@@ -1,5 +1,6 @@
 import { normalizeTrip } from "./trip-normalizer.mjs";
 import { createUpdatePackage } from "./update-package.mjs";
+import { candidateProbe } from "./candidate-probe.mjs";
 
 const SAMPLE_URL = "../../Samples/synthetic-trip.json";
 
@@ -405,7 +406,8 @@ function renderTrip(trip, view) {
   const candidate = view.version === "candidate";
   const versionControl = candidate
     ? `<div class="version-status"><strong>候補版・未採用</strong><a href="./trip.html?id=${encodeURIComponent(trip.id)}">現在版に戻る</a></div>`
-    : view.candidateAvailable ? `<div class="version-status"><a href="./trip.html?id=${encodeURIComponent(trip.id)}&version=candidate">候補版を確認</a></div>` : "";
+    : view.candidateAvailable ? `<div class="version-status"><a href="./trip.html?id=${encodeURIComponent(trip.id)}&version=candidate">候補版を確認</a></div>`
+      : view.candidateError ? `<div class="version-status candidate-error" role="status">${escapeHtml(view.candidateError)}</div>` : "";
   return `<section class="trip-summary"><h1>${escapeHtml(trip.title)}<span>（${escapeHtml(formatDateRange(trip.dateRange))}）</span></h1>${versionControl}</section>
     <nav class="tabs bottom-nav" aria-label="旅行詳細">
       <a class="tab" href="./index.html">カレンダー</a>
@@ -609,7 +611,7 @@ async function loadData(page) {
   if (indexResponse.status === 404) {
     const sampleResponse = await fetch(SAMPLE_URL, { cache: "no-store" });
     const sample = await responseJson(sampleResponse, "合成JSONを読み込めませんでした");
-    return page === "trip" ? { trip: normalizeTrip(sample), originalJson: sample, version: "current", candidateAvailable: false } : [tripSummary(sample)];
+    return page === "trip" ? { trip: normalizeTrip(sample), originalJson: sample, version: "current", candidateAvailable: false, candidateError: null } : [tripSummary(sample)];
   }
   const trips = await responseJson(indexResponse, "旅行一覧を読み込めませんでした");
   if (!Array.isArray(trips) || trips.length === 0) throw new Error("採用済みの旅行がありません。Calendar_Localを確認してください。");
@@ -619,17 +621,16 @@ async function loadData(page) {
   if (!trips.some((trip) => trip.id === tripId)) throw new Error(`旅行が見つかりません: ${tripId}`);
   const requestedVersion = new URLSearchParams(location.search).get("version") === "candidate" ? "candidate" : "current";
   let candidateAvailable = requestedVersion === "candidate";
+  let candidateError = null;
   if (requestedVersion === "current") {
     const candidateResponse = await fetch(`/api/trips/${encodeURIComponent(tripId)}/candidate`, { cache: "no-store" });
-    if (candidateResponse.status === 404) candidateAvailable = false;
-    else {
-      await responseJson(candidateResponse, "候補版を確認できませんでした");
-      candidateAvailable = true;
-    }
+    const probe = await candidateProbe(candidateResponse);
+    candidateAvailable = probe.available;
+    candidateError = probe.error;
   }
   const sourceResponse = await fetch(`/api/trips/${encodeURIComponent(tripId)}/${requestedVersion}`, { cache: "no-store" });
   const originalJson = await responseJson(sourceResponse, requestedVersion === "candidate" ? "候補版を読み込めませんでした" : "旅行JSONを読み込めませんでした");
-  return { trip: normalizeTrip(originalJson), originalJson, version: requestedVersion, candidateAvailable };
+  return { trip: normalizeTrip(originalJson), originalJson, version: requestedVersion, candidateAvailable, candidateError };
 }
 
 function tripSummary(source) {
