@@ -43,11 +43,11 @@ When sources conflict, stop and identify the conflict. Do not silently overwrite
 
 ## Verification and handoff
 
-- Follow the common tool-development workflow at `/Users/us/Tools/Development/ToolDevelopmentStandard/TOOL_DEVELOPMENT_WORKFLOW.md` unless this file sets a stricter Calendar-specific rule.
+- Follow `/Users/us/Tools/Development/ToolDevelopmentStandard/CODEX_START.md` and its linked current standard unless this file sets a stricter Calendar-specific rule.
 - Run the narrowest relevant checks first; run the full test suite when one exists and the change warrants it.
 - Report changed files, checks performed, and any remaining uncertainty.
 - For visual review, save screenshots under `/Users/us/Tools/GoogleDrive/Calendar_GD/Review/PR-<number>/`; never commit them or place them in `Calendar_Local` for handoff.
-- Record actionable Chat review findings directly in the Pull Request, then update and re-verify the same Pull Request.
-- Delivery flow: Chat discussion -> GitHub Issue -> Codex implementation -> tests -> Draft Pull Request -> Chat review -> PR comments -> Codex fixes -> re-review -> human-approved merge.
+- When Chat review is needed, record actionable findings directly in the Pull Request, then update and re-verify the same Pull Request.
+- Select Validation, Chat review, screenshots, and user confirmation from the current standard according to the change strength; do not require every gate for minor changes.
 
 Keep this file concise. Put detailed product specifications in `docs/` and add only recurring project-wide guidance here.
