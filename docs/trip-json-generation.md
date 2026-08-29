@@ -1,6 +1,6 @@
 # ChatGPT向けTrip JSON生成ガイド
 
-> **Status:** Issue #46以降も、AIがformalな完全Trip JSONを生成・再生成する基本方式として維持する。再構築後は現在のTrip JSONに`AI Instructions`と`Direct Overrides`を加えて次版を生成する。入力の保存形式と統合手順は後続Issueで定める。
+> **Status:** Issue #46以降も、AIがformalな完全Trip JSONを生成・再生成する基本方式として維持する。Issue #48では、current Trip JSONを最後にAI生成・Validationされたauthoritative baseとし、`effective Trip`はactive Direct Overridesを加えた派生read modelと定めた。再生成candidateは現在のTrip JSON、`AI Instructions`、active `Direct Overrides`から作り、Validation成功時だけcurrentへ採用する。入力の保存形式と詳細ライフサイクルは後続Issueで定める。
 
 ## 入力として渡すもの
 
