@@ -22,6 +22,8 @@
 - 2026-08-30, Issue #48: Update commands preserve source authority even in a unified Schedule. Editing an ordinary Event updates its SQLite Event record. Editing a projected Trip Event registers a Direct Override or AI Instruction against its Trip source and never converts it into an authoritative ordinary SQLite Event.
 - 2026-08-30, Issue #46: CAL owns its domain data and meaning-based read/write boundary. FRM is the owner-facing Web entry and must not manipulate CAL's physical SQLite schema. TSK schedules and executes Mac `Job` records and receives only explicitly integrated automated work, not a full CAL sync. ENT remains a separate acquisition/storage foundation and does not share a database with CAL.
 - 2026-08-30, Issue #46 and #48: Participant access must use a read-only model derived from the effective Trip and SQLite visibility/share state. CAL's SQLite, Trip JSON files, Direct Overrides, AI Instructions, and owner read/write boundary are never exposed directly. Initial visibility uses `owner` and `participants`; `Trip` and `Event` are the primary shareable entities, while future explicit `Todo` sharing remains possible. Projection, authentication, URL, hosting, and publication are follow-up decisions, and no participant publication is authorized by this decision.
+- 2026-08-30, Issue #50: `Schemas/calendar-v1.sql` is the reproducible physical SQLite v1 schema for CAL-wide state. It contains `schema_meta`, Trip registry state, ordinary Events, Todos, AI Instructions, and Direct Overrides. It intentionally contains no authoritative Trip itinerary fields and no authoritative Trip-derived Event rows. Every connection must enable SQLite foreign keys.
+- 2026-08-30, Issue #50: A new AI Instruction starts as `pending`; generation or Validation failure leaves it pending, successful adoption of a candidate that used it changes it to `applied`, and user cancellation changes it to `cancelled`. Direct Overrides keep one current row per `trip_id + source_item_id + field_path`; re-editing updates that row, disabling sets `active = 0`, and successful AI regeneration does not consume it.
 
 ## Superseded
 
@@ -33,10 +35,10 @@
 
 - GitHub repository visibility.
 - Production application platform and framework after the read-only prototype.
-- SQLite physical schema and migration strategy.
+- Migration strategy beyond the reproducible SQLite v1 initialization boundary.
 - Unified Event projection, effective Trip composition, and FRM-facing domain interface.
 - Candidate Trip JSON adoption atomicity and necessary history, backup, and rollback strategy.
-- `AI Instruction / Direct Override` lifecycle, conflict, removal, applied-state, and hard/soft rules.
+- `AI Instruction / Direct Override` candidate consistency, conflict UI, and hard/soft rules beyond the v1 minimum lifecycle.
 - FRM-to-CAL access method and owner read/write contracts.
 - Participant projection, authentication, publication, and refresh model.
 - Build, test, formatting, and review commands for the rebuilt implementation.

@@ -20,3 +20,7 @@ the static prototype contains no network write or external-service path.
 `temporary-state-ui.test.sh` confirms that Issue #9 interactions use separate
 browser-memory state and do not add instructions or draft fields to the adopted
 synthetic JSON.
+
+`sqlite-schema.test.sh` initializes a temporary empty SQLite database and
+validates the v1 tables, schema version, foreign keys, enums, relationship
+constraints, AI Instruction state, Direct Override uniqueness, and JSON values.

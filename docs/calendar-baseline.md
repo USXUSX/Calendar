@@ -55,7 +55,7 @@ formal Trip JSONは、各旅行について最後にAI生成され、必要なVa
 - Trip旅程のAI生成base: formal Trip JSON
 - ユーザーの旅程への直接指定: SQLite上のactive `Direct Override`
 
-Trip由来Eventを通常のSQLite `Event`として正本化しない。派生結果をSQLiteへ保存する場合もcache等の再生成可能物に限り、正本として扱わない。SQLite schema、配置規則、履歴・rollbackの具体方式は後続Issueで決定する。このIssueではDBや新しいデータ経路を実装しない。
+Trip由来Eventを通常のSQLite `Event`として正本化しない。派生結果をSQLiteへ保存する場合もcache等の再生成可能物に限り、正本として扱わない。SQLite v1 schemaはIssue #50で確定し、`Schemas/calendar-v1.sql`を正本とする。実運用DBへの適用、既存データ移行、history・rollbackの具体方式は後続Issueで決定する。
 
 3層の役割は維持する。
 
@@ -73,7 +73,7 @@ Trip由来Eventを通常のSQLite `Event`として正本化しない。派生結
 
 ### Direct Override
 
-ユーザーが旅程画面上で登録する具体的な変更。コメント、メモ、店名、時刻等の明示値を扱う。既存のstable IDで対象を識別してSQLiteへactive `Direct Override`として登録し、Trip JSON本体を即時更新せず`effective Trip`へ直ちに反映する。Direct Overrideは現在のJSONへ一度適用して自動消費・削除する入力ではない。次回以降のAI再生成にも渡し、ユーザーが直接指定した内容が失われないようにする。解除、競合、適用済み状態、hard / soft分類等のライフサイクルは後続Issueで決定する。
+ユーザーが旅程画面上で登録する具体的な変更。コメント、メモ、店名、時刻等の明示値を扱う。既存のstable IDで対象を識別してSQLiteへactive `Direct Override`として登録し、Trip JSON本体を即時更新せず`effective Trip`へ直ちに反映する。Direct Overrideは現在のJSONへ一度適用して自動消費・削除する入力ではない。次回以降のAI再生成にも渡し、ユーザーが直接指定した内容が失われないようにする。同一`trip_id + source_item_id + field_path`はSQLite上の1行を現在指定として更新し、解除時は`active = 0`にする。AI再生成成功後も自動でinactive化しない。candidateとの整合確認、AI Instructionとの競合UI、hard / soft分類は後続Issueで決定する。
 
 初期Baselineではhard/soft等へ細分化せず、`AI Instruction`と`Direct Override`を区別する。
 
@@ -86,6 +86,8 @@ Trip由来Eventを通常のSQLite `Event`として正本化しない。派生結
 ```
 
 candidateは既存のTrip JSON Schema、stable ID、cross-reference validation等の必要なValidationをすべて通過した場合だけcurrentへ採用する。AI生成またはValidationに失敗した場合は、現行Trip JSON、active Direct Override、未処理AI Instructionをすべて維持する。不完全JSONをcurrentとして表示しない。具体的なhistory、backup、rollback方式は必要性を確認する後続Issueまで固定しない。
+
+AI Instructionは新規登録時を`pending`とする。AI生成またはValidation失敗では`pending`を維持し、そのInstructionを入力に含むcandidateがValidationを通過してcurrentへ採用された時だけ`applied`へ更新する。ユーザーが反映不要とした場合は`cancelled`へ更新する。`applied`は次回再生成の通常入力へ再投入しない。
 
 ## 6. 統一Event read modelと更新command境界
 

@@ -1,12 +1,14 @@
 # Calendar Trip JSON現行運用手順
 
-> **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。Issue #46以降もformal Trip JSONとAIによる完全JSON再生成は維持するが、SQLite、`AI Instruction`、`Direct Override`との新しい統合運用は未実装であり、[`calendar-baseline.md`](calendar-baseline.md)と後続Issueで定める。
+> **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。Issue #50でSQLite v1 schemaと変更入力の最小ライフサイクルは確定したが、実運用DB、domain interface、AI統合は未実装である。新しい統合運用は[`calendar-baseline.md`](calendar-baseline.md)と後続Issueで定める。
 
 ## 1. 原則
 
 Calendar は正式仕様の旅行 JSON を読み取り、見やすく表示する。旧形式 JSON の互換変換は行わない。表示できない場合は、元の JSON を正式仕様に合わせて修正または完全再生成する。
 
 実データは `/Users/us/Tools/LocalData/Calendar_Local/trips/` にだけ置き、Git リポジトリや Google Driveへコピー、コミット、アップロードしない。
+
+SQLite v1のGit管理上の正本は`Schemas/calendar-v1.sql`である。開発用の空DBは明示した一時pathに`python3 scripts/init_calendar_db.py <path>`で初期化できる。各接続は`PRAGMA foreign_keys = ON`を有効にする。このIssueでは`Calendar_Local/db/calendar.sqlite3`を作成・変更せず、実データ移行も行わない。
 
 ## 2. ファイル配置
 
