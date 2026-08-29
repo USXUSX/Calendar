@@ -24,6 +24,8 @@
 - 2026-08-30, Issue #46 and #48: Participant access must use a read-only model derived from the effective Trip and SQLite visibility/share state. CAL's SQLite, Trip JSON files, Direct Overrides, AI Instructions, and owner read/write boundary are never exposed directly. Initial visibility uses `owner` and `participants`; `Trip` and `Event` are the primary shareable entities, while future explicit `Todo` sharing remains possible. Projection, authentication, URL, hosting, and publication are follow-up decisions, and no participant publication is authorized by this decision.
 - 2026-08-30, Issue #50: `Schemas/calendar-v1.sql` is the reproducible physical SQLite v1 schema for CAL-wide state. It contains `schema_meta`, Trip registry state, ordinary Events, Todos, AI Instructions, and Direct Overrides. It intentionally contains no authoritative Trip itinerary fields and no authoritative Trip-derived Event rows. Every connection must enable SQLite foreign keys.
 - 2026-08-30, Issue #50: A new AI Instruction starts as `pending`; generation or Validation failure leaves it pending, successful adoption of a candidate that used it changes it to `applied`, and user cancellation changes it to `cancelled`. Direct Overrides keep one current row per `trip_id + source_item_id + field_path`; re-editing updates that row, disabling sets `active = 0`, and successful AI regeneration does not consume it.
+- 2026-08-30, Issue #52: `Sources/calendar_domain/` is CAL's Python semantic domain interface v1. It is an internal storage boundary, not a CAL UI platform decision. Callers explicitly inject the SQLite path and Trip root and use meaning-based reads and commands instead of SQLite tables, Trip file paths, or JSON collection layout. Unified Event identities are source-qualified; Trip projection uses effective Trip data and never creates authoritative `events` rows.
+- 2026-08-30, Issue #52: Effective Trip composition deep-copies the validated authoritative Trip JSON, applies active Direct Overrides in memory by stable source item ID and item-relative JSON Pointer, then validates the complete result. Invalid or ambiguous items, paths, and values are domain errors, and the authoritative JSON is never rewritten. Each SQLite command is one transaction; physical SQLite and filesystem errors are translated to a small not-found / validation / conflict boundary.
 
 ## Superseded
 
@@ -36,7 +38,7 @@
 - GitHub repository visibility.
 - Production application platform and framework after the read-only prototype.
 - Migration strategy beyond the reproducible SQLite v1 initialization boundary.
-- Unified Event projection, effective Trip composition, and FRM-facing domain interface.
+- FRM-to-CAL adapter/access method over the implemented semantic domain interface.
 - Candidate Trip JSON adoption atomicity and necessary history, backup, and rollback strategy.
 - `AI Instruction / Direct Override` candidate consistency, conflict UI, and hard/soft rules beyond the v1 minimum lifecycle.
 - FRM-to-CAL access method and owner read/write contracts.
