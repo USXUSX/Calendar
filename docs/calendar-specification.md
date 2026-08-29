@@ -1,4 +1,6 @@
-# Calendar 正式仕様
+# Calendar Trip JSON仕様
+
+> **Status:** Issue #46以降も、formal Trip JSON、stable ID、cross-reference validation、AIによる完全JSON再生成の基本方式は、各旅行の完全旅程表現として維持する。この文書の旅行中心UIやCAL全体の責務は新Baselineへ自動継承せず、[`calendar-baseline.md`](calendar-baseline.md)との整合範囲で再利用する。
 
 ## 1. 目的と基本方針
 

@@ -1,4 +1,6 @@
-# Calendar 実運用手順
+# Calendar Trip JSON現行運用手順
+
+> **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。Issue #46以降もformal Trip JSONとAIによる完全JSON再生成は維持するが、SQLite、`AI Instruction`、`Direct Override`との新しい統合運用は未実装であり、[`calendar-baseline.md`](calendar-baseline.md)と後続Issueで定める。
 
 ## 1. 原則
 
