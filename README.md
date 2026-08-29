@@ -17,6 +17,11 @@ prototype. Its Web architecture is legacy, but the formal Trip JSON, Schema,
 stable IDs, validation, and complete-JSON regeneration method are reuse targets
 in the rebuilt baseline. No existing data or code has been migrated or removed.
 
+`Sources/calendar_domain/` provides the dependency-free CAL semantic domain
+interface v1. Callers supply an explicit SQLite path and Trip data root, then
+use this interface for unified Events, effective Trips, Todos, and change-input
+commands; they do not query CAL tables or inspect Trip JSON file layout.
+
 ## Three layers
 
 | Role | Location | Authority |
@@ -66,6 +71,15 @@ The command validates committed JSON samples and runs every `Tests/*.test.sh`
 script. Pull requests to `main` run the same command in GitHub Actions, together
 with a diff consistency check. Add other build and test commands here when the
 technology stack is selected.
+
+The domain interface has no production path default:
+
+```python
+from Sources.calendar_domain import CalendarDomain
+
+calendar = CalendarDomain("/explicit/path/calendar.sqlite3", "/explicit/trip-root")
+events = calendar.list_events("2027-05-01", "2027-05-31")
+```
 
 ## Legacy prototype preview
 

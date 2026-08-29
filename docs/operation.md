@@ -1,6 +1,6 @@
 # Calendar Trip JSON現行運用手順
 
-> **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。Issue #50でSQLite v1 schemaと変更入力の最小ライフサイクルは確定したが、実運用DB、domain interface、AI統合は未実装である。新しい統合運用は[`calendar-baseline.md`](calendar-baseline.md)と後続Issueで定める。
+> **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。Issue #52でCAL domain interface v1は実装されたが、実運用DB、FRM接続、candidate採用、AI統合は未実装である。新しい統合運用は[`calendar-baseline.md`](calendar-baseline.md)と後続Issueで定める。
 
 ## 1. 原則
 
@@ -9,6 +9,10 @@ Calendar は正式仕様の旅行 JSON を読み取り、見やすく表示す�
 実データは `/Users/us/Tools/LocalData/Calendar_Local/trips/` にだけ置き、Git リポジトリや Google Driveへコピー、コミット、アップロードしない。
 
 SQLite v1のGit管理上の正本は`Schemas/calendar-v1.sql`である。開発用の空DBは明示した一時pathに`python3 scripts/init_calendar_db.py <path>`で初期化できる。各接続は`PRAGMA foreign_keys = ON`を有効にする。このIssueでは`Calendar_Local/db/calendar.sqlite3`を作成・変更せず、実データ移行も行わない。
+
+CALを利用する将来のFRM adapter等は`Sources.calendar_domain.CalendarDomain`へDB pathとTrip rootを明示して接続する。SQLite tableを直接query/updateせず、Trip JSONのfile pathや内部collectionを解釈しない。v1のTrip registryは規定rootの`trips/<trip-id>.json`を検証して登録するが、unregister、実データ移行、candidate採用は行わない。
+
+Domain writeは1 commandを1 SQLite transactionとして扱い、失敗時にpartial updateを残さない。Direct OverrideはSQLiteへ保存するが、effective Tripへの適用はメモリ上だけであり、authoritative Trip JSONを変更しない。
 
 ## 2. ファイル配置
 

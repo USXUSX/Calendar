@@ -14,7 +14,7 @@ CALは、個人の時間、予定、行うべきことを管理するドメイ�
 - `Event`: 日時を持つ予定。旅行中の予定に限らず、通常のスケジュールも表す。
 - `Todo`: 人が行うべきこと。必要に応じて`Trip`または`Event`へ関連付けられる。
 
-CALの統一`Schedule / Today`等では、SQLite上の通常`Event`と、formal Trip JSONの`scheduleItem`、`transport`等から投影したTrip由来Eventを、意味ベースの統一Event read modelとして扱う。Trip由来Eventは派生read modelであり、通常のSQLite `Event`として正本複製しない。投影元は既存のstable IDを使って識別し、少なくとも`trip_id`とsource itemを追跡できることを前提とする。具体的なread model fieldと投影対象は実装Issueで決定する。
+CALの統一`Schedule / Today`等では、SQLite上の通常`Event`と、formal Trip JSONの`scheduleItem`、`transport`等から投影したTrip由来Eventを、意味ベースの統一Event read modelとして扱う。Trip由来Eventは派生read modelであり、通常のSQLite `Event`として正本複製しない。投影元は`trip_id`とsource itemで追跡する。Issue #52のdomain interface v1では`scheduleItem`と`transport`を投影し、`ordinary:<event-id>`と`trip:<trip-id>:<source-type>:<source-item-id>`を安定したread identityとする。read modelはsource kind、title/summary、開始・終了、visibilityに加え、通常Event IDまたはTrip source情報を返す。transportのtitleはPlace参照をCAL内部で解決する。
 
 各旅行の旅程機能では、最後にAI生成され必要なValidationを通過したformal Trip JSONをauthoritative baseとする。owner画面等で現在有効な旅程として扱う`effective Trip`は、Trip JSONにSQLite上のactive `Direct Override`を適用した派生read modelである。これにより、直接指定のたびにSQLiteとJSONを同時更新せず、二重正本と両者を跨ぐtransactionを避ける。
 
@@ -85,7 +85,7 @@ Trip由来Eventを通常のSQLite `Event`として正本化しない。派生結
   -> 成功時のみcurrentとして採用
 ```
 
-candidateは既存のTrip JSON Schema、stable ID、cross-reference validation等の必要なValidationをすべて通過した場合だけcurrentへ採用する。AI生成またはValidationに失敗した場合は、現行Trip JSON、active Direct Override、未処理AI Instructionをすべて維持する。不完全JSONをcurrentとして表示しない。具体的なhistory、backup、rollback方式は必要性を確認する後続Issueまで固定しない。
+candidateは既存のTrip JSON Schema、stable ID、cross-reference validation等の必要なValidationをすべて通過した場合だけcurrentへ採用する。AI生成またはValidationに失敗した場合は、現行Trip JSON、active Direct Override、未処理AI Instructionをすべて維持する。不完全JSONをcurrentとして表示しない。Issue #52のdomain interface v1はactive Overrideをsource item内のJSON Pointer相当pathへメモリ上で適用し、合成後のcomplete Tripを再Validationする。存在しないitemやpath、不正値はdomain validation errorとし、Trip JSONへ書き戻さない。具体的なhistory、backup、rollback方式は必要性を確認する後続Issueまで固定しない。
 
 AI Instructionは新規登録時を`pending`とする。AI生成またはValidation失敗では`pending`を維持し、そのInstructionを入力に含むcandidateがValidationを通過してcurrentへ採用された時だけ`applied`へ更新する。ユーザーが反映不要とした場合は`cancelled`へ更新する。`applied`は次回再生成の通常入力へ再投入しない。
 
@@ -143,7 +143,7 @@ participant向け共有は、`effective Trip`とSQLite上のvisibility / share�
 
 1. `Trip / Event / Todo`と変更入力のSQLite schema、状態遷移、参照制約
 2. `AI Instruction / Direct Override`のライフサイクル、競合・解除・適用済み状態、hard / soft分類
-3. unified Event projectionと`effective Trip`合成を含む、CALの意味ベースのdomain interface
+3. unified Event projectionと`effective Trip`合成を含む、CALの意味ベースのdomain interface（Issue #52でv1実装）
 4. candidate Trip JSONの採用atomicityと、必要最小限のhistory、backup、rollback
 5. 既存Trip JSON、Schema、validatorの再利用範囲と必要な非破壊的移行
 6. FRM owner向け`Today / Schedule / Trips / Todos` read modelと画面

@@ -24,3 +24,9 @@ synthetic JSON.
 `sqlite-schema.test.sh` initializes a temporary empty SQLite database and
 validates the v1 tables, schema version, foreign keys, enums, relationship
 constraints, AI Instruction state, Direct Override uniqueness, and JSON values.
+
+`calendar-domain.test.sh` uses only a temporary SQLite database and a copied
+synthetic Trip root. It covers unified ordinary/Trip Events and source-qualified
+identities, effective Trip composition without JSON writes, invalid Overrides,
+ordinary Event and Todo CRUD, Todo completion, AI Instruction cancellation,
+Trip registration, explicit storage paths, and transactional rollback.
