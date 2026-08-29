@@ -1,6 +1,6 @@
-# ChatGPT向け旅行JSON生成ガイド（旧prototype）
+# ChatGPT向けTrip JSON生成ガイド
 
-> **Status:** Issue #46以降、JSONはCALの正本ではなく交換形式である。このガイドは既存read-only旅程Web用JSONの生成・修正に限って残し、新しい`Trip / Event / Todo`データ契約は後続Issueで定める。
+> **Status:** Issue #46以降も、AIがformalな完全Trip JSONを生成・再生成する基本方式として維持する。再構築後は現在のTrip JSONに`AI Instructions`と`Direct Overrides`を加えて次版を生成する。入力の保存形式と統合手順は後続Issueで定める。
 
 ## 入力として渡すもの
 

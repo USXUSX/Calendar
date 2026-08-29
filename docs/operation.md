@@ -1,6 +1,6 @@
-# Calendar旧prototype実運用手順
+# Calendar Trip JSON現行運用手順
 
-> **Status:** この手順は、移行されていない現行read-only旅程Webと既存旅行JSONだけに適用する。Issue #46でJSON正本とCalendar自身を中心にしたread-only Webはsupersedeされた。再構築後のCAL運用は[`calendar-baseline.md`](calendar-baseline.md)と後続Issueで定める。
+> **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。Issue #46以降もformal Trip JSONとAIによる完全JSON再生成は維持するが、SQLite、`AI Instruction`、`Direct Override`との新しい統合運用は未実装であり、[`calendar-baseline.md`](calendar-baseline.md)と後続Issueで定める。
 
 ## 1. 原則
 

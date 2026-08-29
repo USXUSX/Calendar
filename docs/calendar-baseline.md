@@ -2,9 +2,9 @@
 
 ## 1. 位置付け
 
-この文書はIssue #46で確定した、CALの責務、主要Entity、データ正本、他ツールとの境界を定める現行Baselineである。後続のschema、interface、UI、移行はこのBaselineを前提に個別Issueで決定する。
+この文書はIssue #46で確定した、CALの責務、主要Entity、データの役割分担、他ツールとの境界を定める現行Baselineである。後続のschema、interface、UI、移行はこのBaselineを前提に個別Issueで決定する。
 
-既存の旅行JSON仕様、生成手順、read-only旅程Webは、現行実装を理解し、再利用または一回限りの移行を検討するために残す。ただし、それらはCAL全体の現行Baselineでも、再構築後の実データ契約でもない。旧実装や実データは、このIssueでは変更、移行、削除しない。
+既存のformal Trip JSON、生成手順、Schema、stable ID、cross-reference validationは、Tripの完全旅程表現とAI再生成方式として新Baselineにも維持し、原則として再利用対象とする。既存のread-only旅程Webは現行実装を理解するために残すが、CAL全体のアプリケーションBaselineではない。旧実装や実データは、このIssueでは変更、移行、削除しない。
 
 ## 2. CALの責務
 
@@ -14,7 +14,7 @@ CALは、個人の時間、予定、行うべきことを管理するドメイ�
 - `Event`: 日時を持つ予定。旅行中の予定に限らず、通常のスケジュールも表す。
 - `Todo`: 人が行うべきこと。必要に応じて`Trip`または`Event`へ関連付けられる。
 
-旅程は独立した正本データ列ではなく、原則として`Trip`に属する`Event`を時系列表示したread modelとする。旅行固有の詳細Entityや値オブジェクトは今後追加できるが、`Trip / Event / Todo`の責務を重複させない。
+CAL全体では`Trip`に属する予定と通常の予定を`Event`として関係付けられる。一方、各旅行の旅程機能では、曖昧さ、不完全さ、情報粒度の違いをAIが整理したformal Trip JSONを、現在の完全な旅程表現として扱う。Trip JSON内の旅程項目とCALの`Event`をどのように同期または参照するかは後続Issueで決定し、このBaselineでは二重管理方式を固定しない。
 
 CALのドメイン用語には`Task`を使用しない。人が行うべきことは`Todo`と呼ぶ。旧JSON schema、サンプル、プロトタイプ実装に残る`tasks`は旧Baselineの互換対象としてのみ扱い、新しいCALモデルへ引き継がない。`Task / TSK`はMac上のJob実行ツールを指し、TSK内の実行単位は`Job`とする。
 
@@ -29,21 +29,53 @@ CALのドメイン用語には`Task`を使用しない。人が行うべきこ�
 
 FRMのowner向け画面は将来`Today / Schedule / Trips / Todos`を扱える。framework、API方式、CLI、library、local APIの選択はこのBaselineでは固定しない。
 
-## 4. データ正本と交換形式
+## 4. SQLiteとTrip JSONの役割分担
 
-実データの正本は`/Users/us/Tools/LocalData/Calendar_Local`内のSQLiteとし、第一候補の配置先を`/Users/us/Tools/LocalData/Calendar_Local/db/calendar.sqlite3`とする。SQLite schema、アクセス方式、バックアップ、移行手順は後続Issueで決定する。このIssueではDBを作成しない。
+CALはSQLiteとformal Trip JSONのハイブリッド構成を前提とする。どちらも`/Users/us/Tools/LocalData/Calendar_Local`内に置き、Gitや共有参考資料へ実データを置かない。
+
+SQLiteは構造化されたCALの状態を管理する。第一候補の配置先は`/Users/us/Tools/LocalData/Calendar_Local/db/calendar.sqlite3`とし、主に次を扱う。
+
+- CAL全体のTrip管理情報
+- 通常の`Event`と`Todo`
+- `Trip / Event / Todo`間の関係
+- `AI Instruction`
+- `Direct Override`
+- share、visibility等の状態
+- その他の構造化されたCAL横断状態
+
+formal Trip JSONは各旅行の現在の完全旅程を表す。単なるimport/export用交換形式ではなく、AIが旅程全体を解釈し、生成・再生成するためのauthoritativeな完全表現である。既存のJSON Schema、stable ID、cross-reference validationを原則として再利用対象とする。AI生成、import/export、外部連携にも同じformal JSONを利用できる。
+
+SQLite schema、Trip JSONとの同期・参照方式、配置規則、更新のatomicity、履歴・rollbackは後続Issueで決定する。このIssueではDBや新しいデータ経路を実装しない。
 
 3層の役割は維持する。
 
 - `Calendar_Dev`: コード、確定仕様、schema、test、Issue、PR
 - `Calendar_GD`: Review、Screenshot、共有参考資料
-- `Calendar_Local`: SQLiteを含む実データ、runtime data、machine-local data
+- `Calendar_Local`: SQLite、formal Trip JSONを含む実データ、runtime data、machine-local data
 
-JSONは正本ではない。AI生成、import/export、外部連携、一時的な検証、合成サンプル等の交換形式として使用できる。交換JSONのschemaとSQLiteの写像は、用途ごとに後続Issueで定める。交換JSONを配置または生成しても、明示的なimportを経ずに正本とはならない。
+## 5. 旅程変更の入力経路
 
-## 5. ownerデータとparticipant向けread model
+旅程の曖昧さや複数箇所に及ぶ調整はAIに交通整理させ、常に次版の完全Trip JSONを生成する。再生成には、現在のTrip JSONに加えて次の2系統の入力を渡す。
 
-CALのSQLiteとowner向けドメイン境界は、ownerの完全なデータを扱う。旅行参加者へCAL本体、SQLite、owner向けread/write境界を直接公開しない。
+### AI Instruction
+
+ユーザーが自然言語で登録する変更意図。AIが次回再生成時に解釈し、旅程全体へ反映する。「2日目は移動を少なくする」「雨天時の候補を追加する」等、解釈や全体調整を必要とする入力を扱う。
+
+### Direct Override
+
+ユーザーが旅程画面上で登録する具体的な変更。コメント、メモ、店名、時刻等の明示値を扱う。Direct Overrideは現在のJSONへ一度適用して消費する入力ではない。次回以降のAI再生成にも渡し、ユーザーが直接指定した内容が失われないようにする。解除、競合、適用済み状態等のライフサイクルは後続Issueで決定する。
+
+初期Baselineではhard/soft等へ細分化せず、`AI Instruction`と`Direct Override`を区別する。
+
+```text
+現在のTrip JSON + AI Instructions + Direct Overrides
+  -> AI
+  -> 新しい完全Trip JSON
+```
+
+## 6. ownerデータとparticipant向けread model
+
+CALのSQLite、Trip JSON、owner向けドメイン境界は、ownerの完全なデータを扱う。旅行参加者へCAL本体、SQLite、owner用Trip JSON、owner向けread/write境界を直接公開しない。
 
 participant向け共有は、ownerデータから共有対象だけを抽出したread modelを生成する境界で行う。
 
@@ -56,35 +88,39 @@ participant向け共有は、ownerデータから共有対象だけを抽出し�
 
 この境界は将来の共有を可能にするための仕様であり、このIssueでは外部公開を開始しない。
 
-## 6. 旧Baselineとの関係
+## 7. 旧Baselineとの関係
 
 ### Supersedeする内容
 
-- `Calendar_Local/trips/<trip-id>.json`の「1 Trip = 1 JSON」を実データ正本とする方針
-- 正式な完全旅行JSONをCAL全体の機械可読データ契約とする方針
 - Calendar自身のread-only旅程WebをCALの中心とする方針
-- 旅程の閲覧とAIによる完全JSON再生成をCAL全体の主目的・主要更新経路とする方針
+- 旅程管理だけをCAL全体の主目的とする方針
+- 旅行JSONだけでCAL全体の`Trip / Event / Todo`と横断状態を管理する方針
 - 旅行を中心に`Day / ScheduleItem / Transport / Preparation`等からCAL全体を構成する前提
 
 ### 残す内容
 
-- 安定ID、参照整合性、予定と実績を分ける考え方等は、後続schema設計で再評価できる。
-- 既存のSchema、validator、合成サンプル、read-only Web、旅行JSON生成・運用文書は、現行実装の記録と移行元資料として残す。
+- 各旅行をformalな完全Trip JSONで表す基本方式
+- AIが現在のTrip JSONと変更入力から次版の完全Trip JSONを再生成する方式
+- JSON Schema、stable ID、cross-reference validation、予定と実績を分ける考え方
+- 既存のSchema、validator、合成サンプル、旅行JSON生成・運用文書は、再利用対象かつ現行実装の記録として残す。
+- read-only Webの実装は移行・再利用判断の資料として残す。
 - 既存旅程データと旧実装は、新Baselineへの移行または再利用を決める後続Issueまで変更しない。
 
 旧資料にある個別の表示仕様や旅行詳細項目は、自動的に新Baselineへ継承しない。後続Issueで採用したものだけを新しい確定仕様へ昇格する。
 
-## 7. 後続Issueへの分割
+## 8. 後続Issueへの分割
 
 1. `Trip / Event / Todo`のSQLite schema、状態遷移、参照制約
-2. CALが提供する意味ベースのdomain interfaceと、FRMから利用するread/write方式
-3. 既存旅行JSONからSQLiteへの一回限りの移行・検証・rollback方針
-4. FRM owner向け`Today / Schedule / Trips / Todos` read modelと画面
-5. FRMからCALを更新するcommand境界、競合、validation
-6. `Trip`に属する`Event`から旅程を構成するowner向け旅行UI
-7. participant向けread modelの投影規則、共有範囲、認証、公開基盤
-8. Reminder、繰返し`Event`、AI import/update、必要箇所だけのTSK `Job`連携
-9. ENT取得データをCALへ変換する連携契約
-10. 旧prototype、Schema、validator、運用文書の再利用判断と非破壊的整理
+2. SQLiteとformal Trip JSONの同期・参照・atomic update・履歴方式
+3. `AI Instruction / Direct Override`のschema、ライフサイクル、競合・解除規則
+4. CALが提供する意味ベースのdomain interfaceと、FRMから利用するread/write方式
+5. 既存Trip JSON、Schema、validatorの再利用範囲と必要な非破壊的移行
+6. FRM owner向け`Today / Schedule / Trips / Todos` read modelと画面
+7. FRMからCALを更新するcommand境界、競合、validation
+8. formal Trip JSONを表示・変更するowner向け旅行UI
+9. participant向けread modelの投影規則、共有範囲、認証、公開基盤
+10. Reminder、繰返し`Event`、AI更新、必要箇所だけのTSK `Job`連携
+11. ENT取得データをCALへ変換する連携契約
+12. 旧read-only prototypeの再利用判断と非破壊的整理
 
 各Issueは、このBaselineで未確定とした方式を必要な範囲だけDecision化し、実装、移行、公開を混在させない。
