@@ -34,6 +34,7 @@ in the rebuilt baseline. No existing data or code has been migrated or removed.
 - `docs/calendar-baseline.md`: current confirmed CAL responsibilities and data baseline
 - `docs/calendar-specification.md`: retained Trip JSON specification subject to scoped reuse
 - `Schemas/trip.schema.json`: current formal Trip JSON contract and reuse baseline
+- `Schemas/calendar-v1.sql`: reproducible SQLite v1 schema for CAL-wide state
 - `docs/trip-json-generation.md`: retained complete-Trip-JSON generation workflow
 - `docs/operation.md`: current Trip JSON operation until the hybrid flow is implemented
 - `Sources/`: application source code when implementation starts
@@ -51,6 +52,15 @@ Run all dependency-free project checks:
 ```sh
 sh Tests/run.sh
 ```
+
+Initialize a new empty development or temporary database only with an explicit
+path:
+
+```sh
+python3 scripts/init_calendar_db.py /path/to/new/calendar.sqlite3
+```
+
+The initializer refuses a non-empty target and has no production-data default.
 
 The command validates committed JSON samples and runs every `Tests/*.test.sh`
 script. Pull requests to `main` run the same command in GitHub Actions, together
