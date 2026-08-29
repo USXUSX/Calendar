@@ -1,4 +1,6 @@
-# Calendar 正式仕様
+# Calendar旅行JSON仕様（旧Baseline）
+
+> **Status:** Issue #46の`Trip / Event / Todo` Baselineにより、CAL全体の確定仕様としてはsupersedeされた。現行read-only旅程Web、旧Schema、既存旅行データの理解と移行判断のために内容を保持する。新規設計では[`calendar-baseline.md`](calendar-baseline.md)を正本とし、この文書の項目を自動的に継承しない。
 
 ## 1. 目的と基本方針
 

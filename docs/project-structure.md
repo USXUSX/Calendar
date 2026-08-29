@@ -18,6 +18,8 @@ Calendar uses one project name across three locations so Codex can resolve sourc
 
 `/Users/us/Tools/LocalData/Calendar_Local` holds private or machine-specific data. It is outside Git and Google Drive. Code may read it through documented configuration later, but must not assume sample production data is safe to share.
 
+Issue #46 establishes SQLite in this folder as the future canonical real-data store, with `db/calendar.sqlite3` as the first placement candidate. Existing trip JSON remains untouched legacy data until a separate migration Issue. JSON is used as an exchange format rather than the canonical store. See [`calendar-baseline.md`](calendar-baseline.md) for the owner and participant read-model boundary.
+
 The role READMEs in `Calendar_GD` and `Calendar_Local` are generated from `templates/folder-readmes/` by `scripts/sync_folder_readmes.sh`. Edit the Git templates, then synchronize outward; do not maintain independent copies in those external folders.
 
 ## Discovery rule

@@ -2,12 +2,17 @@
 
 Calendar is the first standard project in `/Users/us/Tools`, built with a three-layer layout that lets Codex discover the right information without repeated path instructions.
 
-## Current state
+## Current baseline
 
-The dependency-free, read-only web prototype displays formal Calendar trip JSON
-from private `Calendar_Local` storage through a minimal loopback-only server.
-Static review environments use the committed synthetic sample. Legacy JSON
-compatibility and candidate/history management are not part of the app.
+CAL is the domain foundation for personal time and plans, centered on
+`Trip / Event / Todo`. Its future canonical real-data store is SQLite under
+private `Calendar_Local` storage. JSON is an exchange format, not the canonical
+store. See [`docs/calendar-baseline.md`](docs/calendar-baseline.md).
+
+The repository still contains the dependency-free, read-only trip JSON
+prototype and its contracts. They remain as legacy implementation and migration
+references; they do not define the rebuilt CAL baseline. No legacy data or code
+has been migrated or removed yet.
 
 ## Three layers
 
@@ -23,10 +28,11 @@ compatibility and candidate/history management are not part of the app.
 - `docs/project-structure.md`: boundaries and information flow
 - `docs/workflow.md`: future Issue-to-PR workflow
 - `docs/decisions.md`: confirmed architectural decisions
-- `docs/calendar-specification.md`: confirmed Calendar data and AI-assisted update specification
-- `Schemas/trip.schema.json`: machine-readable formal trip JSON contract
-- `docs/trip-json-generation.md`: ChatGPT generation and correction instructions
-- `docs/operation.md`: private trip data and complete-JSON update operation
+- `docs/calendar-baseline.md`: current confirmed CAL responsibilities and data baseline
+- `docs/calendar-specification.md`: legacy trip-centered specification retained for migration reference
+- `Schemas/trip.schema.json`: legacy prototype trip JSON contract
+- `docs/trip-json-generation.md`: legacy prototype JSON exchange workflow
+- `docs/operation.md`: current legacy prototype operation until migration
 - `Sources/`: application source code when implementation starts
 - `Tests/`: automated tests and test guidance
 - `Samples/`: synthetic, non-sensitive examples safe to commit
@@ -48,7 +54,7 @@ script. Pull requests to `main` run the same command in GitHub Actions, together
 with a diff consistency check. Add other build and test commands here when the
 technology stack is selected.
 
-## Local preview
+## Legacy prototype preview
 
 From the repository root, start the loopback-only read server:
 
