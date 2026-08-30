@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
+import os
 import re
 import sqlite3
+import tempfile
 from contextlib import contextmanager
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -99,6 +102,291 @@ class CalendarDomain:
         if trip.get("id") != trip_id:
             raise ValidationError("Trip JSON id does not match the registered trip_id")
         return trip
+
+    @staticmethod
+    def _digest(value: bytes) -> str:
+        return hashlib.sha256(value).hexdigest()
+
+    def _validated_candidate(self, trip_id: str, candidate: str | Path | dict[str, Any]) -> tuple[dict[str, Any], bytes]:
+        try:
+            if isinstance(candidate, dict):
+                value = copy.deepcopy(candidate)
+                payload = (json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + "\n").encode("utf-8")
+            elif isinstance(candidate, (str, Path)):
+                candidate_path = Path(candidate)
+                if candidate_path.resolve() == self._trip_path(trip_id).resolve():
+                    raise ValidationError("candidate path must be separate from current Trip JSON")
+                payload = candidate_path.read_bytes()
+                value = json.loads(payload.decode("utf-8"))
+            else:
+                raise ValidationError("candidate must be a JSON object or file path")
+        except ValidationError:
+            raise
+        except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as error:
+            raise ValidationError("candidate Trip JSON cannot be read") from error
+        errors = validate_value(value, self._trip_schema)
+        if errors:
+            raise ValidationError(f"candidate Trip JSON is invalid: {errors[0]}")
+        if value.get("id") != trip_id:
+            raise ValidationError("candidate Trip JSON id does not match trip_id")
+        return value, payload
+
+    def _adoption_directory(self) -> Path:
+        return self.trip_root / ".adoption"
+
+    def _journal_path(self, trip_id: str) -> Path:
+        self._trip_path(trip_id)
+        return self._adoption_directory() / f"{trip_id}.json"
+
+    def _staging_path(self, trip_id: str, candidate_digest: str) -> Path:
+        self._trip_path(trip_id)
+        return self._adoption_directory() / f"{trip_id}.{candidate_digest}.candidate"
+
+    @staticmethod
+    def _write_file(path: Path, payload: bytes) -> None:
+        temporary: Path | None = None
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(dir=path.parent, prefix=f".{path.name}.", delete=False) as handle:
+                temporary = Path(handle.name)
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            try:
+                os.link(temporary, path)
+            except FileExistsError:
+                if path.read_bytes() != payload:
+                    raise ConflictError("candidate adoption staging conflicts with existing state")
+            temporary.unlink()
+        except ConflictError:
+            if temporary is not None:
+                try:
+                    temporary.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            raise
+        except OSError as error:
+            if temporary is not None:
+                try:
+                    temporary.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            raise ConflictError("candidate adoption staging failed") from error
+
+    @staticmethod
+    def _write_journal(path: Path, journal: dict[str, Any]) -> None:
+        temporary: Path | None = None
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(dir=path.parent, prefix=f".{path.name}.", delete=False) as handle:
+                temporary = Path(handle.name)
+                handle.write((json.dumps(journal, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8"))
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.link(temporary, path)
+            temporary.unlink()
+        except OSError as error:
+            if temporary is not None:
+                try:
+                    temporary.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            raise ConflictError("candidate adoption journal cannot be written") from error
+
+    @staticmethod
+    def _remove_adoption_file(path: Path) -> None:
+        try:
+            path.unlink(missing_ok=True)
+        except OSError as error:
+            raise ConflictError("candidate adoption temporary state cannot be cleaned up") from error
+
+    @staticmethod
+    def _replace_current(staging_path: Path, current_path: Path) -> None:
+        try:
+            os.replace(staging_path, current_path)
+        except OSError as error:
+            raise ConflictError("candidate Trip JSON could not replace current Trip JSON") from error
+
+    def _validate_adoption_constraints(
+        self,
+        connection: sqlite3.Connection,
+        trip_id: str,
+        candidate: dict[str, Any],
+        instruction_ids: tuple[str, ...],
+    ) -> None:
+        if connection.execute("SELECT 1 FROM trips WHERE id = ?", (trip_id,)).fetchone() is None:
+            raise NotFoundError(f"Trip is not registered: {trip_id}")
+        for instruction_id in instruction_ids:
+            row = connection.execute(
+                "SELECT trip_id, state FROM ai_instructions WHERE id = ?", (instruction_id,)
+            ).fetchone()
+            if row is None:
+                raise NotFoundError(f"AI Instruction not found: {instruction_id}")
+            if row["trip_id"] != trip_id or row["state"] != "pending":
+                raise ConflictError("adoption requires pending AI Instructions for the target Trip")
+
+        effective = copy.deepcopy(candidate)
+        overrides = connection.execute(
+            "SELECT source_item_id, field_path, value_json FROM direct_overrides "
+            "WHERE trip_id = ? AND active = 1 ORDER BY created_at, id",
+            (trip_id,),
+        ).fetchall()
+        for row in overrides:
+            try:
+                override_value = json.loads(row["value_json"])
+            except json.JSONDecodeError as error:
+                raise ValidationError("stored Direct Override value is invalid") from error
+            try:
+                self._apply_value(effective, row["source_item_id"], row["field_path"], override_value)
+            except (ValidationError, ConflictError) as error:
+                raise ConflictError("candidate conflicts with an active Direct Override") from error
+        effective_errors = validate_value(effective, self._trip_schema)
+        if effective_errors:
+            raise ValidationError(f"candidate effective Trip is invalid: {effective_errors[0]}")
+
+        todo_item_ids = connection.execute(
+            "SELECT DISTINCT trip_item_id FROM todos WHERE trip_id = ? AND trip_item_id IS NOT NULL",
+            (trip_id,),
+        ).fetchall()
+        for row in todo_item_ids:
+            if not self._item_matches(candidate, row["trip_item_id"]):
+                raise ConflictError("candidate removes a Trip item referenced by a Todo")
+
+    def _instruction_ids(self, instruction_ids: Any) -> tuple[str, ...]:
+        if isinstance(instruction_ids, (str, bytes)):
+            raise ValidationError("instruction_ids must be a collection")
+        try:
+            values = tuple(instruction_ids)
+        except TypeError as error:
+            raise ValidationError("instruction_ids must be a collection") from error
+        for value in values:
+            self._require_text(value, "instruction_id")
+        if len(values) != len(set(values)):
+            raise ValidationError("instruction_ids must be unique")
+        return values
+
+    def adopt_trip_candidate(
+        self, trip_id: str, candidate: str | Path | dict[str, Any], instruction_ids: Any
+    ) -> dict[str, Any]:
+        """Validate and atomically adopt a complete Trip candidate."""
+        self._trip_path(trip_id)
+        recovered = self.recover_trip_adoption(trip_id)
+        if recovered is not None:
+            return recovered
+        instruction_ids = self._instruction_ids(instruction_ids)
+        candidate_value, candidate_payload = self._validated_candidate(trip_id, candidate)
+        current_path = self._trip_path(trip_id)
+        try:
+            current_payload = current_path.read_bytes()
+        except FileNotFoundError as error:
+            raise NotFoundError(f"Trip JSON not found: {trip_id}") from error
+        except OSError as error:
+            raise ValidationError("current Trip JSON cannot be read") from error
+        candidate_digest = self._digest(candidate_payload)
+        old_digest = self._digest(current_payload)
+        staging_path = self._staging_path(trip_id, candidate_digest)
+        journal_path = self._journal_path(trip_id)
+        journal = {
+            "version": 1,
+            "trip_id": trip_id,
+            "candidate_digest": candidate_digest,
+            "old_current_digest": old_digest,
+            "instruction_ids": list(instruction_ids),
+        }
+        self._write_file(staging_path, candidate_payload)
+        replaced = False
+        journal_written = False
+        try:
+            with self._command() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                self._validate_adoption_constraints(connection, trip_id, candidate_value, instruction_ids)
+                self._write_journal(journal_path, journal)
+                journal_written = True
+                self._replace_current(staging_path, current_path)
+                replaced = True
+                self._after_candidate_replace()
+                for instruction_id in instruction_ids:
+                    if connection.execute(
+                        "UPDATE ai_instructions SET state = 'applied', updated_at = ? "
+                        "WHERE id = ? AND trip_id = ? AND state = 'pending'",
+                        (_now(), instruction_id, trip_id),
+                    ).rowcount != 1:
+                        raise ConflictError("AI Instruction state changed during candidate adoption")
+        except Exception:
+            if not replaced:
+                self._remove_adoption_file(staging_path)
+                if journal_written:
+                    self._remove_adoption_file(journal_path)
+            raise
+        self._remove_adoption_file(journal_path)
+        self._remove_adoption_file(staging_path)
+        return {
+            "trip_id": trip_id,
+            "status": "adopted",
+            "candidate_digest": candidate_digest,
+            "applied_instruction_ids": list(instruction_ids),
+            "recovered": False,
+        }
+
+    def _after_candidate_replace(self) -> None:
+        """Test seam for a process stop after replacement and before SQLite update."""
+
+    def recover_trip_adoption(self, trip_id: str) -> dict[str, Any] | None:
+        """Converge one interrupted adoption from its private digest journal."""
+        journal_path = self._journal_path(trip_id)
+        if not journal_path.exists():
+            return None
+        with self._command() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            if not journal_path.exists():
+                return None
+            try:
+                journal = json.loads(journal_path.read_text(encoding="utf-8"))
+                required = {"version", "trip_id", "candidate_digest", "old_current_digest", "instruction_ids"}
+                if set(journal) != required or journal["version"] != 1 or journal["trip_id"] != trip_id:
+                    raise ValueError
+                candidate_digest = journal["candidate_digest"]
+                old_digest = journal["old_current_digest"]
+                instruction_ids = self._instruction_ids(journal["instruction_ids"])
+                if not all(isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) for value in (candidate_digest, old_digest)):
+                    raise ValueError
+                current_digest = self._digest(self._trip_path(trip_id).read_bytes())
+            except (OSError, UnicodeError, json.JSONDecodeError, ValueError, ValidationError) as error:
+                raise ConflictError("candidate adoption journal is invalid or unreadable") from error
+
+            if current_digest == candidate_digest:
+                for instruction_id in instruction_ids:
+                    row = connection.execute(
+                        "SELECT trip_id, state FROM ai_instructions WHERE id = ?", (instruction_id,)
+                    ).fetchone()
+                    if row is None or row["trip_id"] != trip_id or row["state"] not in {"pending", "applied"}:
+                        raise ConflictError("journal conflicts with AI Instruction state")
+                    if row["state"] == "pending":
+                        connection.execute(
+                            "UPDATE ai_instructions SET state = 'applied', updated_at = ? WHERE id = ?",
+                            (_now(), instruction_id),
+                        )
+                status = "adopted"
+            elif current_digest == old_digest:
+                for instruction_id in instruction_ids:
+                    row = connection.execute(
+                        "SELECT trip_id, state FROM ai_instructions WHERE id = ?", (instruction_id,)
+                    ).fetchone()
+                    if row is None or row["trip_id"] != trip_id or row["state"] != "pending":
+                        raise ConflictError("journal conflicts with AI Instruction state")
+                status = "not_adopted"
+            else:
+                raise ConflictError("current Trip JSON matches neither journal digest")
+
+        self._remove_adoption_file(self._staging_path(trip_id, candidate_digest))
+        self._remove_adoption_file(journal_path)
+        return {
+            "trip_id": trip_id,
+            "status": status,
+            "candidate_digest": candidate_digest,
+            "applied_instruction_ids": list(instruction_ids) if status == "adopted" else [],
+            "recovered": True,
+        }
 
     @staticmethod
     def _require_text(value: Any, name: str) -> str:

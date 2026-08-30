@@ -21,6 +21,10 @@ in the rebuilt baseline. No existing data or code has been migrated or removed.
 interface v1. Callers supply an explicit SQLite path and Trip data root, then
 use this interface for unified Events, effective Trips, Todos, and change-input
 commands; they do not query CAL tables or inspect Trip JSON file layout.
+It also owns candidate Trip adoption: a complete external candidate is fully
+validated, checked against active Overrides and Todo item references, and only
+then atomically replaces the authoritative base. Only explicitly supplied
+pending AI Instruction IDs become `applied`.
 
 ## Three layers
 
@@ -79,6 +83,7 @@ from Sources.calendar_domain import CalendarDomain
 
 calendar = CalendarDomain("/explicit/path/calendar.sqlite3", "/explicit/trip-root")
 events = calendar.list_events("2027-05-01", "2027-05-31")
+result = calendar.adopt_trip_candidate("trip-id", candidate_path, ["instruction-id"])
 ```
 
 ## Legacy prototype preview

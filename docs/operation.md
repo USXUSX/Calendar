@@ -1,6 +1,6 @@
 # Calendar Trip JSON現行運用手順
 
-> **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。Issue #52でCAL domain interface v1は実装されたが、実運用DB、FRM接続、candidate採用、AI統合は未実装である。新しい統合運用は[`calendar-baseline.md`](calendar-baseline.md)と後続Issueで定める。
+> **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。Issue #52のCAL domain interface v1とIssue #54のcandidate採用境界はGit管理下で実装されているが、実運用DB、FRM接続、AI生成連携は未実装である。新しい統合運用は[`calendar-baseline.md`](calendar-baseline.md)と後続Issueで定める。
 
 ## 1. 原則
 
@@ -10,7 +10,7 @@ Calendar は正式仕様の旅行 JSON を読み取り、見やすく表示す�
 
 SQLite v1のGit管理上の正本は`Schemas/calendar-v1.sql`である。開発用の空DBは明示した一時pathに`python3 scripts/init_calendar_db.py <path>`で初期化できる。各接続は`PRAGMA foreign_keys = ON`を有効にする。このIssueでは`Calendar_Local/db/calendar.sqlite3`を作成・変更せず、実データ移行も行わない。
 
-CALを利用する将来のFRM adapter等は`Sources.calendar_domain.CalendarDomain`へDB pathとTrip rootを明示して接続する。SQLite tableを直接query/updateせず、Trip JSONのfile pathや内部collectionを解釈しない。v1のTrip registryは規定rootの`trips/<trip-id>.json`を検証して登録するが、unregister、実データ移行、candidate採用は行わない。
+CALを利用する将来のFRM adapter等は`Sources.calendar_domain.CalendarDomain`へDB pathとTrip rootを明示して接続する。SQLite tableを直接query/updateせず、Trip JSONのcurrent pathや内部collection、atomic replacement手順を解釈しない。v1のTrip registryは規定rootの`trips/<trip-id>.json`を検証して登録する。candidate採用は`adopt_trip_candidate(trip_id, candidate, instruction_ids)`へcomplete JSONと、その生成に実際に使ったpending Instruction IDだけを渡す。
 
 Domain writeは1 commandを1 SQLite transactionとして扱い、失敗時にpartial updateを残さない。Direct OverrideはSQLiteへ保存するが、effective Tripへの適用はメモリ上だけであり、authoritative Trip JSONを変更しない。
 
@@ -24,7 +24,7 @@ Calendar_Local/
     <trip-id>.json
 ```
 
-候補、履歴、差分 JSON を Calendar 専用の恒久データとして管理しない。必要な変更は Chat に依頼し、返された完全 JSON を人が確認してから対象ファイルと置き換える。置換前の一時バックアップが必要な場合は、通常のファイル操作や端末のバックアップを使う。
+候補、履歴、差分 JSON を Calendar 専用の恒久データとして管理しない。domain採用処理はprivate Trip rootの`.adoption/`だけにstagingとdigest journalを一時作成し、成功または回復収束後に削除する。これはpermanent historyではない。
 
 ## 3. 閲覧
 
@@ -39,9 +39,10 @@ Calendar_Local/
 1. Calendar 上のチェック、候補選択、コメントを更新材料として確認する。
 2. 対象の完全 JSON と更新材料を Chat に渡し、正式仕様に従う次版の完全 JSON を依頼する。
 3. 返された完全 JSON の全体、`id`、参照関係、表示を確認する。
-4. 問題がなければ対象の `<trip-id>.json` を置き換える。問題があれば JSON を修正または再生成し、現在のファイルは置き換えない。
+4. 問題がなければCAL domainのcandidate採用境界へcomplete candidateと対象Instruction IDを渡す。Schema、semantic、cross-reference、Trip ID、registry、Override適用後のeffective Trip、Todo item参照をすべて確認した後だけ、staging済みbytesをsame-filesystem atomic replacementでcurrentへ切り替える。問題があればJSON を修正または再生成し、currentは置き換えない。
+5. 採用成功時だけ指定pending Instructionが`applied`になる。別のpending Instructionとactive Overrideは維持される。
 
-Calendar は JSON の直接編集、旧形式からの自動変換、自動採用、自動復旧を行わない。画面上の一時状態は採用済み JSON の内容ではない。
+Calendar は JSON の直接編集、旧形式からの自動変換、AI candidate生成を行わない。画面上の一時状態は採用済み JSON の内容ではない。replace後・SQLite更新前に停止した場合は、次の`adopt_trip_candidate()`または明示的な`recover_trip_adoption()`がjournalとcurrent digestを比較する。candidateへ切替済みならInstruction更新を完了し、旧currentならInstructionをpendingのまま未採用としてcleanupする。どちらのdigestでもなければConflictとして停止する。
 
 ## 5. 新規旅行
 

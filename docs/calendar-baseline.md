@@ -47,6 +47,10 @@ SQLiteは構造化されたCALの状態を管理する。第一候補の配置�
 
 formal Trip JSONは、各旅行について最後にAI生成され、必要なValidationを通過して採用されたauthoritativeな完全旅程baseである。単なるimport/export用交換形式ではなく、AIが旅程全体を解釈し、生成・再生成する基礎とする。既存のJSON Schema、stable ID、cross-reference validationを原則として再利用対象とし、AI生成、import/export、外部連携にも同じformal JSONを利用できる。
 
+candidate生成とCALによる採用は別責務とする。CALは外部で生成済みのcomplete candidateをSchema、semantic、cross-reference、Trip ID、active Direct Override、Todoの`trip_item_id`参照まで検証する。candidate baseへactive Overrideを適用したeffective Tripも有効な場合だけ、same-filesystemのatomic replacementでauthoritative baseへ切り替える。採用に明示されたpending AI Instruction IDだけを`applied`化し、後から追加されたpending Instructionとactive Overrideは維持する。
+
+filesystem replaceとSQLite更新の間の停止は、private Trip root内の一時digest journalで収束する。journalはTrip、candidate digest、旧current digest、対象Instruction IDだけを保持する回復用一時状態であり、permanent historyではない。currentがcandidate digestならInstruction更新を完了し、旧digestならpendingのまま未採用としてcleanupする。
+
 正本境界は次のとおりとする。
 
 - 通常のCAL `Event`: SQLite
@@ -144,7 +148,7 @@ participant向け共有は、`effective Trip`とSQLite上のvisibility / share�
 1. `Trip / Event / Todo`と変更入力のSQLite schema、状態遷移、参照制約
 2. `AI Instruction / Direct Override`のライフサイクル、競合・解除・適用済み状態、hard / soft分類
 3. unified Event projectionと`effective Trip`合成を含む、CALの意味ベースのdomain interface（Issue #52でv1実装）
-4. candidate Trip JSONの採用atomicityと、必要最小限のhistory、backup、rollback
+4. candidate Trip JSONの採用atomicityと最小recovery（Issue #54で実装）
 5. 既存Trip JSON、Schema、validatorの再利用範囲と必要な非破壊的移行
 6. FRM owner向け`Today / Schedule / Trips / Todos` read modelと画面
 7. FRMからCALを更新するcommand境界、競合、validation

@@ -30,3 +30,9 @@ synthetic Trip root. It covers unified ordinary/Trip Events and source-qualified
 identities, effective Trip composition without JSON writes, invalid Overrides,
 ordinary Event and Todo CRUD, Todo completion, AI Instruction cancellation,
 Trip registration, explicit storage paths, and transactional rollback.
+
+`candidate-adoption.test.sh` uses only a temporary SQLite database and synthetic
+Trip root. It covers complete candidate validation, Trip ID matching, explicit
+Instruction application, atomic replacement failures, active Override and Todo
+item constraints, post-adoption effective Trips, and both digest-journal
+recovery outcomes. It never reads or writes `Calendar_Local`.
