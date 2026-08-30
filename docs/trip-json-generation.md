@@ -42,7 +42,7 @@ python3 scripts/validate_trip.py /path/to/generated-trip.json
 
 現在の完全JSON、変更依頼、正式SchemaをChatGPTへ渡す。次の指示を追加する。
 
-> 指定した変更だけを反映した次版の完全JSONを生成してください。同じ対象の既存IDは維持し、変更対象外の事実、配列順、参照関係を変えません。出力はJSON 1個だけにしてください。
+> このcomplete JSON生成指示は新規Trip作成用です。既存authoritative Tripの更新では使わず、CAL claimのbase version/hashとTrip内容に対するJSON Patchだけを生成してください。
 
 生成後は新規作成と同じvalidatorを実行する。検証成功だけで採用せず、変更対象の値、主要ID、項目件数、Calendar表示を確認してから現在ファイルを置き換える。
 

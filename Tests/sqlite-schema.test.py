@@ -12,7 +12,7 @@ SPEC.loader.exec_module(INIT_MODULE)
 TS = "2026-08-30T12:34:56Z"
 
 
-class CalendarSchemaV1Tests(unittest.TestCase):
+class CalendarSchemaV2Tests(unittest.TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.database_path = Path(self.temporary_directory.name) / "calendar.sqlite3"
@@ -25,12 +25,16 @@ class CalendarSchemaV1Tests(unittest.TestCase):
         self.temporary_directory.cleanup()
 
     def insert_trip(self):
-        self.connection.execute("INSERT INTO trips VALUES ('trip-1', 'owner', ?, ?)", (TS, TS))
+        self.connection.execute(
+            "INSERT INTO trips (id, visibility, created_at, updated_at) VALUES ('trip-1', 'owner', ?, ?)",
+            (TS, TS),
+        )
 
     def test_schema_is_reproducible_and_versioned(self):
         tables = {row[0] for row in self.connection.execute("SELECT name FROM sqlite_schema WHERE type = 'table'")}
-        self.assertEqual(tables, {"schema_meta", "trips", "events", "todos", "ai_instructions", "direct_overrides"})
-        self.assertEqual(self.connection.execute("SELECT version FROM schema_meta").fetchone(), (1,))
+        self.assertEqual(tables, {"schema_meta", "trips", "events", "todos", "ai_instructions", "generation_requests", "direct_overrides"})
+        self.assertEqual(self.connection.execute("SELECT version FROM schema_meta").fetchone(), (2,))
+        self.assertEqual(self.connection.execute("SELECT version FROM trips WHERE id = 'trip-1'").fetchone(), None)
 
     def test_foreign_keys_reject_unknown_parents(self):
         with self.assertRaises(sqlite3.IntegrityError):
@@ -54,7 +58,10 @@ class CalendarSchemaV1Tests(unittest.TestCase):
                         (f"event-{start_date}-{start_time}", start_date, start_time, TS, TS),
                     )
         with self.assertRaises(sqlite3.IntegrityError):
-            self.connection.execute("INSERT INTO trips VALUES ('trip-bad-time', 'owner', '2026-08-30 12:34:56', ?)", (TS,))
+            self.connection.execute(
+                "INSERT INTO trips (id, visibility, created_at, updated_at) "
+                "VALUES ('trip-bad-time', 'owner', '2026-08-30 12:34:56', ?)", (TS,)
+            )
 
     def test_ai_instruction_lifecycle_values(self):
         self.insert_trip()
@@ -62,6 +69,21 @@ class CalendarSchemaV1Tests(unittest.TestCase):
         self.assertEqual(self.connection.execute("SELECT state FROM ai_instructions WHERE id = 'i1'").fetchone(), ("pending",))
         with self.assertRaises(sqlite3.IntegrityError):
             self.connection.execute("UPDATE ai_instructions SET state = 'failed' WHERE id = 'i1'")
+
+    def test_generation_request_lifecycle_and_one_processing_per_trip(self):
+        self.insert_trip()
+        for instruction_id in ("i1", "i2"):
+            self.connection.execute(
+                "INSERT INTO ai_instructions (id, trip_id, instruction, created_at, updated_at) "
+                "VALUES (?, 'trip-1', 'change', ?, ?)", (instruction_id, TS, TS)
+            )
+            self.connection.execute(
+                "INSERT INTO generation_requests (id, instruction_id, trip_id, created_at, updated_at) "
+                "VALUES (?, ?, 'trip-1', ?, ?)", (instruction_id, instruction_id, TS, TS)
+            )
+        self.connection.execute("UPDATE generation_requests SET state = 'processing' WHERE id = 'i1'")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute("UPDATE generation_requests SET state = 'processing' WHERE id = 'i2'")
 
     def test_direct_override_has_one_current_row_per_target(self):
         self.insert_trip()

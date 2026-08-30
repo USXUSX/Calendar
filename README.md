@@ -7,7 +7,7 @@ Calendar is the first standard project in `/Users/us/Tools`, built with a three-
 CAL is the domain foundation for personal time and plans, centered on
 `Trip / Event / Todo`. It uses a hybrid data model under private
 `Calendar_Local` storage: SQLite manages structured CAL-wide state, while a
-formal complete Trip JSON is the last AI-generated and validated authoritative
+formal complete Trip JSON is the last CAL-adopted and validated authoritative
 base for each itinerary. The currently visible `effective Trip` combines that
 base with active Direct Overrides stored in SQLite. See
 [`docs/calendar-baseline.md`](docs/calendar-baseline.md).
@@ -18,9 +18,14 @@ stable IDs, validation, and complete-JSON regeneration method are reuse targets
 in the rebuilt baseline. No existing data or code has been migrated or removed.
 
 `Sources/calendar_domain/` provides the dependency-free CAL semantic domain
-interface v1. Callers supply an explicit SQLite path and Trip data root, then
+interface over SQLite v2. Callers supply an explicit SQLite path and Trip data root, then
 use this interface for unified Events, effective Trips, Todos, and change-input
 commands; they do not query CAL tables or inspect Trip JSON file layout.
+It also owns the AI Instruction Patch pipeline. Instruction registration queues
+one generation request; claim returns a semantic base payload with version and
+hash; the worker returns only JSON Patch. CAL applies the Patch to an in-memory
+copy, validates the complete candidate against Schema, semantic references,
+active Overrides, and Todo item references, then atomically adopts it.
 
 ## Three layers
 
@@ -39,7 +44,8 @@ commands; they do not query CAL tables or inspect Trip JSON file layout.
 - `docs/calendar-baseline.md`: current confirmed CAL responsibilities and data baseline
 - `docs/calendar-specification.md`: retained Trip JSON specification subject to scoped reuse
 - `Schemas/trip.schema.json`: current formal Trip JSON contract and reuse baseline
-- `Schemas/calendar-v1.sql`: reproducible SQLite v1 schema for CAL-wide state
+- `Schemas/calendar-v2.sql`: current reproducible SQLite schema, including Trip versions and generation requests
+- `Schemas/calendar-v1.sql`: retained initial SQLite schema revision
 - `docs/trip-json-generation.md`: retained complete-Trip-JSON generation workflow
 - `docs/operation.md`: current Trip JSON operation until the hybrid flow is implemented
 - `Sources/`: application source code when implementation starts
@@ -79,6 +85,12 @@ from Sources.calendar_domain import CalendarDomain
 
 calendar = CalendarDomain("/explicit/path/calendar.sqlite3", "/explicit/trip-root")
 events = calendar.list_events("2027-05-01", "2027-05-31")
+instruction = calendar.add_ai_instruction("instruction-id", "trip-id", "Change the second day")
+request = calendar.claim_generation_request()
+result = calendar.submit_json_patch(
+    request["request_id"], request["instruction_id"], request["trip_id"], patch,
+    request["base_version"], request["base_hash"],
+)
 ```
 
 ## Legacy prototype preview

@@ -92,8 +92,14 @@ class CalendarDomainTests(unittest.TestCase):
     def test_ai_instruction_pending_and_cancel_only(self):
         instruction = self.domain.add_ai_instruction("instruction-1", "trip-setouchi-2027", "Reduce travel")
         self.assertEqual(instruction["state"], "pending")
+        self.assertEqual(instruction["request_state"], "queued")
         self.assertEqual(len(self.domain.list_pending_ai_instructions("trip-setouchi-2027")), 1)
         self.assertEqual(self.domain.cancel_ai_instruction("instruction-1")["state"], "cancelled")
+        with sqlite3.connect(self.db_path) as connection:
+            self.assertEqual(
+                connection.execute("SELECT state FROM generation_requests WHERE id = 'instruction-1'").fetchone()[0],
+                "cancelled",
+            )
         self.assertEqual(self.domain.list_pending_ai_instructions("trip-setouchi-2027"), [])
         with self.assertRaises(ConflictError):
             self.domain.cancel_ai_instruction("instruction-1")
