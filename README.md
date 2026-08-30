@@ -93,6 +93,20 @@ result = calendar.submit_json_patch(
 )
 ```
 
+TSK等のJob runnerはCAL内部状態を操作せず、明示pathとgenerator argvを指定して
+one-shot workerだけを起動する。1回で最大1 requestを処理し、queued requestが
+なければ正常にno-op終了する。
+
+```sh
+python3 scripts/run_generation_worker.py \
+  --db /explicit/path/calendar.sqlite3 \
+  --trip-root /explicit/trip-root \
+  -- /path/to/patch-generator --its-option
+```
+
+generatorはstdinのCAL semantic claim payloadを読み、stdoutへJSON Patch配列だけを
+返す。provider接続、認証、model選択、実運用TSK設定はこのworkerの責務ではない。
+
 ## Legacy prototype preview
 
 From the repository root, start the loopback-only read server:

@@ -38,3 +38,9 @@ parallel claims, base snapshots, JSON Patch validation and application, stale
 requeue, complete-candidate validation, Trip versioning, active Override and
 Todo constraints, atomic replacement, and all digest-journal recovery outcomes.
 It never reads or writes `Calendar_Local`.
+
+`calendar-worker.test.sh` runs the one-shot worker against only an explicit
+temporary SQLite database, synthetic Trip root, and fake or local subprocess
+generators. It covers no-op, semantic payload isolation, single/multi Patch,
+generator failures, invalid output, stale requeue, same-Trip seriality, and
+startup recovery without any provider or TSK integration.
