@@ -142,7 +142,14 @@ class CandidateAdoptionTests(unittest.TestCase):
         self.assertEqual(self.current_path.read_bytes(), self.original)
         self.domain.release_generation_request(claim["request_id"])
         claim = self.domain.claim_generation_request()
-        self.submit(claim, [{"op": "replace", "path": ACTION_PATH, "value": "AI変更"}])
+        with self.assertRaises(ConflictError):
+            self.submit(claim, [{"op": "replace", "path": ACTION_PATH, "value": "AI変更"}])
+        self.assertEqual(self.current_path.read_bytes(), self.original)
+        self.assertEqual((self.rows("break")[0], self.rows("break")[3]), ("pending", "processing"))
+        self.assertEqual(self.domain.list_active_direct_overrides(TRIP_ID)[0]["value"], "直接指定")
+        self.submit(claim, [
+            {"op": "replace", "path": "/days/0/scheduleItems/0/summary", "value": "別fieldのAI変更"}
+        ])
         self.assertEqual(self.domain.get_effective_trip(TRIP_ID)["days"][0]["scheduleItems"][0]["action"], "直接指定")
         self.assertTrue(self.domain.list_active_direct_overrides(TRIP_ID)[0]["active"])
 

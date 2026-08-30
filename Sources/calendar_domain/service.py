@@ -522,6 +522,19 @@ class CalendarDomain:
         return matches
 
     @staticmethod
+    def _item_pointer_paths(value: Any, source_item_id: str, path: tuple[str, ...] = ()) -> list[tuple[str, ...]]:
+        paths = []
+        if isinstance(value, dict):
+            if value.get("id") == source_item_id:
+                paths.append(path)
+            for key, child in value.items():
+                paths.extend(CalendarDomain._item_pointer_paths(child, source_item_id, (*path, key)))
+        elif isinstance(value, list):
+            for index, child in enumerate(value):
+                paths.extend(CalendarDomain._item_pointer_paths(child, source_item_id, (*path, str(index))))
+        return paths
+
+    @staticmethod
     def _path_parts(field_path: str) -> list[str]:
         if not isinstance(field_path, str) or not field_path.startswith("/") or field_path == "/":
             raise ValidationError("field_path must be a non-root JSON Pointer")
@@ -809,6 +822,26 @@ class CalendarDomain:
                 raise ValidationError("Patch target is a scalar")
         return candidate
 
+    def _reject_active_override_patch_conflicts(
+        self, trip_id: str, base: dict[str, Any], operations: list[dict[str, Any]]
+    ) -> None:
+        patch_paths = [tuple(self._json_pointer_tokens(operation["path"])) for operation in operations]
+        with self._read() as connection:
+            overrides = connection.execute(
+                "SELECT source_item_id, field_path FROM direct_overrides "
+                "WHERE trip_id = ? AND active = 1",
+                (trip_id,),
+            ).fetchall()
+        for override in overrides:
+            item_paths = self._item_pointer_paths(base, override["source_item_id"])
+            if len(item_paths) != 1:
+                continue
+            override_path = (*item_paths[0], *self._path_parts(override["field_path"]))
+            for patch_path in patch_paths:
+                shared = min(len(patch_path), len(override_path))
+                if patch_path[:shared] == override_path[:shared]:
+                    raise ConflictError("JSON Patch conflicts with an active Direct Override")
+
     def claim_generation_request(self) -> dict[str, Any] | None:
         """Claim the oldest eligible request and return a CAL-owned semantic payload."""
         with self._command() as connection:
@@ -922,6 +955,7 @@ class CalendarDomain:
             return self._requeue_stale_request(request_id, instruction_id)
         current = self._load_trip(trip_id)
         candidate = self._apply_json_patch(current, patch)
+        self._reject_active_override_patch_conflicts(trip_id, current, patch)
         try:
             return self._adopt_validated_candidate(
                 trip_id, candidate, request_id, instruction_id, base_version, base_hash

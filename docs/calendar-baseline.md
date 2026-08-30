@@ -88,7 +88,7 @@ AI Instruction + CAL-owned base Trip/version/hash
   -> complete Validation + base再確認 + atomic adoption
 ```
 
-Patch適用後candidateは既存Schema、stable ID、cross-reference validationをすべて通過した場合だけcurrentへ採用する。stale version/hashはPatch非適用でrequestをqueuedへ戻し、Validation失敗はcurrentを維持する。不完全JSONをcurrentとして表示しない。active Overrideを適用したeffective Tripも再Validationし、存在しないtargetやTodo参照切れは拒否する。
+Patch適用後candidateは既存Schema、stable ID、cross-reference validationをすべて通過した場合だけcurrentへ採用する。stale version/hashはPatch非適用でrequestをqueuedへ戻し、Validation失敗はcurrentを維持する。不完全JSONをcurrentとして表示しない。active Overrideと同じ`source_item_id + field_path`を変更するPatchは、AI Instructionの効果が隠れる明白な競合として採用前に拒否する。active Overrideを適用したeffective Tripも再Validationし、存在しないtargetやTodo参照切れは拒否する。
 
 AI Instructionは`pending`、requestは`queued / processing / completed / cancelled`を持つ。Patch生成失敗はrelease、staleは自動requeueし、Instructionをpendingに保つ。successful adoption時だけInstructionをapplied、requestをcompletedにする。
 
