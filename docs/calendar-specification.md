@@ -1,6 +1,6 @@
 # Calendar Trip JSON仕様
 
-> **Status:** Issue #46以降も、formal Trip JSON、stable ID、cross-reference validation、AIによる完全JSON再生成の基本方式は、各旅行の完全旅程表現として維持する。この文書の旅行中心UIやCAL全体の責務は新Baselineへ自動継承せず、[`calendar-baseline.md`](calendar-baseline.md)との整合範囲で再利用する。
+> **Status:** Issue #46以降もformal Trip JSON、stable ID、cross-reference validationは維持する。Issue #54以降、既存Trip更新時のAI出力はJSON Patchであり、CALがcomplete candidateを構築する。この文書の旧complete再生成記述は新規Trip作成または履歴説明に限る。
 
 ## 1. 目的と基本方針
 
@@ -13,7 +13,7 @@ Calendar は旅行計画の閲覧を主目的とする。AI 変更指示は補�
 1. Calendar が採用済みの完全 JSON を読み取り専用で表示する。
 2. ユーザーが画面上でチェック、候補選択、メモ入力を行う。
 3. Calendar はこれらを採用済み JSON とは別の一時状態として保持し、AI への更新材料にする。
-4. AI が採用済み JSON と更新材料を解釈し、次版の完全 JSON を再生成する。
+4. 既存Trip更新ではAIが採用済みbaseと更新材料を解釈してJSON Patchを生成し、CALが次版の完全candidateを構築する。
 5. ユーザーが次版を確認し、承認した場合にのみ採用済み JSON を置き換える。
 
 差分パッチや部分 JSON を正本にはしない。候補選択も確定変更ではなく、AI への指示である。内部実装で更新材料を `ChangeSet` 等と呼ぶことはできるが、ChangeSet 自体を画面には表示しない。画面のメモ欄には、内部データや機械向け差分ではなく、AI に伝える指示だけを表示する。

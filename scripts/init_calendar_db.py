@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Initialize an empty SQLite database with the CAL v1 schema."""
+"""Initialize an empty SQLite database with the CAL v2 schema."""
 
 import argparse
 import sqlite3
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_PATH = REPO_ROOT / "Schemas" / "calendar-v1.sql"
+SCHEMA_PATH = REPO_ROOT / "Schemas" / "calendar-v2.sql"
 
 
 def initialize(database_path: Path) -> None:
@@ -17,7 +17,7 @@ def initialize(database_path: Path) -> None:
     try:
         connection.execute("PRAGMA foreign_keys = ON")
         connection.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
-        if connection.execute("SELECT version FROM schema_meta").fetchone() != (1,):
+        if connection.execute("SELECT version FROM schema_meta").fetchone() != (2,):
             raise RuntimeError("schema version verification failed")
         connection.commit()
     except Exception:

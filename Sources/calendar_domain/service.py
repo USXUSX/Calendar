@@ -265,15 +265,21 @@ class CalendarDomain:
             raise ValidationError("instruction_ids must be unique")
         return values
 
-    def adopt_trip_candidate(
-        self, trip_id: str, candidate: str | Path | dict[str, Any], instruction_ids: Any
+    def _adopt_validated_candidate(
+        self,
+        trip_id: str,
+        candidate: dict[str, Any],
+        request_id: str,
+        instruction_id: str,
+        expected_version: int,
+        expected_hash: str,
     ) -> dict[str, Any]:
-        """Validate and atomically adopt a complete Trip candidate."""
+        """Internal complete-candidate validation and atomic adoption layer."""
         self._trip_path(trip_id)
         recovered = self.recover_trip_adoption(trip_id)
         if recovered is not None:
             return recovered
-        instruction_ids = self._instruction_ids(instruction_ids)
+        instruction_ids = (instruction_id,)
         candidate_value, candidate_payload = self._validated_candidate(trip_id, candidate)
         current_path = self._trip_path(trip_id)
         try:
@@ -287,11 +293,13 @@ class CalendarDomain:
         staging_path = self._staging_path(trip_id, candidate_digest)
         journal_path = self._journal_path(trip_id)
         journal = {
-            "version": 1,
+            "version": 2,
             "trip_id": trip_id,
-            "candidate_digest": candidate_digest,
-            "old_current_digest": old_digest,
-            "instruction_ids": list(instruction_ids),
+            "request_id": request_id,
+            "instruction_id": instruction_id,
+            "old_version": expected_version,
+            "old_hash": old_digest,
+            "candidate_hash": candidate_digest,
         }
         self._write_file(staging_path, candidate_payload)
         replaced = False
@@ -300,18 +308,57 @@ class CalendarDomain:
             with self._command() as connection:
                 connection.execute("BEGIN IMMEDIATE")
                 self._validate_adoption_constraints(connection, trip_id, candidate_value, instruction_ids)
+                request = connection.execute(
+                    "SELECT instruction_id, trip_id, state FROM generation_requests WHERE id = ?",
+                    (request_id,),
+                ).fetchone()
+                instruction = connection.execute(
+                    "SELECT base_version, base_hash FROM ai_instructions WHERE id = ?",
+                    (instruction_id,),
+                ).fetchone()
+                trip = connection.execute("SELECT version FROM trips WHERE id = ?", (trip_id,)).fetchone()
+                if (
+                    request is None
+                    or request["instruction_id"] != instruction_id
+                    or request["trip_id"] != trip_id
+                    or request["state"] != "processing"
+                    or instruction is None
+                    or instruction["base_version"] != expected_version
+                    or instruction["base_hash"] != expected_hash
+                    or trip is None
+                    or trip["version"] != expected_version
+                    or old_digest != expected_hash
+                ):
+                    raise ConflictError("generation request base changed before adoption")
                 self._write_journal(journal_path, journal)
                 journal_written = True
+                if (
+                    connection.execute("SELECT version FROM trips WHERE id = ?", (trip_id,)).fetchone()["version"]
+                    != expected_version
+                    or self._digest(current_path.read_bytes()) != expected_hash
+                ):
+                    raise ConflictError("generation request base changed immediately before adoption")
                 self._replace_current(staging_path, current_path)
                 replaced = True
                 self._after_candidate_replace()
-                for instruction_id in instruction_ids:
-                    if connection.execute(
-                        "UPDATE ai_instructions SET state = 'applied', updated_at = ? "
-                        "WHERE id = ? AND trip_id = ? AND state = 'pending'",
-                        (_now(), instruction_id, trip_id),
-                    ).rowcount != 1:
-                        raise ConflictError("AI Instruction state changed during candidate adoption")
+                timestamp = _now()
+                if connection.execute(
+                    "UPDATE trips SET version = version + 1, updated_at = ? WHERE id = ? AND version = ?",
+                    (timestamp, trip_id, expected_version),
+                ).rowcount != 1:
+                    raise ConflictError("Trip version changed during candidate adoption")
+                if connection.execute(
+                    "UPDATE ai_instructions SET state = 'applied', updated_at = ? "
+                    "WHERE id = ? AND trip_id = ? AND state = 'pending'",
+                    (timestamp, instruction_id, trip_id),
+                ).rowcount != 1:
+                    raise ConflictError("AI Instruction state changed during candidate adoption")
+                if connection.execute(
+                    "UPDATE generation_requests SET state = 'completed', updated_at = ? "
+                    "WHERE id = ? AND instruction_id = ? AND state = 'processing'",
+                    (timestamp, request_id, instruction_id),
+                ).rowcount != 1:
+                    raise ConflictError("generation request state changed during candidate adoption")
         except Exception:
             if not replaced:
                 self._remove_adoption_file(staging_path)
@@ -322,9 +369,11 @@ class CalendarDomain:
         self._remove_adoption_file(staging_path)
         return {
             "trip_id": trip_id,
+            "request_id": request_id,
+            "instruction_id": instruction_id,
             "status": "adopted",
             "candidate_digest": candidate_digest,
-            "applied_instruction_ids": list(instruction_ids),
+            "version": expected_version + 1,
             "recovered": False,
         }
 
@@ -342,12 +391,19 @@ class CalendarDomain:
                 return None
             try:
                 journal = json.loads(journal_path.read_text(encoding="utf-8"))
-                required = {"version", "trip_id", "candidate_digest", "old_current_digest", "instruction_ids"}
-                if set(journal) != required or journal["version"] != 1 or journal["trip_id"] != trip_id:
+                required = {
+                    "version", "trip_id", "request_id", "instruction_id",
+                    "old_version", "old_hash", "candidate_hash",
+                }
+                if set(journal) != required or journal["version"] != 2 or journal["trip_id"] != trip_id:
                     raise ValueError
-                candidate_digest = journal["candidate_digest"]
-                old_digest = journal["old_current_digest"]
-                instruction_ids = self._instruction_ids(journal["instruction_ids"])
+                request_id = self._require_text(journal["request_id"], "request_id")
+                instruction_id = self._require_text(journal["instruction_id"], "instruction_id")
+                old_version = journal["old_version"]
+                candidate_digest = journal["candidate_hash"]
+                old_digest = journal["old_hash"]
+                if not isinstance(old_version, int) or isinstance(old_version, bool) or old_version < 1:
+                    raise ValueError
                 if not all(isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) for value in (candidate_digest, old_digest)):
                     raise ValueError
                 current_digest = self._digest(self._trip_path(trip_id).read_bytes())
@@ -355,25 +411,53 @@ class CalendarDomain:
                 raise ConflictError("candidate adoption journal is invalid or unreadable") from error
 
             if current_digest == candidate_digest:
-                for instruction_id in instruction_ids:
-                    row = connection.execute(
-                        "SELECT trip_id, state FROM ai_instructions WHERE id = ?", (instruction_id,)
-                    ).fetchone()
-                    if row is None or row["trip_id"] != trip_id or row["state"] not in {"pending", "applied"}:
-                        raise ConflictError("journal conflicts with AI Instruction state")
-                    if row["state"] == "pending":
-                        connection.execute(
-                            "UPDATE ai_instructions SET state = 'applied', updated_at = ? WHERE id = ?",
-                            (_now(), instruction_id),
-                        )
+                row = connection.execute(
+                    "SELECT i.trip_id, i.state AS instruction_state, r.state AS request_state, "
+                    "t.version AS trip_version FROM ai_instructions i "
+                    "JOIN generation_requests r ON r.instruction_id = i.id "
+                    "JOIN trips t ON t.id = i.trip_id WHERE i.id = ? AND r.id = ?",
+                    (instruction_id, request_id),
+                ).fetchone()
+                if (
+                    row is None or row["trip_id"] != trip_id
+                    or row["instruction_state"] not in {"pending", "applied"}
+                    or row["request_state"] not in {"processing", "completed"}
+                    or row["trip_version"] not in {old_version, old_version + 1}
+                ):
+                    raise ConflictError("journal conflicts with request pipeline state")
+                timestamp = _now()
+                if row["trip_version"] == old_version:
+                    connection.execute(
+                        "UPDATE trips SET version = ?, updated_at = ? WHERE id = ?",
+                        (old_version + 1, timestamp, trip_id),
+                    )
+                connection.execute(
+                    "UPDATE ai_instructions SET state = 'applied', updated_at = ? WHERE id = ?",
+                    (timestamp, instruction_id),
+                )
+                connection.execute(
+                    "UPDATE generation_requests SET state = 'completed', updated_at = ? WHERE id = ?",
+                    (timestamp, request_id),
+                )
                 status = "adopted"
             elif current_digest == old_digest:
-                for instruction_id in instruction_ids:
-                    row = connection.execute(
-                        "SELECT trip_id, state FROM ai_instructions WHERE id = ?", (instruction_id,)
-                    ).fetchone()
-                    if row is None or row["trip_id"] != trip_id or row["state"] != "pending":
-                        raise ConflictError("journal conflicts with AI Instruction state")
+                row = connection.execute(
+                    "SELECT i.trip_id, i.state AS instruction_state, r.state AS request_state, "
+                    "t.version AS trip_version FROM ai_instructions i "
+                    "JOIN generation_requests r ON r.instruction_id = i.id "
+                    "JOIN trips t ON t.id = i.trip_id WHERE i.id = ? AND r.id = ?",
+                    (instruction_id, request_id),
+                ).fetchone()
+                if (
+                    row is None or row["trip_id"] != trip_id or row["instruction_state"] != "pending"
+                    or row["request_state"] not in {"processing", "queued"}
+                    or row["trip_version"] != old_version
+                ):
+                    raise ConflictError("journal conflicts with request pipeline state")
+                connection.execute(
+                    "UPDATE generation_requests SET state = 'queued', updated_at = ? WHERE id = ?",
+                    (_now(), request_id),
+                )
                 status = "not_adopted"
             else:
                 raise ConflictError("current Trip JSON matches neither journal digest")
@@ -382,9 +466,11 @@ class CalendarDomain:
         self._remove_adoption_file(journal_path)
         return {
             "trip_id": trip_id,
+            "request_id": request_id,
+            "instruction_id": instruction_id,
             "status": status,
             "candidate_digest": candidate_digest,
-            "applied_instruction_ids": list(instruction_ids) if status == "adopted" else [],
+            "version": old_version + 1 if status == "adopted" else old_version,
             "recovered": True,
         }
 
@@ -643,6 +729,211 @@ class CalendarDomain:
             if connection.execute(f"UPDATE {table} SET {assignments} WHERE id = ?", values).rowcount == 0:
                 raise NotFoundError(f"{table[:-1].title()} not found: {entity_id}")
 
+    @staticmethod
+    def _json_pointer_tokens(path: Any) -> list[str]:
+        if not isinstance(path, str) or not path.startswith("/"):
+            raise ValidationError("Patch path must be a non-root JSON Pointer")
+        tokens = []
+        for raw in path[1:].split("/"):
+            index = 0
+            decoded = ""
+            while index < len(raw):
+                if raw[index] != "~":
+                    decoded += raw[index]
+                    index += 1
+                elif index + 1 < len(raw) and raw[index + 1] in {"0", "1"}:
+                    decoded += "~" if raw[index + 1] == "0" else "/"
+                    index += 2
+                else:
+                    raise ValidationError("Patch path contains an invalid JSON Pointer escape")
+            tokens.append(decoded)
+        return tokens
+
+    @classmethod
+    def _apply_json_patch(cls, base: dict[str, Any], operations: Any) -> dict[str, Any]:
+        if not isinstance(operations, list) or not operations:
+            raise ValidationError("Patch must be a non-empty array")
+        candidate = copy.deepcopy(base)
+        for operation in operations:
+            if not isinstance(operation, dict) or set(operation) - {"op", "path", "value"}:
+                raise ValidationError("Patch operation has unsupported members")
+            op = operation.get("op")
+            if op not in {"add", "remove", "replace"}:
+                raise ValidationError("Patch operation is unsupported")
+            if (op in {"add", "replace"}) != ("value" in operation):
+                raise ValidationError("Patch operation value is invalid")
+            tokens = cls._json_pointer_tokens(operation.get("path"))
+            parent: Any = candidate
+            for token in tokens[:-1]:
+                if isinstance(parent, dict):
+                    if token not in parent:
+                        raise ValidationError("Patch path does not exist")
+                    parent = parent[token]
+                elif isinstance(parent, list):
+                    if not token.isdigit() or (len(token) > 1 and token.startswith("0")):
+                        raise ValidationError("Patch array index is invalid")
+                    index = int(token)
+                    if index >= len(parent):
+                        raise ValidationError("Patch array index is out of range")
+                    parent = parent[index]
+                else:
+                    raise ValidationError("Patch path traverses a scalar")
+            token = tokens[-1]
+            value = copy.deepcopy(operation.get("value"))
+            if isinstance(parent, dict):
+                if op in {"remove", "replace"} and token not in parent:
+                    raise ValidationError("Patch path does not exist")
+                if op == "remove":
+                    del parent[token]
+                else:
+                    parent[token] = value
+            elif isinstance(parent, list):
+                if token == "-" and op == "add":
+                    parent.append(value)
+                    continue
+                if not token.isdigit() or (len(token) > 1 and token.startswith("0")):
+                    raise ValidationError("Patch array index is invalid")
+                index = int(token)
+                if op == "add":
+                    if index > len(parent):
+                        raise ValidationError("Patch array index is out of range")
+                    parent.insert(index, value)
+                else:
+                    if index >= len(parent):
+                        raise ValidationError("Patch array index is out of range")
+                    if op == "remove":
+                        del parent[index]
+                    else:
+                        parent[index] = value
+            else:
+                raise ValidationError("Patch target is a scalar")
+        return candidate
+
+    def claim_generation_request(self) -> dict[str, Any] | None:
+        """Claim the oldest eligible request and return a CAL-owned semantic payload."""
+        with self._command() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT r.id AS request_id, r.instruction_id, r.trip_id, i.instruction, t.version "
+                "FROM generation_requests r "
+                "JOIN ai_instructions i ON i.id = r.instruction_id "
+                "JOIN trips t ON t.id = r.trip_id "
+                "WHERE r.state = 'queued' AND i.state = 'pending' "
+                "AND NOT EXISTS (SELECT 1 FROM generation_requests active "
+                "  WHERE active.trip_id = r.trip_id AND active.state = 'processing') "
+                "AND NOT EXISTS (SELECT 1 FROM generation_requests earlier "
+                "  WHERE earlier.trip_id = r.trip_id AND earlier.state = 'queued' "
+                "  AND (earlier.created_at < r.created_at OR "
+                "       (earlier.created_at = r.created_at AND earlier.id < r.id))) "
+                "ORDER BY r.created_at, r.id LIMIT 1"
+            ).fetchone()
+            if row is None:
+                return None
+            trip = self._load_trip(row["trip_id"])
+            base_hash = self._digest(self._trip_path(row["trip_id"]).read_bytes())
+            timestamp = _now()
+            if connection.execute(
+                "UPDATE generation_requests SET state = 'processing', updated_at = ? "
+                "WHERE id = ? AND state = 'queued'",
+                (timestamp, row["request_id"]),
+            ).rowcount != 1:
+                raise ConflictError("generation request changed while being claimed")
+            connection.execute(
+                "UPDATE ai_instructions SET base_version = ?, base_hash = ?, updated_at = ? WHERE id = ?",
+                (row["version"], base_hash, timestamp, row["instruction_id"]),
+            )
+        return {
+            "request_id": row["request_id"],
+            "instruction_id": row["instruction_id"],
+            "trip_id": row["trip_id"],
+            "instruction": row["instruction"],
+            "base_version": row["version"],
+            "base_hash": base_hash,
+            "trip": trip,
+        }
+
+    def release_generation_request(self, request_id: str) -> dict[str, Any]:
+        """Return a processing request to the queue without failing its Instruction."""
+        self._require_text(request_id, "request_id")
+        with self._command() as connection:
+            if connection.execute(
+                "UPDATE generation_requests SET state = 'queued', updated_at = ? "
+                "WHERE id = ? AND state = 'processing'",
+                (_now(), request_id),
+            ).rowcount != 1:
+                raise ConflictError("only a processing generation request can be released")
+            row = connection.execute("SELECT * FROM generation_requests WHERE id = ?", (request_id,)).fetchone()
+        return dict(row)
+
+    def _requeue_stale_request(self, request_id: str, instruction_id: str) -> dict[str, Any]:
+        with self._command() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT state FROM generation_requests WHERE id = ? AND instruction_id = ?",
+                (request_id, instruction_id),
+            ).fetchone()
+            if row is None or row["state"] not in {"processing", "queued"}:
+                raise ConflictError("stale request cannot be requeued")
+            connection.execute(
+                "UPDATE generation_requests SET state = 'queued', updated_at = ? WHERE id = ?",
+                (_now(), request_id),
+            )
+        return {"request_id": request_id, "status": "stale", "state": "queued"}
+
+    def submit_json_patch(
+        self,
+        request_id: str,
+        instruction_id: str,
+        trip_id: str,
+        patch: Any,
+        base_version: int,
+        base_hash: str,
+    ) -> dict[str, Any]:
+        """Apply a claimed request's JSON Patch to memory, validate, and safely adopt it."""
+        self._require_text(request_id, "request_id")
+        self._require_text(instruction_id, "instruction_id")
+        self._trip_path(trip_id)
+        if not isinstance(base_version, int) or isinstance(base_version, bool) or base_version < 1:
+            raise ValidationError("base_version must be a positive integer")
+        if not isinstance(base_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", base_hash):
+            raise ValidationError("base_hash must be a SHA-256 digest")
+        with self._read() as connection:
+            row = connection.execute(
+                "SELECT r.state, r.trip_id, r.instruction_id, i.state AS instruction_state, "
+                "i.base_version, i.base_hash, t.version "
+                "FROM generation_requests r JOIN ai_instructions i ON i.id = r.instruction_id "
+                "JOIN trips t ON t.id = r.trip_id WHERE r.id = ?",
+                (request_id,),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError(f"generation request not found: {request_id}")
+        if row["trip_id"] != trip_id or row["instruction_id"] != instruction_id:
+            raise ConflictError("generation request identity does not match")
+        if row["state"] != "processing" or row["instruction_state"] != "pending":
+            raise ConflictError("generation request is not processing")
+        current_payload = self._trip_path(trip_id).read_bytes()
+        current_hash = self._digest(current_payload)
+        if (
+            row["base_version"] != base_version
+            or row["base_hash"] != base_hash
+            or row["version"] != base_version
+            or current_hash != base_hash
+        ):
+            return self._requeue_stale_request(request_id, instruction_id)
+        current = self._load_trip(trip_id)
+        candidate = self._apply_json_patch(current, patch)
+        try:
+            return self._adopt_validated_candidate(
+                trip_id, candidate, request_id, instruction_id, base_version, base_hash
+            )
+        except ConflictError as error:
+            if str(error) in {
+                "generation request base changed before adoption",
+                "generation request base changed immediately before adoption",
+            }:
+                return self._requeue_stale_request(request_id, instruction_id)
+            raise
+
     def add_ai_instruction(self, instruction_id: str, trip_id: str, instruction: str) -> dict[str, Any]:
         self._require_text(instruction_id, "instruction_id")
         self._require_text(instruction, "instruction")
@@ -654,7 +945,15 @@ class CalendarDomain:
                 "INSERT INTO ai_instructions (id, trip_id, instruction, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
                 (instruction_id, trip_id, instruction, timestamp, timestamp),
             )
-        return self._get_instruction(instruction_id)
+            connection.execute(
+                "INSERT INTO generation_requests "
+                "(id, instruction_id, trip_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                (instruction_id, instruction_id, trip_id, timestamp, timestamp),
+            )
+        result = self._get_instruction(instruction_id)
+        result["request_id"] = instruction_id
+        result["request_state"] = "queued"
+        return result
 
     def _get_instruction(self, instruction_id: str) -> dict[str, Any]:
         with self._read() as connection:
@@ -674,15 +973,26 @@ class CalendarDomain:
 
     def cancel_ai_instruction(self, instruction_id: str) -> dict[str, Any]:
         with self._command() as connection:
-            row = connection.execute("SELECT state FROM ai_instructions WHERE id = ?", (instruction_id,)).fetchone()
+            row = connection.execute(
+                "SELECT i.state, r.state AS request_state FROM ai_instructions i "
+                "JOIN generation_requests r ON r.instruction_id = i.id WHERE i.id = ?",
+                (instruction_id,),
+            ).fetchone()
             if row is None:
                 raise NotFoundError(f"AI Instruction not found: {instruction_id}")
-            if row["state"] != "pending":
-                raise ConflictError("only a pending AI Instruction can be cancelled")
+            if row["state"] != "pending" or row["request_state"] != "queued":
+                raise ConflictError("only a queued pending AI Instruction can be cancelled")
+            timestamp = _now()
             connection.execute(
                 "UPDATE ai_instructions SET state = 'cancelled', updated_at = ? WHERE id = ?",
-                (_now(), instruction_id),
+                (timestamp, instruction_id),
             )
+            if connection.execute(
+                "UPDATE generation_requests SET state = 'cancelled', updated_at = ? "
+                "WHERE instruction_id = ? AND state = 'queued'",
+                (timestamp, instruction_id),
+            ).rowcount != 1:
+                raise ConflictError("generation request changed during cancellation")
         return self._get_instruction(instruction_id)
 
     def set_direct_override(self, override_id: str, trip_id: str, source_item_id: str,

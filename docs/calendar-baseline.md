@@ -45,11 +45,11 @@ SQLiteは構造化されたCALの状態を管理する。第一候補の配置�
 - share、visibility等の状態
 - その他の構造化されたCAL横断状態
 
-formal Trip JSONは、各旅行について最後にAI生成され、必要なValidationを通過して採用されたauthoritativeな完全旅程baseである。単なるimport/export用交換形式ではなく、AIが旅程全体を解釈し、生成・再生成する基礎とする。既存のJSON Schema、stable ID、cross-reference validationを原則として再利用対象とし、AI生成、import/export、外部連携にも同じformal JSONを利用できる。
+formal Trip JSONは、各旅行について最後にCALが必要なValidationを通して採用したauthoritativeな完全旅程baseである。既存のJSON Schema、stable ID、cross-reference validationを再利用する。AIは更新時にbaseへ対するJSON Patchだけを生成し、CALがmemory copyから次のcomplete candidateを構築する。
 
-candidate生成とCALによる採用は別責務とする。CALは外部で生成済みのcomplete candidateをSchema、semantic、cross-reference、Trip ID、active Direct Override、Todoの`trip_item_id`参照まで検証する。candidate baseへactive Overrideを適用したeffective Tripも有効な場合だけ、same-filesystemのatomic replacementでauthoritative baseへ切り替える。採用に明示されたpending AI Instruction IDだけを`applied`化し、後から追加されたpending Instructionとactive Overrideは維持する。
+1 AI Instructionは登録transaction内で1 generation requestを作る。CALのclaimは同一Tripを直列、別Tripを並列に扱い、Instruction本文、Trip内容、base version/hashを意味境界として返す。CALは返却されたPatchをmemory copyへ適用し、complete candidateをSchema、semantic、cross-reference、Trip ID、active Direct Override、Todoの`trip_item_id`参照まで検証する。採用直前にもbase version/hashが一致する場合だけatomic replacementし、Trip version増加、Instruction applied、request completedを一続きの採用結果にする。
 
-filesystem replaceとSQLite更新の間の停止は、private Trip root内の一時digest journalで収束する。journalはTrip、candidate digest、旧current digest、対象Instruction IDだけを保持する回復用一時状態であり、permanent historyではない。currentがcandidate digestならInstruction更新を完了し、旧digestならpendingのまま未採用としてcleanupする。
+filesystem replaceとSQLite更新の間の停止は一時digest journalで収束する。journalはTrip、request、Instruction、old version/hash、candidate hashを保持する。candidate一致ならversion増加・applied・completedを完了し、old hash一致ならpending・queuedへ戻す。どちらでもなければConflictとして停止する。
 
 正本境界は次のとおりとする。
 
@@ -59,7 +59,7 @@ filesystem replaceとSQLite更新の間の停止は、private Trip root内の一
 - Trip旅程のAI生成base: formal Trip JSON
 - ユーザーの旅程への直接指定: SQLite上のactive `Direct Override`
 
-Trip由来Eventを通常のSQLite `Event`として正本化しない。派生結果をSQLiteへ保存する場合もcache等の再生成可能物に限り、正本として扱わない。SQLite v1 schemaはIssue #50で確定し、`Schemas/calendar-v1.sql`を正本とする。実運用DBへの適用、既存データ移行、history・rollbackの具体方式は後続Issueで決定する。
+Trip由来Eventを通常のSQLite `Event`として正本化しない。SQLite v1はIssue #50の初期revisionとして保持し、Issue #54の現行complete schemaは`Schemas/calendar-v2.sql`とする。v2はTrip logical version、Instruction base snapshot、generation request queueだけを追加する。実運用DBはまだなくmigration frameworkは導入しない。
 
 3層の役割は維持する。
 
@@ -69,11 +69,11 @@ Trip由来Eventを通常のSQLite `Event`として正本化しない。派生結
 
 ## 5. 旅程変更の入力経路
 
-旅程の曖昧さや複数箇所に及ぶ調整はAIに交通整理させ、常に次版の完全Trip JSONを生成する。再生成には、現在のTrip JSONに加えて次の2系統の入力を渡す。
+旅程の曖昧さや複数箇所に及ぶ調整はAIに交通整理させるが、AIの更新出力はcurrent baseに対するJSON Patchとする。CALだけがcomplete candidateを構築・検証・採用する。
 
 ### AI Instruction
 
-ユーザーが自然言語で登録する変更意図。AIが次回再生成時に解釈し、旅程全体へ反映する。「2日目は移動を少なくする」「雨天時の候補を追加する」等、解釈や全体調整を必要とする入力を扱う。登録しただけでは`effective Trip`へ直接反映しない。
+ユーザーが自然言語で登録する変更命令。登録と同時にgeneration requestを作り原則即時処理対象にする。「2日目は移動を少なくする」等を扱い、successful adoptionまでは`effective Trip`へ反映しない。
 
 ### Direct Override
 
@@ -82,16 +82,15 @@ Trip由来Eventを通常のSQLite `Event`として正本化しない。派生結
 初期Baselineではhard/soft等へ細分化せず、`AI Instruction`と`Direct Override`を区別する。
 
 ```text
-現在のTrip JSON + AI Instructions + active Direct Overrides
-  -> AI
-  -> candidate complete Trip JSON
-  -> Validation
-  -> 成功時のみcurrentとして採用
+AI Instruction + CAL-owned base Trip/version/hash
+  -> AI / WorkがJSON Patch生成
+  -> CALがmemory copyへ適用してcomplete candidate構築
+  -> complete Validation + base再確認 + atomic adoption
 ```
 
-candidateは既存のTrip JSON Schema、stable ID、cross-reference validation等の必要なValidationをすべて通過した場合だけcurrentへ採用する。AI生成またはValidationに失敗した場合は、現行Trip JSON、active Direct Override、未処理AI Instructionをすべて維持する。不完全JSONをcurrentとして表示しない。Issue #52のdomain interface v1はactive Overrideをsource item内のJSON Pointer相当pathへメモリ上で適用し、合成後のcomplete Tripを再Validationする。存在しないitemやpath、不正値はdomain validation errorとし、Trip JSONへ書き戻さない。具体的なhistory、backup、rollback方式は必要性を確認する後続Issueまで固定しない。
+Patch適用後candidateは既存Schema、stable ID、cross-reference validationをすべて通過した場合だけcurrentへ採用する。stale version/hashはPatch非適用でrequestをqueuedへ戻し、Validation失敗はcurrentを維持する。不完全JSONをcurrentとして表示しない。active Overrideを適用したeffective Tripも再Validationし、存在しないtargetやTodo参照切れは拒否する。
 
-AI Instructionは新規登録時を`pending`とする。AI生成またはValidation失敗では`pending`を維持し、そのInstructionを入力に含むcandidateがValidationを通過してcurrentへ採用された時だけ`applied`へ更新する。ユーザーが反映不要とした場合は`cancelled`へ更新する。`applied`は次回再生成の通常入力へ再投入しない。
+AI Instructionは`pending`、requestは`queued / processing / completed / cancelled`を持つ。Patch生成失敗はrelease、staleは自動requeueし、Instructionをpendingに保つ。successful adoption時だけInstructionをapplied、requestをcompletedにする。
 
 ## 6. 統一Event read modelと更新command境界
 
@@ -135,7 +134,7 @@ participant向け共有は、`effective Trip`とSQLite上のvisibility / share�
 ### 残す内容
 
 - 各旅行をformalな完全Trip JSONで表す基本方式
-- AIが現在のTrip JSONと変更入力から次版の完全Trip JSONを再生成する方式
+- AIがJSON Patchを生成し、CALが次版complete Trip JSONを構築する方式
 - JSON Schema、stable ID、cross-reference validation、予定と実績を分ける考え方
 - 既存のSchema、validator、合成サンプル、旅行JSON生成・運用文書は、再利用対象かつ現行実装の記録として残す。
 - read-only Webの実装は移行・再利用判断の資料として残す。
@@ -148,7 +147,7 @@ participant向け共有は、`effective Trip`とSQLite上のvisibility / share�
 1. `Trip / Event / Todo`と変更入力のSQLite schema、状態遷移、参照制約
 2. `AI Instruction / Direct Override`のライフサイクル、競合・解除・適用済み状態、hard / soft分類
 3. unified Event projectionと`effective Trip`合成を含む、CALの意味ベースのdomain interface（Issue #52でv1実装）
-4. candidate Trip JSONの採用atomicityと最小recovery（Issue #54で実装）
+4. AI Instruction即時Patch pipeline、candidate採用atomicityと最小recovery（Issue #54で実装）
 5. 既存Trip JSON、Schema、validatorの再利用範囲と必要な非破壊的移行
 6. FRM owner向け`Today / Schedule / Trips / Todos` read modelと画面
 7. FRMからCALを更新するcommand境界、競合、validation

@@ -22,8 +22,9 @@ browser-memory state and do not add instructions or draft fields to the adopted
 synthetic JSON.
 
 `sqlite-schema.test.sh` initializes a temporary empty SQLite database and
-validates the v1 tables, schema version, foreign keys, enums, relationship
-constraints, AI Instruction state, Direct Override uniqueness, and JSON values.
+validates the v2 tables, schema version, foreign keys, enums, relationship
+constraints, Trip version, generation-request lifecycle and same-Trip processing
+uniqueness, Direct Override uniqueness, and JSON values.
 
 `calendar-domain.test.sh` uses only a temporary SQLite database and a copied
 synthetic Trip root. It covers unified ordinary/Trip Events and source-qualified
@@ -32,7 +33,8 @@ ordinary Event and Todo CRUD, Todo completion, AI Instruction cancellation,
 Trip registration, explicit storage paths, and transactional rollback.
 
 `candidate-adoption.test.sh` uses only a temporary SQLite database and synthetic
-Trip root. It covers complete candidate validation, Trip ID matching, explicit
-Instruction application, atomic replacement failures, active Override and Todo
-item constraints, post-adoption effective Trips, and both digest-journal
-recovery outcomes. It never reads or writes `Calendar_Local`.
+Trip root. It covers atomic Instruction enqueue, same-Trip serial/cross-Trip
+parallel claims, base snapshots, JSON Patch validation and application, stale
+requeue, complete-candidate validation, Trip versioning, active Override and
+Todo constraints, atomic replacement, and all digest-journal recovery outcomes.
+It never reads or writes `Calendar_Local`.

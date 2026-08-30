@@ -1,6 +1,6 @@
 # Calendar Trip JSON現行運用手順
 
-> **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。Issue #52のCAL domain interface v1とIssue #54のcandidate採用境界はGit管理下で実装されているが、実運用DB、FRM接続、AI生成連携は未実装である。新しい統合運用は[`calendar-baseline.md`](calendar-baseline.md)と後続Issueで定める。
+> **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。Issue #54のCAL側Patch pipelineはGit管理下で実装されているが、実運用DB、FRM、TSK / Work接続は未実装である。
 
 ## 1. 原則
 
@@ -8,9 +8,9 @@ Calendar は正式仕様の旅行 JSON を読み取り、見やすく表示す�
 
 実データは `/Users/us/Tools/LocalData/Calendar_Local/trips/` にだけ置き、Git リポジトリや Google Driveへコピー、コミット、アップロードしない。
 
-SQLite v1のGit管理上の正本は`Schemas/calendar-v1.sql`である。開発用の空DBは明示した一時pathに`python3 scripts/init_calendar_db.py <path>`で初期化できる。各接続は`PRAGMA foreign_keys = ON`を有効にする。このIssueでは`Calendar_Local/db/calendar.sqlite3`を作成・変更せず、実データ移行も行わない。
+SQLiteの現行revisionは`Schemas/calendar-v2.sql`である。v1は初期revisionとして保持する。開発用の空DBは明示した一時pathに`python3 scripts/init_calendar_db.py <path>`で初期化できる。各接続は`PRAGMA foreign_keys = ON`を有効にする。このIssueでは`Calendar_Local/db/calendar.sqlite3`を作成・変更せず、実データ移行も行わない。
 
-CALを利用する将来のFRM adapter等は`Sources.calendar_domain.CalendarDomain`へDB pathとTrip rootを明示して接続する。SQLite tableを直接query/updateせず、Trip JSONのcurrent pathや内部collection、atomic replacement手順を解釈しない。v1のTrip registryは規定rootの`trips/<trip-id>.json`を検証して登録する。candidate採用は`adopt_trip_candidate(trip_id, candidate, instruction_ids)`へcomplete JSONと、その生成に実際に使ったpending Instruction IDだけを渡す。
+CAL利用側は`CalendarDomain`へDB pathとTrip rootを明示して接続し、SQLite tableやTrip file pathを扱わない。Instruction登録は同じtransactionでrequestをqueuedにし、claimはInstruction本文、Trip内容、base version/hashを返す。workerはJSON Patchだけをsubmitし、complete candidateの構築・Validation・採用はCAL内部で行う。
 
 Domain writeは1 commandを1 SQLite transactionとして扱い、失敗時にpartial updateを残さない。Direct OverrideはSQLiteへ保存するが、effective Tripへの適用はメモリ上だけであり、authoritative Trip JSONを変更しない。
 
@@ -36,13 +36,14 @@ Calendar_Local/
 
 ## 4. 更新
 
-1. Calendar 上のチェック、候補選択、コメントを更新材料として確認する。
-2. 対象の完全 JSON と更新材料を Chat に渡し、正式仕様に従う次版の完全 JSON を依頼する。
-3. 返された完全 JSON の全体、`id`、参照関係、表示を確認する。
-4. 問題がなければCAL domainのcandidate採用境界へcomplete candidateと対象Instruction IDを渡す。Schema、semantic、cross-reference、Trip ID、registry、Override適用後のeffective Trip、Todo item参照をすべて確認した後だけ、staging済みbytesをsame-filesystem atomic replacementでcurrentへ切り替える。問題があればJSON を修正または再生成し、currentは置き換えない。
-5. 採用成功時だけ指定pending Instructionが`applied`になる。別のpending Instructionとactive Overrideは維持される。
+1. AI Instructionを登録し、同一transactionでgeneration requestをqueuedにする。
+2. workerがrequestをclaimし、CALからInstruction、Trip内容、base version/hashを受け取る。同一Tripの次requestは先行request完了までclaimしない。
+3. AI / Workはbaseに対する`add` / `remove` / `replace` JSON Patchだけを返す。
+4. CALはbase version/hashを再確認し、memory copyへPatchを適用する。staleならcurrentを変更せずInstruction pendingのままrequestをqueuedへ戻す。
+5. CALがcomplete candidate全体のSchema、semantic/cross-reference、Trip ID、Override適用後effective Trip、Todo参照を検証し、採用直前にもbaseを確認する。
+6. complete candidateだけをatomic replaceし、Trip versionを増加、Instructionをapplied、requestをcompletedにする。active Overrideは維持する。
 
-Calendar は JSON の直接編集、旧形式からの自動変換、AI candidate生成を行わない。画面上の一時状態は採用済み JSON の内容ではない。replace後・SQLite更新前に停止した場合は、次の`adopt_trip_candidate()`または明示的な`recover_trip_adoption()`がjournalとcurrent digestを比較する。candidateへ切替済みならInstruction更新を完了し、旧currentならInstructionをpendingのまま未採用としてcleanupする。どちらのdigestでもなければConflictとして停止する。
+AIはcurrent Trip JSONを直接変更せず、complete Trip JSONを標準更新interfaceへ返さない。replace後・SQLite更新前に停止した場合、`recover_trip_adoption()`がrequest/instruction、old version/hash、candidate hashを照合する。candidate一致ならversion増加・applied・completedを完了し、old hash一致ならpending・queuedへ戻す。どちらでもなければConflictとして自動収束しない。
 
 ## 5. 新規旅行
 
@@ -52,6 +53,6 @@ Calendar は JSON の直接編集、旧形式からの自動変換、AI candidat
 4. 検証成功後、JSONの内容、安定ID、参照関係を確認する。
 5. ファイル名を`id`と一致させて`Calendar_Local/trips/<trip-id>.json`へ配置し、Calendarの一覧と5画面を確認する。
 
-既存旅行を変更する場合も、現在の完全JSONと変更依頼をChatへ渡し、既存IDと変更対象外の内容を維持した次版の完全JSONを生成する。同じ検証と表示確認を通過してから置き換える。
+この新規旅行作成手順は既存Tripの標準更新経路には使わない。既存TripはAI InstructionからJSON Patchを生成し、CALがcomplete candidateを構築する。
 
 実旅行ではSchema成功後に、予定・移動・Placeの重複、候補Placeの欠落、Bookingの対象参照と対象日も確認する。不足はまず完全JSONの再生成で直し、JSONで表現できない表示上の必要性が確認できた場合だけUI改善を別Issueにする。
