@@ -44,3 +44,9 @@ temporary SQLite database, synthetic Trip root, and fake or local subprocess
 generators. It covers no-op, semantic payload isolation, single/multi Patch,
 generator failures, invalid output, stale requeue, same-Trip seriality, and
 startup recovery without any provider or TSK integration.
+
+`openai-patch-generator.test.sh` mocks the HTTP transport and never calls the
+OpenAI API. It checks semantic request construction, model and secret
+separation, Structured Outputs configuration, single/multi Patch parsing,
+refusal/incomplete/invalid-shape failures, stdout isolation, and a fake adapter
+through the existing worker/adoption pipeline using only temporary data.

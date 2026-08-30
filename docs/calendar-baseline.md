@@ -96,6 +96,8 @@ CAL-owned one-shot workerは1 runで原則1 requestだけを処理する。起�
 
 TSKはこのone-shot commandをJobとして起動するだけで、CALのschema、Trip JSON配置、request stateを操作しない。provider接続、認証、model選択、通常ChatGPT Workの外部自動起動可否はCAL coreおよびこのworkerの前提にしない。
 
+最初のprovider implementationは外部generator commandとして分離したOpenAI Responses API adapterである。semantic claimからInstructionとcomplete base Tripを送り、成功時はPatch配列だけをworkerへ返す。OpenAI固有のendpoint、credential、model、HTTP処理はCAL core / workerへ入れない。API段階のStructured Outputsとadapter shape検証は補助であり、CAL domainのcomplete candidate Validationとatomic adoptionが最終authorityである。
+
 ## 6. 統一Event read modelと更新command境界
 
 統一`Schedule / Today`等のEvent read modelは、次の2ソースを意味ベースで合成する。
