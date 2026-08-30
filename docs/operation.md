@@ -1,6 +1,6 @@
 # Calendar Trip JSON現行運用手順
 
-> **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。Issue #54のCAL側Patch pipelineはGit管理下で実装されているが、実運用DB、FRM、TSK / Work接続は未実装である。
+> **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。CAL側Patch pipelineとone-shot workerはGit管理下で実装されているが、実運用DB、FRM、TSK / provider接続は未実装である。
 
 ## 1. 原則
 
@@ -42,6 +42,10 @@ Calendar_Local/
 4. CALはbase version/hashを再確認し、memory copyへPatchを適用する。staleならcurrentを変更せずInstruction pendingのままrequestをqueuedへ戻す。
 5. CALがcomplete candidate全体のSchema、semantic/cross-reference、Trip ID、Override適用後effective Trip、Todo参照を検証し、採用直前にもbaseを確認する。
 6. complete candidateだけをatomic replaceし、Trip versionを増加、Instructionをapplied、requestをcompletedにする。active Overrideは維持する。
+
+one-shot workerは起動時に未完了adoptionを回復し、1 runで最大1 requestを処理する。requestなしは正常なno-opである。外部generatorはshell文字列ではなくargvで明示指定し、stdinでsemantic claim payloadを受け、stdoutへJSON Patch配列を返す。失敗、timeout、JSON不正はreleaseして再処理可能にし、staleはrequeueする。Validationまたはsemantic conflictはrequestを停止してInstruction pendingを維持し、人の確認が必要な結果として返す。
+
+TSKへ登録する後続運用では `python3 scripts/run_generation_worker.py --db <explicit-db> --trip-root <explicit-root> -- <generator-argv...>` をone-shot Jobとして呼ぶ。TSKはCAL内部tableやTrip fileを扱わない。このIssueでは実運用interval、Task_Local、launchd、provider認証を設定しない。
 
 AIはcurrent Trip JSONを直接変更せず、complete Trip JSONを標準更新interfaceへ返さない。replace後・SQLite更新前に停止した場合、`recover_trip_adoption()`がrequest/instruction、old version/hash、candidate hashを照合する。candidate一致ならversion増加・applied・completedを完了し、old hash一致ならpending・queuedへ戻す。どちらでもなければConflictとして自動収束しない。
 

@@ -474,6 +474,20 @@ class CalendarDomain:
             "recovered": True,
         }
 
+    def recover_pending_adoptions(self) -> list[dict[str, Any]]:
+        """Converge every adoption journal before a worker claims new work."""
+        directory = self._adoption_directory()
+        if not directory.exists():
+            return []
+        results = []
+        for journal_path in sorted(directory.glob("*.json")):
+            trip_id = journal_path.stem
+            self._trip_path(trip_id)
+            recovered = self.recover_trip_adoption(trip_id)
+            if recovered is not None:
+                results.append(recovered)
+        return results
+
     @staticmethod
     def _require_text(value: Any, name: str) -> str:
         if not isinstance(value, str) or not value:
@@ -895,6 +909,19 @@ class CalendarDomain:
                 (_now(), request_id),
             ).rowcount != 1:
                 raise ConflictError("only a processing generation request can be released")
+            row = connection.execute("SELECT * FROM generation_requests WHERE id = ?", (request_id,)).fetchone()
+        return dict(row)
+
+    def stop_generation_request(self, request_id: str) -> dict[str, Any]:
+        """Stop automatic retries while leaving the Instruction pending for review."""
+        self._require_text(request_id, "request_id")
+        with self._command() as connection:
+            if connection.execute(
+                "UPDATE generation_requests SET state = 'cancelled', updated_at = ? "
+                "WHERE id = ? AND state = 'processing'",
+                (_now(), request_id),
+            ).rowcount != 1:
+                raise ConflictError("only a processing generation request can be stopped")
             row = connection.execute("SELECT * FROM generation_requests WHERE id = ?", (request_id,)).fetchone()
         return dict(row)
 

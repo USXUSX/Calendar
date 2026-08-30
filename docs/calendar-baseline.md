@@ -92,6 +92,10 @@ Patch適用後candidateは既存Schema、stable ID、cross-reference validation�
 
 AI Instructionは`pending`、requestは`queued / processing / completed / cancelled`を持つ。Patch生成失敗はrelease、staleは自動requeueし、Instructionをpendingに保つ。successful adoption時だけInstructionをapplied、requestをcompletedにする。
 
+CAL-owned one-shot workerは1 runで原則1 requestだけを処理する。起動時に未完了のadoption journalを回復し、requestがなければno-opで正常終了する。generatorはCAL semantic claim payloadだけを受け取りJSON Patchだけを返し、SQLite table、Trip file path、採用処理を知らない。generator起動失敗、timeout、JSON不正はrequestをqueuedへreleaseする。staleは既存domain境界でqueuedへ戻す。Schema不適合やsemantic conflictは同じ入力の無限再試行を避けるためrequestを停止し、Instructionはpendingのまま人の確認対象として残す。
+
+TSKはこのone-shot commandをJobとして起動するだけで、CALのschema、Trip JSON配置、request stateを操作しない。provider接続、認証、model選択、通常ChatGPT Workの外部自動起動可否はCAL coreおよびこのworkerの前提にしない。
+
 ## 6. 統一Event read modelと更新command境界
 
 統一`Schedule / Today`等のEvent read modelは、次の2ソースを意味ベースで合成する。
