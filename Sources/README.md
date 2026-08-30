@@ -23,6 +23,13 @@ Generator launch failures are released for retry; stale submissions are
 requeued by the domain; validation or semantic conflicts stop that request's
 automatic retry while leaving the Instruction pending for human review.
 
+`openai_patch_generator.py` is one provider implementation of that external
+generator contract. It accepts only the semantic claim on stdin, calls the
+OpenAI Responses API with Structured Outputs and no tools, validates the
+returned Patch shape, and writes only the Patch array to stdout. API keys come
+only from `OPENAI_API_KEY`; the model must be supplied by CLI or environment.
+It is not imported by `calendar_domain` or `calendar_worker`.
+
 `web/` contains the dependency-free, read-only prototype for Issue #5. From the
 repository root, serve the project with:
 

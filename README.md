@@ -107,6 +107,19 @@ python3 scripts/run_generation_worker.py \
 generatorはstdinのCAL semantic claim payloadを読み、stdoutへJSON Patch配列だけを
 返す。provider接続、認証、model選択、実運用TSK設定はこのworkerの責務ではない。
 
+OpenAI Responses API adapterをgeneratorとして使う場合も、API keyとmodelを
+CAL coreへ固定しない。keyは`OPENAI_API_KEY`だけから読み、modelは`--model`または
+`OPENAI_MODEL`で明示する。
+
+```sh
+python3 scripts/run_generation_worker.py \
+  --db /explicit/path/calendar.sqlite3 \
+  --trip-root /explicit/trip-root \
+  -- python3 scripts/generate_openai_patch.py --model <model-id>
+```
+
+通常testはmock transportだけを使い、実API、credential、課金を必要としない。
+
 ## Legacy prototype preview
 
 From the repository root, start the loopback-only read server:

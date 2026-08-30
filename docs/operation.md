@@ -1,6 +1,6 @@
 # Calendar Trip JSON現行運用手順
 
-> **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。CAL側Patch pipelineとone-shot workerはGit管理下で実装されているが、実運用DB、FRM、TSK / provider接続は未実装である。
+> **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。CAL側Patch pipeline、one-shot worker、OpenAI provider adapterはGit管理下で実装されているが、実運用DB、FRM、TSK接続、credential配置、model選択は未実施である。
 
 ## 1. 原則
 
@@ -46,6 +46,10 @@ Calendar_Local/
 one-shot workerは起動時に未完了adoptionを回復し、1 runで最大1 requestを処理する。requestなしは正常なno-opである。外部generatorはshell文字列ではなくargvで明示指定し、stdinでsemantic claim payloadを受け、stdoutへJSON Patch配列を返す。失敗、timeout、JSON不正はreleaseして再処理可能にし、staleはrequeueする。Validationまたはsemantic conflictはrequestを停止してInstruction pendingを維持し、人の確認が必要な結果として返す。
 
 TSKへ登録する後続運用では `python3 scripts/run_generation_worker.py --db <explicit-db> --trip-root <explicit-root> -- <generator-argv...>` をone-shot Jobとして呼ぶ。TSKはCAL内部tableやTrip fileを扱わない。このIssueでは実運用interval、Task_Local、launchd、provider認証を設定しない。
+
+OpenAI adapterは `scripts/generate_openai_patch.py --model <model-id>` として外部generator argvへ指定できる。stdinのsemantic claimをResponses APIへ渡し、成功時stdoutにはPatch配列だけを出す。API keyは`OPENAI_API_KEY`、modelは`--model`または`OPENAI_MODEL`から取得し、secretを引数、stdout、Git、文書へ置かない。API/network/timeout/refusal/incomplete/parse/shape failureはstderrへ値を含まない診断を出してnon-zero終了し、workerがrequestをreleaseする。
+
+Responses APIではtoolを有効化せず、`store: false`とStructured Outputsを使う。Patchの`value`は任意JSON型でremove時は存在しないためAPI schemaはnon-strictとし、adapterの最小shape検証とCALのJSON Pointer、Trip Schema、semantic、conflict、atomic adoptionを最終authorityとする。通常testはmock transportのみで、実API smoke test、credential配置、課金、実運用model決定は後続運用Issueで明示的に扱う。
 
 AIはcurrent Trip JSONを直接変更せず、complete Trip JSONを標準更新interfaceへ返さない。replace後・SQLite更新前に停止した場合、`recover_trip_adoption()`がrequest/instruction、old version/hash、candidate hashを照合する。candidate一致ならversion増加・applied・completedを完了し、old hash一致ならpending・queuedへ戻す。どちらでもなければConflictとして自動収束しない。
 
