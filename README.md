@@ -42,6 +42,7 @@ active Overrides, and Todo item references, then atomically adopts it.
 - `docs/workflow.md`: future Issue-to-PR workflow
 - `docs/decisions.md`: confirmed architectural decisions
 - `docs/calendar-baseline.md`: current confirmed CAL responsibilities and data baseline
+- `docs/development-roadmap.md`: CAL's final usage vision and current Goal / Phase / Step roadmap
 - `docs/calendar-specification.md`: retained Trip JSON specification subject to scoped reuse
 - `Schemas/trip.schema.json`: current formal Trip JSON contract and reuse baseline
 - `Schemas/calendar-v2.sql`: current reproducible SQLite schema, including Trip versions and generation requests
