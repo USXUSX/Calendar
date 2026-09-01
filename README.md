@@ -44,6 +44,7 @@ active Overrides, and Todo item references, then atomically adopts it.
 - `docs/calendar-baseline.md`: current confirmed CAL responsibilities and data baseline
 - `docs/development-roadmap.md`: CAL's final usage vision and current Goal / Phase / Step roadmap
 - `docs/calendar-specification.md`: retained Trip JSON specification subject to scoped reuse
+- `docs/trip-detail-ui.md`: confirmed iPad mini / iPad itinerary-detail UI requirements
 - `Schemas/trip.schema.json`: current formal Trip JSON contract and reuse baseline
 - `Schemas/calendar-v2.sql`: current reproducible SQLite schema, including Trip versions and generation requests
 - `Schemas/calendar-v1.sql`: retained initial SQLite schema revision
