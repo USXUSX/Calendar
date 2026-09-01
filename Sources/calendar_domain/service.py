@@ -18,6 +18,7 @@ from scripts.validate_trip import DEFAULT_SCHEMA, validate_value
 
 from .errors import ConflictError, NotFoundError, ValidationError
 from .models import UnifiedEvent
+from .trip_detail import build_trip_detail_view
 
 
 _TRIP_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$")
@@ -606,6 +607,17 @@ class CalendarDomain:
         if errors:
             raise ValidationError(f"effective Trip is invalid: {errors[0]}")
         return effective
+
+    def get_trip_detail_view(
+        self, trip_id: str, *, candidate_judgments: dict[str, Any] | None = None,
+        weather_by_day: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Return the Phase 1 Trip-detail model derived from the effective Trip."""
+        return build_trip_detail_view(
+            self.get_effective_trip(trip_id),
+            candidate_judgments=candidate_judgments,
+            weather_by_day=weather_by_day,
+        )
 
     def list_events(self, start_date: str, end_date: str) -> list[UnifiedEvent]:
         try:

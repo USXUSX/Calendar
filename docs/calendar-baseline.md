@@ -16,7 +16,7 @@ CALは、個人の時間、予定、行うべきことを管理するドメイ�
 
 CALの統一`Schedule / Today`等では、SQLite上の通常`Event`と、formal Trip JSONの`scheduleItem`、`transport`等から投影したTrip由来Eventを、意味ベースの統一Event read modelとして扱う。Trip由来Eventは派生read modelであり、通常のSQLite `Event`として正本複製しない。投影元は`trip_id`とsource itemで追跡する。Issue #52のdomain interface v1では`scheduleItem`と`transport`を投影し、`ordinary:<event-id>`と`trip:<trip-id>:<source-type>:<source-item-id>`を安定したread identityとする。read modelはsource kind、title/summary、開始・終了、visibilityに加え、通常Event IDまたはTrip source情報を返す。transportのtitleはPlace参照をCAL内部で解決する。
 
-各旅行の旅程機能では、最後にAI生成され必要なValidationを通過したformal Trip JSONをauthoritative baseとする。owner画面等で現在有効な旅程として扱う`effective Trip`は、Trip JSONにSQLite上のactive `Direct Override`を適用した派生read modelである。これにより、直接指定のたびにSQLiteとJSONを同時更新せず、二重正本と両者を跨ぐtransactionを避ける。
+各旅行の旅程機能では、最後に全体生成され必要なValidationを通過したformal Trip JSONをauthoritative baseとする。owner画面等で現在有効な旅程として扱う`effective Trip`は、Trip JSONにSQLite上のactive `Direct Override`を適用した派生read modelである。これにより、直接指定や通常の局所更新のたびにSQLiteとJSONを同時更新せず、二重正本と両者を跨ぐtransactionを避ける。
 
 CALのドメイン用語には`Task`を使用しない。人が行うべきことは`Todo`と呼ぶ。旧JSON schema、サンプル、プロトタイプ実装に残る`tasks`は旧Baselineの互換対象としてのみ扱い、新しいCALモデルへ引き継がない。`Task / TSK`はMac上のJob実行ツールを指し、TSK内の実行単位は`Job`とする。
 
@@ -45,7 +45,7 @@ SQLiteは構造化されたCALの状態を管理する。第一候補の配置�
 - share、visibility等の状態
 - その他の構造化されたCAL横断状態
 
-formal Trip JSONは、各旅行について最後にCALが必要なValidationを通して採用したauthoritativeな完全旅程baseである。既存のJSON Schema、stable ID、cross-reference validationを再利用する。AIは更新時にbaseへ対するJSON Patchだけを生成し、CALがmemory copyから次のcomplete candidateを構築する。
+formal Trip JSONは、各旅行について最後にCALが必要なValidationを通して採用したauthoritativeな完全旅程baseである。既存のJSON Schema、stable ID、cross-reference validationを再利用する。旅行全体を再生成するAIはbaseへ対するJSON Patchだけを生成し、CALがmemory copyから次のcomplete candidateを構築する。通常の予定単位AI更新はこの全体再生成経路へ入れない。
 
 1 AI Instructionは登録transaction内で1 generation requestを作る。CALのclaimは同一Tripを直列、別Tripを並列に扱い、Instruction本文、Trip内容、base version/hashを意味境界として返す。CALは返却されたPatchをmemory copyへ適用し、complete candidateをSchema、semantic、cross-reference、Trip ID、active Direct Override、Todoの`trip_item_id`参照まで検証する。採用直前にもbase version/hashが一致する場合だけatomic replacementし、Trip version増加、Instruction applied、request completedを一続きの採用結果にする。
 
@@ -69,11 +69,11 @@ Trip由来Eventを通常のSQLite `Event`として正本化しない。SQLite v1
 
 ## 5. 旅程変更の入力経路
 
-旅程の曖昧さや複数箇所に及ぶ調整はAIに交通整理させるが、AIの更新出力はcurrent baseに対するJSON Patchとする。CALだけがcomplete candidateを構築・検証・採用する。
+旅程の曖昧さや複数箇所に及ぶ大きな調整はAIに交通整理させる。新規Trip、初期化、旅行全体の大きな組み換えでは、AIの更新出力をcurrent baseに対するJSON Patchとし、CALだけがcomplete candidateを構築・検証・採用する。通常の予定単位AI更新は、直接編集と同じstable ID・意味フィールド更新境界を使い、小さな変更のたびにcomplete candidateを採用しない。表示・入力・局所更新の詳細は[`trip-detail-model.md`](trip-detail-model.md)を正本とする。
 
 ### AI Instruction
 
-ユーザーが自然言語で登録する変更命令。登録と同時にgeneration requestを作り原則即時処理対象にする。「2日目は移動を少なくする」等を扱い、successful adoptionまでは`effective Trip`へ反映しない。
+旅行全体の再生成を必要とする自然言語の変更命令。登録と同時にgeneration requestを作り原則即時処理対象にする。「2日目は移動を少なくする」等の複数対象調整を扱い、successful adoptionまでは`effective Trip`へ反映しない。予定編集画面の対象単位AI指示はこのqueueへ入れない。
 
 ### Direct Override
 
@@ -109,7 +109,8 @@ TSKはこのone-shot commandをJobとして起動するだけで、CALのschema�
 
 - 通常Eventを編集する: SQLite `Event`を更新する。
 - Trip由来Eventを直接編集する: stable IDを対象とする`Direct Override`を登録する。
-- Trip由来Eventへの自然言語の変更意図を登録する: `AI Instruction`を登録する。
+- Trip由来Eventへの対象単位の自然言語変更を登録する: `trip_item_local_update`として直接編集と同じ意味フィールド境界へ渡す。
+- Trip全体の再生成を要する自然言語変更を登録する: `AI Instruction`を登録する。
 
 Trip由来Eventを通常のSQLite `Event`へ変換して更新しない。
 

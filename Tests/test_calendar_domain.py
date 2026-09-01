@@ -5,7 +5,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from Sources.calendar_domain import CalendarDomain, ConflictError, NotFoundError, ValidationError
+from Sources.calendar_domain import (
+    CalendarDomain, ConflictError, NotFoundError, ValidationError,
+    build_local_ai_update_request,
+)
 from scripts.init_calendar_db import initialize
 
 
@@ -53,6 +56,62 @@ class CalendarDomainTests(unittest.TestCase):
         self.domain.clear_direct_override("override-1")
         restored = self.domain.get_effective_trip("trip-setouchi-2027")
         self.assertEqual(restored["days"][0]["scheduleItems"][0]["action"], "港で朝食をとる")
+
+    def test_trip_detail_view_derives_phase_1_model_without_new_authority(self):
+        original = self.trip_path.read_bytes()
+        view = self.domain.get_trip_detail_view(
+            "trip-setouchi-2027",
+            candidate_judgments={"schedule-island-art": {"place-art-museum": "ok"}},
+            weather_by_day={"day-2027-05-14": {"summary": "晴れ", "updated_at": "synthetic"}},
+        )
+        first_day = view["days"][0]
+        entries = {item["source_item_id"]: item for item in first_day["entries"]}
+        breakfast = entries["schedule-port-breakfast"]
+        art = entries["schedule-island-art"]
+        dinner = entries["schedule-dinner"]
+        ferry = entries["transport-ferry"]
+        self.assertEqual([item["order"] for item in first_day["entries"]], [10, 20, 30, 40, 50])
+        self.assertEqual(breakfast["status"], "confirmed")
+        self.assertEqual(art["status"], "undecided")
+        self.assertTrue(art["has_candidates"])
+        self.assertEqual(art["candidates"][0]["judgment"], "ok")
+        self.assertEqual(dinner["time"]["label"], "未定")
+        self.assertEqual(ferry["category_icon_key"], "transport")
+        self.assertTrue(ferry["important_comments"])
+        self.assertEqual(first_day["weather"]["summary"], "晴れ")
+        self.assertEqual(breakfast["direct_edit_paths"]["title"], "/action")
+        self.assertEqual(self.trip_path.read_bytes(), original)
+
+    def test_trip_detail_temporary_judgment_is_not_adopted_selection(self):
+        view = self.domain.get_trip_detail_view(
+            "trip-setouchi-2027",
+            candidate_judgments={"schedule-island-art": {"place-art-museum": "ng"}},
+        )
+        art = next(
+            item for item in view["days"][0]["entries"]
+            if item["source_item_id"] == "schedule-island-art"
+        )
+        self.assertEqual(art["candidates"][0]["judgment"], "ng")
+        self.assertFalse(art["candidates"][0]["selected_in_base"])
+        effective = self.domain.get_effective_trip("trip-setouchi-2027")
+        source = effective["days"][0]["scheduleItems"][1]
+        self.assertEqual(source["placeSelection"]["selection"], [])
+        with self.assertRaises(ValidationError):
+            self.domain.get_trip_detail_view(
+                "trip-setouchi-2027",
+                candidate_judgments={"schedule-island-art": {"place-art-museum": "maybe"}},
+            )
+
+    def test_local_ai_update_request_is_target_scoped_and_not_queued(self):
+        effective = self.domain.get_effective_trip("trip-setouchi-2027")
+        request = build_local_ai_update_request(
+            effective, "scheduleItem", "schedule-port-breakfast", "開始を9時にする"
+        )
+        self.assertEqual(request["kind"], "trip_item_local_update")
+        self.assertEqual(request["result_contract"], "semantic_field_changes")
+        self.assertEqual(request["current_target"]["time"]["start"], "08:30")
+        with sqlite3.connect(self.db_path) as connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM generation_requests").fetchone()[0], 0)
 
     def test_override_rejects_missing_target_path_and_invalid_value(self):
         cases = [
