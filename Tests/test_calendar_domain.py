@@ -72,7 +72,7 @@ class CalendarDomainTests(unittest.TestCase):
         ferry = entries["transport-ferry"]
         self.assertEqual([item["order"] for item in first_day["entries"]], [10, 20, 30, 40, 50])
         self.assertEqual(breakfast["status"], "confirmed")
-        self.assertEqual(art["status"], "undecided")
+        self.assertEqual(art["status"], "tentative")
         self.assertTrue(art["has_candidates"])
         self.assertEqual(art["candidates"][0]["judgment"], "ok")
         self.assertEqual(dinner["time"]["label"], "未定")
@@ -124,6 +124,33 @@ class CalendarDomainTests(unittest.TestCase):
                 with self.assertRaises(ValidationError):
                     self.domain.set_direct_override("bad", "trip-setouchi-2027", source_id, path, value)
         self.assertEqual(self.domain.list_active_direct_overrides("trip-setouchi-2027"), [])
+
+    def test_direct_edit_is_atomic_and_status_is_independent(self):
+        original = self.trip_path.read_bytes()
+        result = self.domain.edit_trip_item(
+            "edit-1", "trip-setouchi-2027", "scheduleItem", "schedule-dinner",
+            {"status": "confirmed", "time_mode": "fixed", "start": "19:00",
+             "end": None, "title": "夕食を予約店でとる", "normal_comment": "19時集合"},
+        )
+        dinner = result["trip"]["days"][0]["scheduleItems"][2]
+        self.assertEqual((dinner["status"], dinner["time"]["mode"], dinner["action"]),
+                         ("confirmed", "fixed", "夕食を予約店でとる"))
+        self.assertEqual(self.trip_path.read_bytes(), original)
+        before = self.domain.list_active_direct_overrides("trip-setouchi-2027")
+        with self.assertRaises(ValidationError):
+            self.domain.edit_trip_item(
+                "edit-2", "trip-setouchi-2027", "scheduleItem", "schedule-dinner",
+                {"status": "tentative", "time_mode": "range", "start": "20:00", "end": None},
+            )
+        self.assertEqual(self.domain.list_active_direct_overrides("trip-setouchi-2027"), before)
+
+    def test_transport_direct_edit_uses_same_status_and_time_contract(self):
+        result = self.domain.edit_trip_item(
+            "edit-transport", "trip-setouchi-2027", "transport", "transport-hotel-walk",
+            {"status": "confirmed", "time_mode": "undecided", "start": None, "end": None},
+        )
+        transport = next(item for item in result["trip"]["transports"] if item["id"] == "transport-hotel-walk")
+        self.assertEqual((transport["status"], transport["time"]["mode"]), ("confirmed", "undecided"))
 
     def test_ordinary_event_crud_and_source_boundary(self):
         created = self.domain.create_event("event-1", title="Meeting", start_date="2027-05-15")

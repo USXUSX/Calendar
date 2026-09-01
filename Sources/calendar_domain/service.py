@@ -14,7 +14,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-from scripts.validate_trip import DEFAULT_SCHEMA, validate_value
+from scripts.validate_trip import DEFAULT_SCHEMA, semantic_errors, validate_value
 
 from .errors import ConflictError, NotFoundError, ValidationError
 from .models import UnifiedEvent
@@ -1100,6 +1100,58 @@ class CalendarDomain:
                     (value_json, timestamp, override_id),
                 )
         return self._get_override(override_id)
+
+    def edit_trip_item(self, command_id: str, trip_id: str, source_type: str,
+                       source_item_id: str, changes: dict[str, Any]) -> dict[str, Any]:
+        """Validate and persist one target's semantic field changes atomically."""
+        self._require_text(command_id, "command_id")
+        if source_type not in {"scheduleItem", "transport"}:
+            raise ValidationError("direct edit requires a scheduleItem or transport target")
+        if not isinstance(changes, dict) or not changes:
+            raise ValidationError("direct edit changes must be a non-empty object")
+        paths = {
+            "status": "/status", "start": "/time/start", "end": "/time/end",
+            "time_mode": "/time/mode",
+        }
+        if source_type == "scheduleItem":
+            paths.update({"title": "/action", "normal_comment": "/summary"})
+        unknown = set(changes) - set(paths)
+        if unknown:
+            raise ValidationError(f"direct edit field is not allowed: {sorted(unknown)[0]}")
+        effective = self.get_effective_trip(trip_id)
+        matches = self._item_matches(effective, source_item_id)
+        if len(matches) != 1 or (source_type == "transport") != (matches[0] in effective["transports"]):
+            raise ValidationError("direct edit target type does not match the stable ID")
+        for field, value in changes.items():
+            self._apply_value(effective, source_item_id, paths[field], value)
+        errors = validate_value(effective, self._trip_schema) + semantic_errors(effective)
+        if errors:
+            raise ValidationError(f"direct edit is invalid: {errors[0]}")
+        timestamp = _now()
+        with self._command() as connection:
+            for field, value in changes.items():
+                field_path = paths[field]
+                value_json = json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+                row = connection.execute(
+                    "SELECT id FROM direct_overrides WHERE trip_id = ? AND source_item_id = ? AND field_path = ?",
+                    (trip_id, source_item_id, field_path),
+                ).fetchone()
+                override_id = row["id"] if row else f"{command_id}-{source_item_id}-{field}"
+                if row:
+                    connection.execute(
+                        "UPDATE direct_overrides SET value_json = ?, active = 1, updated_at = ? WHERE id = ?",
+                        (value_json, timestamp, override_id),
+                    )
+                else:
+                    connection.execute(
+                        "INSERT INTO direct_overrides VALUES (?, ?, ?, ?, ?, 1, ?, ?)",
+                        (override_id, trip_id, source_item_id, field_path, value_json, timestamp, timestamp),
+                    )
+        return {
+            "trip": self.get_effective_trip(trip_id),
+            "view": self.get_trip_detail_view(trip_id),
+            "updated_fields": sorted(changes),
+        }
 
     def _get_override(self, override_id: str) -> dict[str, Any]:
         with self._read() as connection:

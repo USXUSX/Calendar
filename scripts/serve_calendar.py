@@ -17,6 +17,8 @@ from validate_trip import DEFAULT_SCHEMA, validate_value
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
+from Sources.calendar_domain import CalendarDomain, DomainError  # noqa: E402
 DEFAULT_LOCAL_DATA = REPO_ROOT.parents[1] / "LocalData" / "Calendar_Local"
 TRIP_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,99}\Z")
 with DEFAULT_SCHEMA.open(encoding="utf-8") as schema_handle:
@@ -56,8 +58,9 @@ def trip_summary(value: dict) -> dict:
     return {"id": value["id"], "title": title, "dateRange": date_range}
 
 
-def make_handler(local_data: Path):
+def make_handler(local_data: Path, db_path: Path | None = None):
     trips_root = local_data / "trips"
+    domain = CalendarDomain(db_path, local_data) if db_path is not None else None
 
     class CalendarHandler(SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
@@ -103,8 +106,9 @@ def make_handler(local_data: Path):
                     self._api_error(HTTPStatus.NOT_FOUND, "trip not found")
                     return
                 try:
-                    self._json(HTTPStatus.OK, load_trip(trip_file, trip_id))
-                except TripDataError as error:
+                    value = domain.get_effective_trip(trip_id) if domain else load_trip(trip_file, trip_id)
+                    self._json(HTTPStatus.OK, value)
+                except (TripDataError, DomainError) as error:
                     print(f"Calendar data error: {error}", file=sys.stderr)
                     self._api_error(HTTPStatus.INTERNAL_SERVER_ERROR, str(error))
                 return
@@ -120,10 +124,31 @@ def make_handler(local_data: Path):
                 return
             super().do_HEAD()
 
+        def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
+            path = unquote(urlsplit(self.path).path)
+            match = re.fullmatch(r"/api/trips/([^/]+)/direct-edit", path)
+            if domain is None or match is None:
+                self._api_error(HTTPStatus.METHOD_NOT_ALLOWED, "read-only server")
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if length <= 0 or length > 65536:
+                    raise ValueError("invalid request size")
+                payload = json.loads(self.rfile.read(length))
+                result = domain.edit_trip_item(
+                    payload["command_id"], match.group(1), payload["source_type"],
+                    payload["source_item_id"], payload["changes"],
+                )
+                self._json(HTTPStatus.OK, result)
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+                self._api_error(HTTPStatus.BAD_REQUEST, f"invalid direct edit request: {error}")
+            except DomainError as error:
+                self._api_error(HTTPStatus.UNPROCESSABLE_ENTITY, str(error))
+
         def _reject_write(self) -> None:
             self._api_error(HTTPStatus.METHOD_NOT_ALLOWED, "read-only server")
 
-        do_POST = do_PUT = do_PATCH = do_DELETE = _reject_write
+        do_PUT = do_PATCH = do_DELETE = _reject_write
 
     return CalendarHandler
 
@@ -132,8 +157,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=4174)
     parser.add_argument("--local-data", type=Path, default=Path(os.environ.get("CALENDAR_LOCAL_DATA", DEFAULT_LOCAL_DATA)))
+    parser.add_argument("--db", type=Path, help="explicit initialized CAL SQLite path enabling domain writes")
     args = parser.parse_args()
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(args.local_data.resolve()))
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(
+        args.local_data.resolve(), args.db.resolve() if args.db else None,
+    ))
     print(f"Calendar: http://127.0.0.1:{server.server_port}/Sources/web/", flush=True)
     try:
         server.serve_forever()

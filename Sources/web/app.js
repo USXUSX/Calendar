@@ -17,6 +17,9 @@ const draftState = {
   mapCategory: "all",
   pendingTripComment: "",
   editingCommentKey: null,
+  selectedItineraryTarget: null,
+  editingItineraryTarget: null,
+  editError: "",
 };
 
 const targetKey = (type, id) => `${type}:${id}`;
@@ -141,14 +144,19 @@ function placeLinks(place) {
 }
 
 function itineraryEntry(entry, placesById) {
+  const sourceType = entry.kind === "transport" ? "transport" : "scheduleItem";
+  const rowSelected = draftState.selectedItineraryTarget === targetKey(sourceType, entry.id);
+  const statusBadge = entry.status === "confirmed" ? "" : `<span class="itinerary-status ${escapeHtml(entry.status)}">${entry.status === "tentative" ? "暫定" : "未定"}</span>`;
+  const editButton = rowSelected ? `<button type="button" class="entry-edit" data-edit-itinerary="${sourceType}:${escapeHtml(entry.id)}" aria-label="この予定を編集">✎</button>` : "";
   if (entry.kind === "transport") {
     const from = placesById.get(entry.fromPlaceId);
     const to = placesById.get(entry.toPlaceId);
     const transportName = `${from.name} → ${to.name}`;
-    return `<article class="itinerary-row transport-row">
+    return `<article class="itinerary-row transport-row ${rowSelected ? "selected" : ""}" data-select-itinerary="transport:${escapeHtml(entry.id)}" tabindex="0">
+      ${editButton}
       <div class="entry-time">${timeBlock(entry.time)}</div>
       <div class="entry-classification"><span aria-hidden="true">↗</span><small>${escapeHtml(transportLabels[entry.mode] ?? entry.mode)}</small></div>
-      <div class="row-main"><strong>${escapeHtml(transportName)}</strong>${entry.time.durationMinutes ? `<p>${entry.time.durationMinutes}分</p>` : ""}</div>
+      <div class="row-main"><strong>${escapeHtml(transportName)}</strong>${statusBadge}${entry.time.durationMinutes ? `<p>${entry.time.durationMinutes}分</p>` : ""}</div>
     </article>`;
   }
 
@@ -159,15 +167,40 @@ function itineraryEntry(entry, placesById) {
   const category = entryCategory(entry, placesById);
   const confirmedPlace = candidates.length === 1 && selected.has(candidates[0].id) ? candidates[0] : null;
   const title = entry.action;
-  return `<article class="itinerary-row schedule-row">
+  return `<article class="itinerary-row schedule-row ${rowSelected ? "selected" : ""}" data-select-itinerary="scheduleItem:${escapeHtml(entry.id)}" tabindex="0">
+    ${editButton}
     <div class="entry-time">${timeBlock(entry.time)}</div>
     <div class="entry-classification"><span aria-hidden="true">${category === "food" ? "●" : category === "accommodation" ? "◆" : "▲"}</span><small>${filterLabels[category]}</small></div>
-    <div class="row-main"><strong>${escapeHtml(title)}</strong>${confirmedPlace ? `<p class="entry-place">${escapeHtml(confirmedPlace.name)}</p>${placeLinks(confirmedPlace)}` : ""}${entry.summary ? `<p>${escapeHtml(entry.summary)}</p>` : ""}${confirmedPlace ? "" : `<div class="candidate-inline">${candidates.map((place) => {
+    <div class="row-main"><strong>${escapeHtml(title)}</strong>${statusBadge}${confirmedPlace ? `<p class="entry-place">${escapeHtml(confirmedPlace.name)}</p>${placeLinks(confirmedPlace)}` : ""}${entry.summary ? `<p>${escapeHtml(entry.summary)}</p>` : ""}${confirmedPlace ? "" : `<div class="candidate-inline">${candidates.map((place) => {
         const checked = selected.has(place.id);
         const atMaximum = selection.maxSelections !== null && selected.size >= selection.maxSelections;
         return `<label class="candidate-chip ${checked ? "selected" : ""}"><input type="checkbox" data-place-selection="${escapeHtml(entry.id)}" data-place-id="${escapeHtml(place.id)}" ${checked ? "checked" : ""} ${!checked && atMaximum ? "disabled" : ""}><span class="candidate-check" aria-hidden="true">${checked ? "✓" : ""}</span><span class="candidate-copy"><strong>${escapeHtml(place.name)}</strong>${place.summary ? `<small>${escapeHtml(place.summary)}</small>` : ""}</span>${placeRating(place)}</label>`;
       }).join("")}</div>`}${entry.details?.map((detail) => `<p class="entry-detail">${escapeHtml(detail)}</p>`).join("") ?? ""}</div>
   </article>`;
+}
+
+function findItineraryTarget(trip, key) {
+  if (!key) return null;
+  const [sourceType, id] = key.split(":");
+  const item = sourceType === "transport"
+    ? trip.transports.find((value) => value.id === id)
+    : trip.days.flatMap((day) => day.scheduleItems).find((value) => value.id === id);
+  return item ? { sourceType, item } : null;
+}
+
+function renderDirectEdit(trip) {
+  const target = findItineraryTarget(trip, draftState.editingItineraryTarget);
+  if (!target) return "";
+  const { sourceType, item } = target;
+  return `<div class="edit-backdrop" data-close-edit></div><section class="direct-edit ${sourceType}" role="dialog" aria-modal="true" aria-labelledby="direct-edit-title">
+    <form data-direct-edit data-source-type="${sourceType}" data-source-id="${escapeHtml(item.id)}">
+      <header><h2 id="direct-edit-title">${sourceType === "transport" ? "移動" : "予定"}を編集</h2><button type="button" data-close-edit aria-label="閉じる">×</button></header>
+      <label>状態<select name="status"><option value="confirmed" ${item.status === "confirmed" ? "selected" : ""}>確定</option><option value="tentative" ${item.status === "tentative" ? "selected" : ""}>暫定</option><option value="undecided" ${item.status === "undecided" ? "selected" : ""}>未定</option></select></label>
+      <label>時刻状態<select name="time_mode"><option value="fixed" ${item.time.mode === "fixed" ? "selected" : ""}>時刻</option><option value="range" ${item.time.mode === "range" ? "selected" : ""}>範囲</option><option value="undecided" ${item.time.mode === "undecided" ? "selected" : ""}>未定</option></select></label>
+      <div class="time-fields"><label>開始<input name="start" type="time" value="${escapeHtml(item.time.start || "")}"></label><label>終了<input name="end" type="time" value="${escapeHtml(item.time.end || "")}"></label></div>
+      ${sourceType === "scheduleItem" ? `<label>予定本文<input name="title" required value="${escapeHtml(item.action)}"></label><label>通常コメント<textarea name="normal_comment">${escapeHtml(item.summary || "")}</textarea></label>` : ""}
+      <p class="edit-error" role="alert">${escapeHtml(draftState.editError)}</p><button class="save-edit" type="submit">保存</button>
+    </form></section>`;
 }
 
 function renderItinerary(trip, placesById) {
@@ -438,7 +471,8 @@ function renderTrip(trip) {
     ${renderMap(trip)}
     ${renderPreparation(trip, placesById)}
     ${renderNotes(trip, placesById)}
-    ${renderAiPanel(trip)}`;
+    ${renderAiPanel(trip)}
+    ${renderDirectEdit(trip)}`;
 }
 
 function activateTab(name, updateHistory = true) {
@@ -473,7 +507,66 @@ function setupTripInteractions(app, trip) {
     activateTab(activeTab, false);
   };
 
-  app.addEventListener("click", (event) => {
+  const saveDirectEdit = async (form) => {
+    const data = new FormData(form);
+    const mode = data.get("time_mode");
+    const changes = {
+      status: data.get("status"), time_mode: mode,
+      start: mode === "undecided" ? null : (data.get("start") || null),
+      end: mode === "undecided" ? null : (data.get("end") || null),
+    };
+    if (form.dataset.sourceType === "scheduleItem") {
+      changes.title = data.get("title");
+      changes.normal_comment = data.get("normal_comment") || null;
+    }
+    try {
+      const response = await fetch(`/api/trips/${encodeURIComponent(trip.id)}/direct-edit`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command_id: `web-${Date.now()}`, source_type: form.dataset.sourceType,
+          source_item_id: form.dataset.sourceId, changes }),
+      });
+      const result = await responseJson(response, "保存できませんでした");
+      Object.keys(trip).forEach((key) => delete trip[key]);
+      Object.assign(trip, result.trip);
+      draftState.editingItineraryTarget = null;
+      draftState.editError = "";
+      rerender();
+    } catch (error) {
+      draftState.editError = error.message;
+      rerender();
+    }
+  };
+
+  app.addEventListener("click", async (event) => {
+    const saveButton = event.target.closest(".save-edit");
+    if (saveButton) {
+      event.preventDefault();
+      await saveDirectEdit(saveButton.form);
+      return;
+    }
+    const editTarget = event.target.closest("[data-edit-itinerary]");
+    if (editTarget) {
+      event.stopPropagation();
+      draftState.editingItineraryTarget = editTarget.dataset.editItinerary;
+      draftState.editError = "";
+      rerender();
+      return;
+    }
+    const selectedTarget = event.target.closest("[data-select-itinerary]");
+    if (selectedTarget && !event.target.closest("a, button, input, label")) {
+      draftState.selectedItineraryTarget = selectedTarget.dataset.selectItinerary;
+      rerender();
+      return;
+    }
+    if (event.target.closest("[data-close-edit]")) {
+      const form = app.querySelector("[data-direct-edit]");
+      if (!form || !form.dataset.dirty || confirm("未保存の変更を破棄しますか？")) {
+        draftState.editingItineraryTarget = null;
+        draftState.editError = "";
+        rerender();
+      }
+      return;
+    }
     const tab = event.target.closest("[data-tab]");
     if (tab) {
       history.replaceState(null, "", `#${tab.dataset.tab}`);
@@ -546,6 +639,10 @@ function setupTripInteractions(app, trip) {
   });
 
   app.addEventListener("input", (event) => {
+    if (event.target.closest("[data-direct-edit]")) {
+      event.target.form.dataset.dirty = "true";
+      return;
+    }
     if (event.target.dataset.newTripComment !== undefined) {
       draftState.pendingTripComment = event.target.value;
       const addButton = app.querySelector("[data-add-trip-comment]");
@@ -559,6 +656,13 @@ function setupTripInteractions(app, trip) {
     app.querySelectorAll("[data-comment-count]").forEach((item) => { item.textContent = commentCount(); });
     const copyButton = app.querySelector("[data-copy-update]");
     if (copyButton) copyButton.disabled = draftCount() === 0;
+  });
+
+  app.addEventListener("submit", async (event) => {
+    const form = event.target.closest("[data-direct-edit]");
+    if (!form) return;
+    event.preventDefault();
+    await saveDirectEdit(form);
   });
 
   app.addEventListener("change", (event) => {

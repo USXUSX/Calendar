@@ -22,12 +22,10 @@
 | 天気 | Trip正本にはない。取得側が日ID単位のContextとして明示的に渡し、未取得・失敗時は`null` |
 | カテゴリーicon | categoryから安定した意味keyへ変換する。具体iconはUI実装時に決める |
 
-状態は次の順で導出する。
-
-1. 時刻が`undecided`、または選択数が`minSelections / maxSelections`を満たさなければ`undecided`。
-2. それ以外で時間が`range`なら`tentative`。
-3. それ以外は`confirmed`で、状態装飾を付けない。
-4. 候補が複数あれば`has_candidates`を独立して返す。これは確定・暫定・未定の判定を上書きしない。
+`scheduleItem`と`transport`の状態はTrip内容に保持する明示値
+`confirmed / tentative / undecided`をそのまま返す。時刻、場所、候補数から導出せず、
+それらの編集でも自動変更しない。候補が複数あれば`has_candidates`を独立して返し、
+状態を上書きしない。
 
 `候補あり`と候補一覧は`candidatePlaceIds`から導出する。採用済みの選択は`selection`として
 区別し、未送信の`OK / NG`をそこへ書き込まない。
@@ -51,6 +49,7 @@
 
 | 編集値 | Trip由来予定のcommand |
 | --- | --- |
+| 状態 | 対象stable IDの`/status`へのDirect Override |
 | 開始・終了・時刻状態 | 対象stable IDの`/time/start`、`/time/end`、`/time/mode`へのDirect Override |
 | 予定本文 | `/action`へのDirect Override |
 | 通常コメント | `/summary`へのDirect Override |
@@ -71,8 +70,10 @@ Transportの手段・出発地・到着地をstable IDで結べるため、Goal 
 派生するmap-readinessを満たす。座標が`null`のPlaceは地図点から除外可能であり、地図provider、
 route生成、navigation連携はGoal 2で決め、地図用の別正本は作らない。
 
-## Phase 3への受渡し
+## Phase 3の直接編集契約
 
-Phase 3は、表示モデルの`direct_edit_paths`を使って具体値編集をDirect Overrideへ接続し、
-保存前確認、複数fieldの一括Validation、結果表示を実装する。候補判断と局所AI executorは
-Phase 3の直接編集を置き換えず、後続Phaseでこの同じ意味境界へ接続する。
+表示モデルの`direct_edit_paths`を使い、`scheduleItem`はstatus、時刻、予定本文、通常コメント、
+`transport`はstatusと時刻を一つの意味commandへ渡す。CALはcomplete effective Tripを
+Schema・semantic Validationしてから一transactionでDirect Overrideへ反映し、失敗時は
+何も部分反映しない。保存後はeffective Tripから再表示する。候補判断と局所AI executorは
+直接編集を置き換えず、Phase 4以降でこの同じ意味境界へ接続する。
