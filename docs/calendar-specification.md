@@ -1,6 +1,6 @@
 # Calendar Trip JSON仕様
 
-> **Status:** Issue #46以降もformal Trip JSON、stable ID、cross-reference validationは維持する。Issue #64以降、JSON Patchとcomplete candidate採用は新規Trip、初期化、旅行全体の大きな組み換えに使い、通常の予定単位AI更新は直接編集と同じ局所更新境界を使う。この文書の旧complete再生成記述は全体再生成または履歴説明に限る。
+> **Status:** Issue #46以降もformal Trip JSON、stable ID、cross-reference validationは維持する。Issue #64以降、新規Tripは完全JSONの生成・検証・初回採用、既存Tripの初期化や大きな組み換えはJSON Patchとcomplete candidate採用、通常の予定単位AI更新は直接編集と同じ局所更新境界を使う。この文書の旧complete再生成記述は全体再生成または履歴説明に限る。
 
 ## 1. 目的と基本方針
 
@@ -13,8 +13,8 @@ Calendar は旅行計画の閲覧を主目的とする。AI指示は補助機能
 1. Calendar が採用済みの完全 JSON を読み取り専用で表示する。
 2. ユーザーの具体値入力はCALの意味ベースcommandとしてValidationし、Direct Overrideへ反映する。
 3. 候補判断やAI指示等の一時入力は、採用済み JSON と混同しない状態として保持する。
-4. 新規Trip、初期化、旅行全体の大きな組み換えでは、AIが採用済みbaseと更新材料を解釈してJSON Patchを生成し、CALが次版の完全candidateを構築する。
-5. 全体再生成ではCALがcomplete candidateをValidationし、atomic adoptionに成功した場合だけ採用済みbaseを置き換える。通常の予定単位AI更新は[`trip-detail-model.md`](trip-detail-model.md)の局所更新境界を使う。
+4. 新規Tripは完全Trip JSONを生成・Validationして初回採用し、baseを必要とするJSON Patch経路へ入れない。
+5. 既存Tripの初期化や旅行全体の大きな組み換えでは、AIが採用済みbaseと更新材料を解釈してJSON Patchを生成し、CALがcomplete candidateをValidationしてatomic adoptionする。通常の予定単位AI更新は[`trip-detail-model.md`](trip-detail-model.md)の局所更新境界を使う。
 
 差分パッチや部分 JSON を正本にはしない。候補選択も確定変更ではなく、AI への指示である。内部実装で更新材料を `ChangeSet` 等と呼ぶことはできるが、ChangeSet 自体を画面には表示しない。画面のメモ欄には、内部データや機械向け差分ではなく、AI に伝える指示だけを表示する。
 

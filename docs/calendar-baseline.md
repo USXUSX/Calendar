@@ -69,7 +69,7 @@ Trip由来Eventを通常のSQLite `Event`として正本化しない。SQLite v1
 
 ## 5. 旅程変更の入力経路
 
-旅程の曖昧さや複数箇所に及ぶ大きな調整はAIに交通整理させる。新規Trip、初期化、旅行全体の大きな組み換えでは、AIの更新出力をcurrent baseに対するJSON Patchとし、CALだけがcomplete candidateを構築・検証・採用する。通常の予定単位AI更新は、直接編集と同じstable ID・意味フィールド更新境界を使い、小さな変更のたびにcomplete candidateを採用しない。表示・入力・局所更新の詳細は[`trip-detail-model.md`](trip-detail-model.md)を正本とする。
+旅程の曖昧さや複数箇所に及ぶ大きな調整はAIに交通整理させる。新規Tripは完全Trip JSONを生成・検証して初回採用する独立経路とする。既存Tripの初期化や旅行全体の大きな組み換えでは、AIの更新出力をcurrent baseに対するJSON Patchとし、CALだけがcomplete candidateを構築・検証・採用する。通常の予定単位AI更新は、直接編集と同じstable ID・意味フィールド更新境界を使い、小さな変更のたびにcomplete candidateを採用しない。表示・入力・局所更新の詳細は[`trip-detail-model.md`](trip-detail-model.md)を正本とする。
 
 ### AI Instruction
 

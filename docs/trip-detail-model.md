@@ -61,10 +61,15 @@
 検証してからDirect Override相当の局所結果として反映する。通常局所更新を既存の
 `generation_requests`へ投入してcomplete Trip candidateを採用する経路にはしない。
 
-全体再生成は、新規Trip、初期化、Day構成や複数対象の関係を大きく組み替える変更など、
-対象内の意味フィールド変更では自然に表せない場合だけ使用する。その場合は現行の
-CAL-owned base/version/hash、JSON Patch、complete candidate Validation、atomic adoptionを使う。
-provider、model、credential、AIGはどちらのCAL契約にも含めない。
+新規Trip作成はbaseを持たないため、完全Trip JSONを生成・Schema / semantic validationして
+初回採用する独立経路とする。既存Tripの初期化、Day構成や複数対象の関係を大きく組み替える
+全体再生成だけが、CAL-owned base/version/hash、JSON Patch、complete candidate Validation、
+atomic adoptionを使う。provider、model、credential、AIGはどちらのCAL契約にも含めない。
+
+現行schemaは、Dayと順序、予定のPlace候補・選択、Placeの名前・住所・緯度経度・URL、
+Transportの手段・出発地・到着地をstable IDで結べるため、Goal 2で日別の地点と移動を
+派生するmap-readinessを満たす。座標が`null`のPlaceは地図点から除外可能であり、地図provider、
+route生成、navigation連携はGoal 2で決め、地図用の別正本は作らない。
 
 ## Phase 3への受渡し
 
