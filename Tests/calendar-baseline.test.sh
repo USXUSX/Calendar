@@ -37,11 +37,12 @@ grep -F '## Active baseline' "$decisions" >/dev/null
 grep -F '## Superseded' "$decisions" >/dev/null
 grep -F 'AI / Work returns only the supported `add / remove / replace` JSON Patch subset' "$decisions" >/dev/null
 grep -F 'Successful adoption alone increments Trip version' "$decisions" >/dev/null
-grep -F 'Trip itinerary changes have two distinct input paths' "$decisions" >/dev/null
+grep -F 'Whole-Trip regeneration and concrete direct changes have two distinct input paths' "$decisions" >/dev/null
 grep -F 'Trip itinerary items such as `scheduleItem` and `transport` remain authoritative in formal Trip JSON' "$decisions" >/dev/null
 grep -F 'A Direct Override targets a Trip item by stable ID' "$decisions" >/dev/null
 grep -F 'AI or validation failure preserves current Trip JSON' "$decisions" >/dev/null
 grep -F 'Update commands preserve source authority even in a unified Schedule' "$decisions" >/dev/null
 grep -F 'Participant access must use a read-only model derived from the effective Trip' "$decisions" >/dev/null
+grep -F 'Target-scoped AI uses the same semantic field boundary' "$decisions" >/dev/null
 
 printf '%s\n' 'Calendar baseline documentation check passed.'
