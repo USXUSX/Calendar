@@ -12,3 +12,36 @@
 @media(min-width:900px){.day-heading-row h2 span{font-size:22px}.day-heading-row p{font-size:15px}.screen-edit .kind svg{width:22px;height:22px}}
 @media(max-width:760px){.day-heading-row{align-items:flex-start;flex-direction:column;gap:7px}.day-heading-row h2{display:block;font-size:20px}.day-heading-row h2 span{display:inline-block;margin-right:9px;font-size:18px}.day-heading-row p{align-self:flex-end;font-size:13px}.screen-edit .title .edit-trigger{order:4}.add-candidate{margin-left:0}}
 .screen-edit .selectable:not(.selected-plan):hover .edit-trigger{visibility:hidden}.screen-edit .selectable.selected-plan .edit-trigger{visibility:visible}
+
+/* iPad mini device feedback: legibility and touch layout pass. */
+.screen-edit{--muted:#4c585b}
+.screen-edit .filters{align-items:center;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.screen-edit .filters>b{margin-right:4px;flex:0 0 auto}
+.screen-edit .filter-group{flex:0 0 auto}
+.screen-edit .filter-group+.filter-group{padding-left:8px;border-left:1px solid var(--line)}
+.screen-edit .filters button{font-size:14px}
+.screen-edit .proposal-note{font-size:14px}
+.screen-edit .proposal-note strong{font-size:12px}
+.screen-edit .timeline:before{display:none}
+.screen-edit .plan{grid-template-columns:52px 36px minmax(0,1fr);column-gap:14px}
+.screen-edit .plan time{font-size:16px}
+.screen-edit .plan time small{color:#4c585b;font-size:12px}
+.screen-edit .kind{width:36px;min-height:36px;padding-top:2px}
+.screen-edit .kind svg{width:27px;height:27px;stroke-width:1.9}
+.screen-edit .title h3{font-size:19px;line-height:1.4}
+.screen-edit .status{font-size:12px}
+.screen-edit .normal-comment{color:#3f4a4d!important;font-size:15px!important;line-height:1.55}
+.screen-edit .important-comment{font-size:14px!important}
+.screen-edit .important-comment b{font-size:11px}
+.screen-edit .day-heading-row p{color:#354245;font-size:18px;font-weight:700}
+.screen-edit .votes>div{align-items:center;flex-direction:row}
+.screen-edit .votes b{flex:1;min-width:0;font-size:14px;line-height:1.4}
+.screen-edit .votes span{flex:0 0 auto}
+.screen-edit .vote{font-size:12px}
+.screen-edit .edit-trigger{width:34px;height:34px;margin-left:auto;margin-right:8px;padding:0;font-size:23px;line-height:1}
+.screen-edit .edit-form label>span,.screen-edit .edit-form legend{font-size:12px}
+.screen-edit .edit-form input,.screen-edit .edit-form textarea{font-size:15px}
+.screen-edit .edit-sheet header small{color:#4c585b;font-size:13px}
+@media(min-width:900px){.screen-edit .plan{grid-template-columns:72px 40px minmax(0,1fr);column-gap:19px}.screen-edit .plan time{font-size:18px}.screen-edit .kind{width:40px;min-height:40px}.screen-edit .kind svg{width:30px;height:30px}.screen-edit .title h3{font-size:21px}.screen-edit .normal-comment{font-size:16px!important}.screen-edit .day-heading-row p{font-size:20px}}
+@media(max-width:760px){.screen-edit .filters{padding-top:9px;padding-bottom:9px}.screen-edit .filters>b{width:auto}.screen-edit .categories{width:auto;overflow:visible}.screen-edit .filter-group+.filter-group{padding-left:8px;border-left:1px solid var(--line)}.screen-edit .day-heading-row p{align-self:flex-end;font-size:18px}.screen-edit .title{align-items:center}.screen-edit .title .edit-trigger{order:initial}.screen-edit .votes>div{align-items:center;flex-direction:row}.screen-edit .edit-sheet{height:88vh}}
+@media(min-width:761px){.screen-edit:has(.edit-sheet.open) .day-heading-row{align-items:flex-start;flex-direction:column;gap:8px}.screen-edit:has(.edit-sheet.open) .day-heading-row h2{display:block}.screen-edit:has(.edit-sheet.open) .day-heading-row h2 span{display:inline-block;margin-right:10px}.screen-edit:has(.edit-sheet.open) .day-heading-row p{align-self:flex-end}}
