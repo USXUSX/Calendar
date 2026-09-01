@@ -1,6 +1,6 @@
 # Calendar Trip JSON現行運用手順
 
-> **Status:** この手順は現行旅程Webと既存Trip JSONに適用する。CAL側Direct Override、Patch pipeline、one-shot workerはGit管理下で実装されているが、実運用DB、FRM、TSK接続、credential配置、model選択は未実施である。
+> **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。CAL側Patch pipeline、one-shot worker、OpenAI provider adapterはGit管理下で実装されているが、実運用DB、FRM、TSK接続、credential配置、model選択は未実施である。
 
 ## 1. 原則
 
@@ -29,10 +29,10 @@ Calendar_Local/
 ## 3. 閲覧
 
 1. `python3 scripts/validate_trip.py Calendar_Local/trips/<trip-id>.json`を実行し、正式スキーマと参照整合性を確認する。ファイル名と`id`も一致させる。
-2. 閲覧だけならリポジトリ直下で `python3 scripts/serve_calendar.py` を実行する。直接編集を有効にする場合は、初期化・Trip登録済みの明示DBを指定して `python3 scripts/serve_calendar.py --db <explicit-db>` を実行する。
+2. リポジトリ直下で `python3 scripts/serve_calendar.py` を実行する。
 3. `http://127.0.0.1:4174/Sources/web/` を開く。
 
-サーバーはブラウザからGit外の実データをCAL意味境界経由で扱うloopback-only入口である。DB未指定時はread-only、DB指定時の直接編集だけは複数fieldを一commandとしてValidationし、SQLiteのDirect Overrideへall-or-nothingで保存する。Trip JSONは変更しない。静的レビュー環境ではコミット済みの合成JSONを表示する。
+サーバーはブラウザから Git 外の実データを読めるようにする最小限の読み取り専用入口である。`trips/*.json` の一覧と、指定された旅行 JSON だけを返し、書き込みは行わない。静的レビュー環境ではコミット済みの合成 JSON を表示する。
 
 ## 4. 更新
 
