@@ -20,6 +20,7 @@ _CATEGORY_ICON_KEYS = {
     "transport": "transport",
 }
 _DIRECT_EDIT_PATHS = {
+    "status": "/status",
     "start": "/time/start",
     "end": "/time/end",
     "time_mode": "/time/mode",
@@ -36,21 +37,6 @@ def _time_label(value: dict[str, Any]) -> str:
         return start
     end = value["end"][1:] if value["end"].startswith("0") else value["end"]
     return f"{start}–{end}"
-
-
-def _status(item: dict[str, Any]) -> str:
-    if item["time"]["mode"] == "undecided":
-        return "undecided"
-    selection = item.get("placeSelection")
-    if selection:
-        selected = len(selection["selection"])
-        minimum = selection["minSelections"]
-        maximum = selection["maxSelections"]
-        if (minimum is not None and selected < minimum) or (maximum is not None and selected > maximum):
-            return "undecided"
-    if item["time"]["mode"] == "range":
-        return "tentative"
-    return "confirmed"
 
 
 def _candidate_places(
@@ -125,14 +111,14 @@ def _entry(
              "url": places[place_id]["urls"][0] if places[place_id]["urls"] else None}
             for place_id in place_ids
         ],
-        "status": _status(item),
+        "status": item["status"],
         "has_candidates": len(candidates) > 1,
         "candidates": candidates,
         "normal_comment": normal_comment,
         "important_comments": _important_comments(item, bookings),
         "supporting_details": supporting_details,
         "direct_edit_paths": copy.deepcopy(_DIRECT_EDIT_PATHS if source_type == "scheduleItem" else {
-            "start": "/time/start", "end": "/time/end", "time_mode": "/time/mode"
+            "status": "/status", "start": "/time/start", "end": "/time/end", "time_mode": "/time/mode"
         }),
         "ai_local_update_target": {"source_type": source_type, "source_item_id": item["id"]},
     }

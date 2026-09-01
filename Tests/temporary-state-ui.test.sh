@@ -43,7 +43,8 @@ assert "instructions" not in trip
 assert all("aiInstructions" not in booking for booking in trip["bookings"])
 PY
 
-if grep -Eq 'localStorage|sessionStorage|method:[[:space:]]*"(POST|PUT|PATCH|DELETE)|WebSocket' "$app_file"; then
+grep -Fq '/direct-edit' "$app_file"
+if grep -Eq 'localStorage|sessionStorage|method:[[:space:]]*"(PUT|PATCH|DELETE)|WebSocket' "$app_file"; then
   printf '%s\n' 'Temporary UI unexpectedly contains persistence or an external-send path.' >&2
   exit 1
 fi

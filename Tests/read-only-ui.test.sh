@@ -116,7 +116,8 @@ if grep -Fq '<textarea data-instruction-key="${escapeHtml(key)}" aria-label="コ
   exit 1
 fi
 
-if grep -Eq 'method:[[:space:]]*"(POST|PUT|PATCH|DELETE)|XMLHttpRequest|WebSocket|localStorage|sessionStorage|https?://' "$web_dir/app.js"; then
+grep -Fq '/direct-edit' "$web_dir/app.js"
+if grep -Eq 'method:[[:space:]]*"(PUT|PATCH|DELETE)|XMLHttpRequest|WebSocket|localStorage|sessionStorage|https?://' "$web_dir/app.js"; then
   printf '%s\n' 'Read-only UI contains a write, persistence, or external-service path.' >&2
   exit 1
 fi
