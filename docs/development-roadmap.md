@@ -35,21 +35,21 @@ CALは、次の3領域を内部機能としては十分に分離しつつ、表�
 | --- | --- | --- | --- | --- |
 | 1. 旅程詳細UIの完成像を確定 | 完了 | 後続実装の判断基準となる情報構成、状態表現、主要操作を決める | 対象端末での表示方針と、閲覧・編集・候補等の入口を一つの完成像として確認できる | 確定要求は `docs/trip-detail-ui.md` に保持し、比較案や細かな調整値を恒久仕様にしない |
 | 2. UIに合わせて旅程データ・表示モデルを整理 | 完了 | Phase 1の完成像を、既存の旅程正本とCAL境界から無理なく表示できるようにする | 画面に必要な情報、状態、関係を表示モデルから取得でき、不足や変換規則が明確になっている | formal Trip JSON、SQLite、effective Tripの正本境界を維持し、UI都合の二重正本や将来向けの過剰な汎用化を作らない |
-| 3. 直接編集を完成 | 現在 | usが具体的な値を編集画面で補正できる実用的な経路を完成する | 予定選択から端末別編集画面、Validation、反映状態の確認まで一つの流れで行える | CALの意味ベースのcommandとDirect Overrideを通し、SQLiteやTrip JSONを画面から直接変更しない。曖昧な変更意図はAI指示と分ける |
-| 4. AI指示による局所更新を完成 | 未着手 | 編集対象に紐づく自然言語の変更意図を、旅程全体を壊さず反映できるようにする | 編集画面下部の指示受付から対象内の意味フィールド変更、Validation、採用または修正可能な失敗状態までを扱える | 直接編集と同じstable ID・意味フィールド境界へ収束させ、通常局所更新をcomplete candidate再生成へ流さない。全体再生成のPatch / Validation / atomic adoptionは大きな組み換え用に維持する。provider固有処理、model、credentialはCAL coreへ入れず、直接編集を置き換えない |
+| 3. 直接編集を完成 | 完了 | usが具体的な値を編集画面で補正できる実用的な経路を完成する | 予定選択から端末別編集画面、Validation、反映状態の確認まで一つの流れで行える | owner-facing UIはFRMが担い、CALの意味ベースのcommandとDirect Overrideを通す。SQLiteやTrip JSONを画面から直接変更せず、曖昧な変更意図はAI指示と分ける |
+| 4. AI指示による局所更新を完成 | 現在 | 編集対象に紐づく自然言語の変更意図を、旅程全体を壊さず反映できるようにする | 編集画面下部の指示受付から対象内の意味フィールド変更、Validation、採用または修正可能な失敗状態までを扱える | 直接編集と同じstable ID・意味フィールド境界へ収束させ、通常局所更新をcomplete candidate再生成へ流さない。全体再生成のPatch / Validation / atomic adoptionは大きな組み換え用に維持する。provider固有処理、model、credentialはCAL coreへ入れず、直接編集を置き換えない |
 | 5. 候補追加・判断の最低限機能を完成 | 未着手 | 確定前の候補とusの判断を、採用済み旅程と混同せず扱えるようにする | 候補追加と同寸の `OK / NG` を使い、usが次の変更判断へ利用できる最低限の流れがある | 一般的な共同編集、投票、通知、同行者コメント表示へ広げない。participantへの公開・認証・書込権限は別の仕様判断とする |
 | 6. 実利用で仕上げる | 未着手 | 実際の旅行計画と旅行中の利用から、実用を妨げる問題を取り除く | Chrome / Safariを含む対象端末で主要な閲覧・修正経路を継続利用でき、残課題を後続Goalまたは明示的な改善へ分けられる | 全ケース対応や先回りした専用機能を完了条件にしない。実データ移行、外部公開、運用切替はそれぞれ別の権限と作業で扱う |
 
-### 現在のPhase 3: 直接編集を完成する
+### 現在のPhase 4: AI指示による局所更新を完成する
 
-1. 予定blockの選択から、iPad miniの下sheet / iPadの右sideで編集画面を開く。
-2. 表示モデルの`direct_edit_paths`に従って、開始・終了、予定、通常コメントの具体値を意味ベースcommandへ渡す。
-3. 複数fieldを一つの編集単位としてValidationし、部分反映を避ける。
-4. 保存結果またはValidation失敗を編集画面で確認できるようにする。
-5. 合成Tripで選択、編集、保存、再表示を検証する。
-6. Phase 3を振り返り、Phase 4以降の実装範囲を見直す。
+1. 直接編集画面の対象stable IDと許可fieldを使う局所AI commandを確定する。
+2. 編集画面下部から自然言語指示を受け、対象内の`semantic_field_changes`だけを返すexecutor境界を実装する。
+3. CALが対象、許可field、schema、effective Tripを検証し、Direct Override相当の局所結果としてall-or-nothingで反映する。
+4. provider、model、credentialをCAL coreへ入れず、失敗を編集画面内で修正可能に表示する。
+5. 合成Tripで局所更新、許可外field拒否、Validation失敗時の非部分反映、再表示を検証する。
+6. Phase 4を振り返り、Phase 5以降の実装範囲を見直す。
 
-完了したPhase 2の表示・入力・更新契約は[`trip-detail-model.md`](trip-detail-model.md)に保持する。
+完了したPhase 2・3の表示・入力・更新契約は[`trip-detail-model.md`](trip-detail-model.md)に保持する。
 
 ## 正本と一時Context
 
