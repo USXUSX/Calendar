@@ -20,6 +20,9 @@ grep -F 'stable `temporary_id`' "$contract" >/dev/null
 grep -F '手入力だけで作成・更新できる' "$contract" >/dev/null
 grep -F '`anchor_source_item_id`、`edge`' "$contract" >/dev/null
 grep -F 'temporary item同士をanchorにする連鎖' "$contract" >/dev/null
+grep -F '`day_instructions`は既存`day_id`' "$contract" >/dev/null
+grep -F '個別予定へ分解・適用しない' "$contract" >/dev/null
+grep -F 'Step 6のWorking合成表示も行わない' "$contract" >/dev/null
 grep -F '新規Trip作成はbaseを持たない' "$contract" >/dev/null
 grep -F 'map-readinessを満たす' "$contract" >/dev/null
 grep -F '地図用の別正本は作らない' "$contract" >/dev/null

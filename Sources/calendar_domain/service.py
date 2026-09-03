@@ -874,6 +874,51 @@ class CalendarDomain:
         state["temporary_items"] = retained
         return self.save_working_trip(trip_id, state)
 
+    def save_working_trip_day_instruction(
+        self, trip_id: str, day_id: str, instruction: str,
+    ) -> dict[str, Any]:
+        """Upsert one opaque natural-language instruction for a Trip day."""
+        self._require_text(day_id, "day_id")
+        if not isinstance(instruction, str) or not instruction.strip():
+            raise ValidationError("Working day instruction must be non-empty")
+        normalized = instruction.strip()
+        try:
+            working = self.get_working_trip(trip_id)
+            state = working["state"]
+        except NotFoundError:
+            self._registered_trip(trip_id)
+            state = {"item_changes": [], "temporary_items": [], "day_instructions": []}
+        existing = next((
+            record for record in state["day_instructions"]
+            if record.get("day_id") == day_id
+        ), None)
+        if existing is None:
+            effective = self.get_effective_trip(trip_id)
+            if not any(day.get("id") == day_id for day in effective["days"]):
+                raise ValidationError("Working day instruction target does not exist")
+        state["day_instructions"] = [
+            record for record in state["day_instructions"]
+            if record.get("day_id") != day_id
+        ]
+        state["day_instructions"].append({"day_id": day_id, "instruction": normalized})
+        return self.save_working_trip(trip_id, state)
+
+    def clear_working_trip_day_instruction(
+        self, trip_id: str, day_id: str,
+    ) -> dict[str, Any]:
+        """Remove one day-level instruction without interpreting or applying it."""
+        self._require_text(day_id, "day_id")
+        working = self.get_working_trip(trip_id)
+        state = working["state"]
+        retained = [
+            record for record in state["day_instructions"]
+            if record.get("day_id") != day_id
+        ]
+        if len(retained) == len(state["day_instructions"]):
+            raise NotFoundError("Working day instruction not found")
+        state["day_instructions"] = retained
+        return self.save_working_trip(trip_id, state)
+
     def get_trip_detail_view(
         self, trip_id: str, *, candidate_judgments: dict[str, Any] | None = None,
         weather_by_day: dict[str, Any] | None = None,

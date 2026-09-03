@@ -377,6 +377,61 @@ class CalendarDomainTests(unittest.TestCase):
         self.assertTrue(edited["stale"])
         self.assertEqual(edited["base_effective_revision"], initial["base_effective_revision"])
 
+    def test_day_instruction_supports_register_edit_and_clear_without_applying(self):
+        original = self.trip_path.read_bytes()
+        seeded = self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [{"future": "step-2"}],
+            "temporary_items": [{"future": "step-3"}],
+            "day_instructions": [],
+        })
+        created = self.domain.save_working_trip_day_instruction(
+            "trip-setouchi-2027", "day-2027-05-14", "  午後を雨想定に組み換える  ",
+        )
+        self.assertEqual(created["state"]["day_instructions"], [{
+            "day_id": "day-2027-05-14", "instruction": "午後を雨想定に組み換える",
+        }])
+        edited = self.domain.save_working_trip_day_instruction(
+            "trip-setouchi-2027", "day-2027-05-14", "移動を減らして屋内中心にする",
+        )
+        self.assertEqual(len(edited["state"]["day_instructions"]), 1)
+        self.assertEqual(edited["state"]["day_instructions"][0]["instruction"], "移動を減らして屋内中心にする")
+        self.assertEqual(edited["state"]["item_changes"], [{"future": "step-2"}])
+        self.assertEqual(edited["state"]["temporary_items"], [{"future": "step-3"}])
+        self.assertEqual(edited["base_effective_revision"], seeded["base_effective_revision"])
+        self.assertEqual(self.domain.list_active_direct_overrides("trip-setouchi-2027"), [])
+        self.assertEqual(self.trip_path.read_bytes(), original)
+        cleared = self.domain.clear_working_trip_day_instruction(
+            "trip-setouchi-2027", "day-2027-05-14",
+        )
+        self.assertEqual(cleared["state"]["day_instructions"], [])
+
+    def test_day_instruction_validates_new_day_and_non_empty_text(self):
+        for day_id, instruction in (("missing-day", "change"), ("day-2027-05-14", "  "), ("", "change")):
+            with self.subTest(day_id=day_id, instruction=instruction):
+                with self.assertRaises(ValidationError):
+                    self.domain.save_working_trip_day_instruction(
+                        "trip-setouchi-2027", day_id, instruction,
+                    )
+
+    def test_stale_day_instruction_remains_editable_and_clearable(self):
+        initial = self.domain.save_working_trip_day_instruction(
+            "trip-setouchi-2027", "day-2027-05-14", "雨天想定",
+        )
+        self.domain.edit_trip_item(
+            "edit-after-day-instruction", "trip-setouchi-2027", "scheduleItem", "schedule-dinner",
+            {"normal_comment": "確定側の後続変更"},
+        )
+        edited = self.domain.save_working_trip_day_instruction(
+            "trip-setouchi-2027", "day-2027-05-14", "雨天想定を強める",
+        )
+        self.assertTrue(edited["stale"])
+        self.assertEqual(edited["base_effective_revision"], initial["base_effective_revision"])
+        cleared = self.domain.clear_working_trip_day_instruction(
+            "trip-setouchi-2027", "day-2027-05-14",
+        )
+        self.assertEqual(cleared["state"]["day_instructions"], [])
+        self.assertTrue(cleared["stale"])
+
     def test_ordinary_event_crud_and_source_boundary(self):
         created = self.domain.create_event("event-1", title="Meeting", start_date="2027-05-15")
         self.assertEqual(created["title"], "Meeting")

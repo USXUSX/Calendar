@@ -140,3 +140,13 @@ Workingの不足状態を許容するためformal Trip schemaは適用しない�
 この境界は選択した既存予定の直前・直後だけを表し、temporary item同士をanchorにする連鎖、
 独立した数値order、日付行からの追加やday-level指示は導入しない。positionはWorking表示順を
 決める補助情報であり、authoritative TripとDirect Overrideを変更しない。
+
+### Step 5: 日単位のWorking指示
+
+`day_instructions`は既存`day_id`と非空の自然言語`instruction`を1日1 recordで保持する。
+同じdayへの再登録は最新内容へ上書きし、解除時はrecordを削除する。新規登録時はdayの存在を
+確認するが、既存recordはstale後も再編集・解除できる。
+
+instructionは前後空白を除いてそのまま保存し、CALやFRMで個別予定へ分解・適用しない。
+AI requestも生成しない。`item_changes`、`temporary_items`、authoritative Trip、Direct
+Override、初回保存時のeffective revisionは変更せず、Step 6のWorking合成表示も行わない。
