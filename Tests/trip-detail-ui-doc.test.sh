@@ -29,8 +29,8 @@ grep -F 'Working export → generator-neutralなcomplete candidate → CAL Valid
 grep -F 'candidate生成成功だけではauthoritative Tripを変更しない' "$roadmap" >/dev/null
 grep -F '最初の接続先をAIGとするか' "$roadmap" >/dev/null
 grep -F 'candidate受入れ、Schema・semantic Validation、captured revisionに対するstale確認、all-or-nothingのadoption' "$roadmap" >/dev/null
-grep -F 'candidate生成・再構成の自動化はPhase 6' "$roadmap" >/dev/null
-grep -F 'CAL外の旅行計画正本更新は当面手運用でCAL責務に含めない' "$roadmap" >/dev/null
+grep -F '自動化はexport packageの受け渡し、complete candidate生成、FRMへの返却まで' "$roadmap" >/dev/null
+grep -F 'CAL外の旅行計画正本更新も自動化しない' "$roadmap" >/dev/null
 grep -F '`item_changes`: 既存予定の変更と削除予定' "$model" >/dev/null
 grep -F '`temporary_items`: 新規仮追加' "$model" >/dev/null
 grep -F '`day_instructions`: day-level指示' "$model" >/dev/null
