@@ -256,6 +256,37 @@ class CalendarDomainTests(unittest.TestCase):
         )
         self.assertEqual(cleared["state"]["item_changes"], [])
 
+    def test_working_item_edit_keeps_direct_overrides_and_revision_current(self):
+        overrides_before = self.domain.list_active_direct_overrides("trip-setouchi-2027")
+        changed = self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "scheduleItem", "schedule-dinner", "changed",
+            {"title": "Working夕食", "status": "tentative"},
+        )
+        self.assertFalse(changed["stale"])
+        self.assertEqual(
+            self.domain.list_active_direct_overrides("trip-setouchi-2027"), overrides_before,
+        )
+        redisplayed = self.domain.get_working_trip_detail_view("trip-setouchi-2027")
+        dinner = next(entry for day in redisplayed["days"] for entry in day["entries"]
+                      if entry["source_item_id"] == "schedule-dinner")
+        self.assertEqual((dinner["title"], dinner["status"], dinner["working_state"]),
+                         ("Working夕食", "tentative", "changed"))
+        deleted = self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "scheduleItem", "schedule-dinner", "pending_delete", {},
+        )
+        self.assertFalse(deleted["stale"])
+        redisplayed = self.domain.get_working_trip_detail_view("trip-setouchi-2027")
+        dinner = next(entry for day in redisplayed["days"] for entry in day["entries"]
+                      if entry["source_item_id"] == "schedule-dinner")
+        self.assertEqual(dinner["working_state"], "pending_delete")
+        self.domain.clear_working_trip_item_change(
+            "trip-setouchi-2027", "scheduleItem", "schedule-dinner",
+        )
+        redisplayed = self.domain.get_working_trip_detail_view("trip-setouchi-2027")
+        dinner = next(entry for day in redisplayed["days"] for entry in day["entries"]
+                      if entry["source_item_id"] == "schedule-dinner")
+        self.assertNotIn("working_state", dinner)
+
     def test_working_item_change_validates_target_and_step_2_fields_without_formal_trip(self):
         self.domain.save_working_trip_item_change(
             "trip-setouchi-2027", "transport", "transport-ferry", "changed", {"start": None},

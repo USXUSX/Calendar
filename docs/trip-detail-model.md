@@ -163,3 +163,8 @@ entryを消さず`working_state: pending_delete`とする。`temporary_items`は
 このread modelはraw Working envelopeをconsumerへ渡さず、formal Trip schemaを適用せず、
 authoritative Trip、Direct Override、Working保存内容のいずれも変更しない。正式Tripへの適用、
 確定可否判断、AI処理は別Step / Phaseの責務とする。
+
+D案UIからの既存予定編集は`save_working_trip_item_change`へ接続し、通常変更を`changed`、
+削除予定化を`pending_delete`として保存し、解除時は`clear_working_trip_item_change`を使う。
+Phase 3の`edit_trip_item` / Direct Override境界は維持するが、このWorking編集フローからは呼ばない。
+したがってWorking編集だけではeffective revisionやDirect Overrideは変わらず、Workingをstale化しない。
