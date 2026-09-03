@@ -249,3 +249,36 @@ Step 6では`export_working_trip_for_chat()`のpackageを出発点に、changed�
 day instructionを反映したcomplete formal Trip candidateを手動Chat返却相当として再投入し、同じ
 `adopt_working_trip_candidate()`境界でatomic adoptionとWorking clearまで完了できることを合成データで確認した。
 Chat/API自動送信、AI生成、FRM UIはこの確認へ含めない。
+
+## Phase 6のAIG接続境界と最小generation state
+
+Phase 6の最初の接続先はAIGとする。CALはAIGのprovider、model、credential、provider固有payloadを
+知らず、AIGもCALのSQLite、Trip file、Working保存形式、adoption policyを知らない。FRMはCALの
+semantic commandとread modelだけを使い、generation stateやcandidateの正本を保持しない。
+
+CALからAIGへ渡すrequestは、契約version、CALが発行した`generation_id`、`trip_id`、および
+`export_working_trip_for_chat()`が返す`cal.complete-trip-regeneration.v1` packageだけで構成する。
+AIGは同じ`generation_id`と`trip_id`、complete formal Trip JSON object 1件だけを返す。AIG側の
+request ID、provider、model、token、cost、raw応答はこのCAL semantic resultへ入れない。transport失敗は
+candidateの代わりに失敗として返し、CALは安全なfailure分類だけを保持する。
+
+CALはWorking Tripごとに最新generation 1件だけを所有する。Workingがなければ開始せず、開始時に
+`generation_id`、`policy: auto | review`、既存Working exportのcaptured effective revision、
+`state: generating`を同じCAL transactionで固定する。activeな`generating`を別要求で上書きせず、
+終端stateに対するusの再実行だけが新しいidentityで最新1件を置き換える。履歴、queue、retry count、
+provider実行情報は保存しない。
+
+最小stateは`generating / candidate_ready / failed / adopted`とする。`review`でidentityが一致する正常な
+candidateを受けた場合だけcomplete candidateを`candidate_ready`に保持する。`auto`ではcandidateを
+永続的な確認待ちにせず、直ちに既存`adopt_working_trip_candidate()`相当のPhase 5 Validation、captured
+revision stale gate、atomic adoptionへ渡す。`review`の確定操作も保持candidateを同じPhase 5境界へ渡す。
+成功時は`adopted`とadoption結果のversion / digestだけを残し、candidateをclearする。
+
+AIG transport失敗、malformed result、Validation / semantic conflict、staleは`failed`として分類し、
+authoritative TripとWorkingを変更しない。failed stateは再実行可能だが自動retryしない。staleはWorking
+再編集・再export後の新しい手動生成でだけ解消し、自動rebase・自動mergeしない。生成identity不一致の
+遅延resultは現行stateを変更せずConflictとして拒否する。
+
+手動Chatの`export → 対話調整 → complete candidate → adopt_working_trip_candidate()`は独立fallbackとして
+維持し、AIG generation stateを経由することを要求しない。CAL外旅行計画正本更新、production activation、
+Calendar_Local migration、provider選択UI、常駐workflowはこの境界に含めない。
