@@ -1,9 +1,9 @@
 # Sources
 
 `calendar_domain/` contains the CAL-owned semantic domain interface. It is a
-Python standard-library package over the SQLite v2 schema and formal Trip JSON:
+Python standard-library package over the SQLite v3 schema and formal Trip JSON:
 
-- `service.py`: unified Event/effective Trip reads, transactional commands,
+- `service.py`: unified Event/effective/Working Trip reads, transactional commands,
   generation-request claim/retry, JSON Patch handling, and validated atomic
   adoption with digest-journal recovery
 - `models.py`: source-qualified unified Event read model

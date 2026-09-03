@@ -77,3 +77,132 @@ route生成、navigation連携はGoal 2で決め、地図用の別正本は作�
 Schema・semantic Validationしてから一transactionでDirect Overrideへ反映し、失敗時は
 何も部分反映しない。保存後はeffective Tripから再表示する。候補判断と局所AI executorは
 直接編集を置き換えず、Phase 4以降でこの同じ意味境界へ接続する。
+
+## Phase 4のWorking Trip保存境界
+
+Working Tripはauthoritative TripやDirect Overrideを書き換えず、SQLite上へTripごと1行の
+JSON objectとして最新状態だけを保存する。初回保存時に、その時点のTrip versionと
+effective TripのSHA-256を`base_effective_revision`として固定する。後続のWorking編集は
+stateだけを置き換え、このrevisionを自動更新しない。
+
+読取時には現在のeffective revisionも計算し、差があれば`stale`を返す。staleでもWorkingの
+表示、読取、上書きは継続できる。将来の確定処理が利用するcurrent要求境界だけはConflictで
+停止し、自動再適用・自動mergeを行わない。
+
+現行の`get_effective_trip`、`get_trip_detail_view`、`edit_trip_item`は変更しない。Phase 4の
+Working編集commandとD案表示への合成は、この保存境界の上に後続Stepで追加する。
+
+`state_json`のtop-level envelopeは次の3 keyだけとし、すべて必須の配列とする。
+
+- `item_changes`: 既存予定の変更と削除予定を同じ領域へ格納する。
+- `temporary_items`: 新規仮追加を格納する。
+- `day_instructions`: day-level指示を格納する。
+
+各配列の要素はJSON objectとするが、その内部fieldは各機能を実装する後続Stepで定める。
+このenvelopeは格納場所を一貫させるための最小境界であり、Working状態をformal Trip相当の
+厳密schemaで検証しない。top-levelに別keyは追加せず、必要な詳細は上記3領域のrecord内で
+表現する。
+
+### Step 2: 既存予定のWorking変更
+
+`item_changes`は既存`source_type`（`scheduleItem` / `transport`）とstable
+`source_item_id`の組をtargetとし、同じtargetは1 recordへ上書きする。recordは
+`disposition`を`changed`または`pending_delete`とし、`changes`へPhase 3直接編集と同じ
+意味field名の値を保持する。`pending_delete`は表示対象から除去する指示ではなく、確定時に
+削除する予定状態である。通常へ戻す場合はrecordを削除する。
+
+Working変更はtargetの存在と種類、許可field、JSONとしての保存可能性だけを確認する。
+未確定・一時的不整合を許容するため、変更値をeffective Tripへ適用してformal Trip schemaを
+通すことはしない。保存は`item_changes`だけを更新し、`temporary_items`と
+`day_instructions`、初回保存時のeffective revisionを維持する。authoritative TripとDirect
+Overrideは変更しない。既存recordはstale後も上書き・解除でき、確定だけを停止する。
+
+### Step 3: 新規予定のWorking仮追加
+
+`temporary_items`はcallerが生成するstable `temporary_id`、既存の`day_id`、共通編集sheetの
+手入力値を保持する`values` objectを1 recordとする。同じ`temporary_id`は同じ日で最新値へ
+上書きでき、空の`values`から作成して後から再編集できる。`values`は`status`、`start`、
+`end`、`time_mode`、`title`、`normal_comment`、`place_name`を受け付ける。AI Instructionは
+必須でも保存fieldでもなく、手入力だけで作成・更新できる。
+
+仮追加時はdayの存在とtemporary IDが既存Trip item IDに衝突しないことを確認するが、
+Workingの不足状態を許容するためformal Trip schemaは適用しない。既存recordはstale後も
+再編集・解除できる。`item_changes`、`day_instructions`、authoritative Trip、Direct Override、初回
+保存時のeffective revisionは変更しない。
+
+### Step 4: 仮予定の挿入位置
+
+新しい`temporary_items` recordは`position`に`anchor_source_type`、
+`anchor_source_item_id`、`edge`を保持する。anchorは同じ日の既存`scheduleItem`または
+`transport`、edgeは`before`または`after`とする。新規作成時はpositionを必須とし、
+再編集時に省略した場合は既存positionを維持する。
+
+この境界は選択した既存予定の直前・直後だけを表し、temporary item同士をanchorにする連鎖、
+独立した数値order、日付行からの追加やday-level指示は導入しない。positionはWorking表示順を
+決める補助情報であり、authoritative TripとDirect Overrideを変更しない。
+
+### Step 5: 日単位のWorking指示
+
+`day_instructions`は既存`day_id`と非空の自然言語`instruction`を1日1 recordで保持する。
+同じdayへの再登録は最新内容へ上書きし、解除時はrecordを削除する。新規登録時はdayの存在を
+確認するが、既存recordはstale後も再編集・解除できる。
+
+instructionは前後空白を除いてそのまま保存し、CALやFRMで個別予定へ分解・適用しない。
+AI requestも生成しない。`item_changes`、`temporary_items`、authoritative Trip、Direct
+Override、初回保存時のeffective revisionは変更せず、Step 6のWorking合成表示も行わない。
+
+### Step 6: Working合成表示
+
+`get_working_trip_detail_view`はauthoritative Tripへactive Direct Overrideを適用したeffective
+Tripから既存D案表示モデルを生成し、その後にWorking状態を表示用としてだけ重ねる。
+`item_changes`は対象entryの表示値へ反映して`working_state: changed`、`pending_delete`は
+entryを消さず`working_state: pending_delete`とする。`temporary_items`はpositionのanchor前後へ
+`working_state: temporary`として挿入し、`day_instructions`はdayの`working_instruction`へ
+保持する。top-level `working`はWorking有無と`stale`を返す。
+
+このread modelはraw Working envelopeをconsumerへ渡さず、formal Trip schemaを適用せず、
+authoritative Trip、Direct Override、Working保存内容のいずれも変更しない。正式Tripへの適用、
+確定可否判断、AI処理は別Step / Phaseの責務とする。
+
+D案UIからの既存予定編集は`save_working_trip_item_change`へ接続し、通常変更を`changed`、
+削除予定化を`pending_delete`として保存し、解除時は`clear_working_trip_item_change`を使う。
+Phase 3の`edit_trip_item` / Direct Override境界は維持するが、このWorking編集フローからは呼ばない。
+したがってWorking編集だけではeffective revisionやDirect Overrideは変わらず、Workingをstale化しない。
+
+### Step 7: 手動Chat向けcomplete Trip再生成export
+
+`export_working_trip_for_chat`は、手動でChatへ戻して全体整合を取り直すためのCAL semantic
+packageを返す。top-levelはformat、task、trip ID、完全なauthoritative Trip、完全なeffective
+Trip、Workingのbase/current effective revisionとstale、raw Working envelopeをユーザー意図として
+保持する`user_intent`だけとする。画面用のWorking合成モデルは再生成入力にせず、Direct Overrideを
+反映したeffective Tripを保存優先の出発点として明示する。
+
+taskは、既存effectiveデータをユーザー意図が要求しない限り維持し、changed、pending_delete、
+temporary item、day instructionを旅行全体で整合させ、retained dataのstable IDと内部参照を維持した
+formal complete Trip JSON object 1個だけを返すよう求める。Patch、部分Trip、説明、採用指示は出力対象に
+しない。staleでもexportは可能とし、Chatがauthoritative/effectiveとrevision差を確認できるようにするが、
+CAL側で自動rebase、自動merge、正式Tripへの適用・Validation・採用は行わない。
+
+この境界はJSON objectを返すだけで、provider/API接続、Chatへの自動送信、model/credential、保存先、
+正式Trip確定処理、Place enrichmentを持たない。Workingが存在しないTripは、推測した空のユーザー意図を
+生成せずNot Foundとする。
+
+### Step 8: Place enrichment
+
+Place enrichmentは、usまたはAIが入力した場所名を置き換える生成処理ではなく、CALが既存の
+場所入力を手掛かりに機械的な補完候補を得て、Tripで再利用できる形へ検証する責務とする。
+対象は、effective Tripのstable `place_id`を持つPlace、またはWorking temporary itemのstable
+`temporary_id`と非空の`place_name`で識別する。Workingへの保存時は場所名だけを引き続き許容し、
+enrichmentの未実施、候補なし、取得失敗を保存・表示の失敗にしない。
+
+CALの最小semantic境界は、対象identity、入力済みの名前、利用可能な住所等の検索hintを渡す
+provider-neutralな要求と、その対象に対する`address`、`location`、`urls`の補完候補を返す結果である。
+CALは型、緯度経度範囲、HTTPS URL、要求した対象identityとの一致を検証する。provider固有request、
+credential、課金、rate limit、cache、外部Place IDはこのsemantic契約およびTrip schemaへ入れない。
+外部Place IDが永続的に必要だと確認された場合だけ、providerとの寿命や移行を別Issueで決める。
+
+補完結果は候補であり、名前だけで同一Placeと断定したり、同名候補を自動採用したりしない。
+一意に扱えない結果は候補のままusまたは後続フローへ返す。採用時も新しい地図用正本は作らず、
+existing Placeならformal Placeの同じ`address / location / urls`へ、temporary itemならPhase 5のcomplete
+Trip生成時に作るstable Placeへ収束させる。既存の非空値を暗黙に上書きせず、authoritative Tripや
+Direct OverrideをこのStepで変更しない。provider/API接続、実行Job、UI、正式採用は未実装とする。

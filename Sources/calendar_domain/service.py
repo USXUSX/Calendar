@@ -31,6 +31,15 @@ _TODO_FIELDS = {
     "label", "due_date", "due_time", "trip_id", "event_id",
     "trip_item_id", "visibility",
 }
+_WORKING_STATE_KEYS = {"item_changes", "temporary_items", "day_instructions"}
+_WORKING_ITEM_DISPOSITIONS = {"changed", "pending_delete"}
+_WORKING_ITEM_FIELDS = {
+    "scheduleItem": {"status", "start", "end", "time_mode", "title", "normal_comment"},
+    "transport": {"status", "start", "end", "time_mode"},
+}
+_WORKING_TEMPORARY_FIELDS = {
+    "status", "start", "end", "time_mode", "title", "normal_comment", "place_name",
+}
 
 
 def _now() -> str:
@@ -608,6 +617,308 @@ class CalendarDomain:
             raise ValidationError(f"effective Trip is invalid: {errors[0]}")
         return effective
 
+    def _effective_revision(self, trip_id: str) -> dict[str, Any]:
+        effective = self.get_effective_trip(trip_id)
+        with self._read() as connection:
+            version = connection.execute(
+                "SELECT version FROM trips WHERE id = ?", (trip_id,)
+            ).fetchone()["version"]
+        payload = json.dumps(
+            effective, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode("utf-8")
+        return {"trip_version": version, "effective_hash": self._digest(payload)}
+
+    def save_working_trip(self, trip_id: str, state: dict[str, Any]) -> dict[str, Any]:
+        """Replace the latest Working state without rebasing its effective revision."""
+        self._registered_trip(trip_id)
+        if not isinstance(state, dict):
+            raise ValidationError("Working Trip state must be a JSON object")
+        if set(state) != _WORKING_STATE_KEYS:
+            raise ValidationError(
+                "Working Trip state must contain only item_changes, temporary_items, "
+                "and day_instructions"
+            )
+        for key in _WORKING_STATE_KEYS:
+            records = state[key]
+            if not isinstance(records, list) or any(not isinstance(record, dict) for record in records):
+                raise ValidationError(f"Working Trip {key} must be an array of JSON objects")
+        try:
+            state_json = json.dumps(
+                state, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+            )
+        except (TypeError, ValueError) as error:
+            raise ValidationError("Working Trip state must be valid JSON") from error
+        revision = self._effective_revision(trip_id)
+        timestamp = _now()
+        with self._command() as connection:
+            row = connection.execute(
+                "SELECT 1 FROM working_trips WHERE trip_id = ?", (trip_id,)
+            ).fetchone()
+            if row is None:
+                connection.execute(
+                    "INSERT INTO working_trips VALUES (?, ?, ?, ?, ?, ?)",
+                    (trip_id, revision["trip_version"], revision["effective_hash"], state_json,
+                     timestamp, timestamp),
+                )
+            else:
+                connection.execute(
+                    "UPDATE working_trips SET state_json = ?, updated_at = ? WHERE trip_id = ?",
+                    (state_json, timestamp, trip_id),
+                )
+        return self.get_working_trip(trip_id)
+
+    def get_working_trip(self, trip_id: str) -> dict[str, Any]:
+        """Return Working state even when its captured effective revision is stale."""
+        self._registered_trip(trip_id)
+        with self._read() as connection:
+            row = connection.execute(
+                "SELECT * FROM working_trips WHERE trip_id = ?", (trip_id,)
+            ).fetchone()
+        if row is None:
+            raise NotFoundError(f"Working Trip not found: {trip_id}")
+        current = self._effective_revision(trip_id)
+        base = {
+            "trip_version": row["base_trip_version"],
+            "effective_hash": row["base_effective_hash"],
+        }
+        return {
+            "trip_id": trip_id,
+            "state": json.loads(row["state_json"]),
+            "base_effective_revision": base,
+            "current_effective_revision": current,
+            "stale": base != current,
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+        }
+
+    def require_current_working_trip(self, trip_id: str) -> dict[str, Any]:
+        """Confirmation boundary: stale Working state remains editable but cannot proceed."""
+        working = self.get_working_trip(trip_id)
+        if working["stale"]:
+            raise ConflictError("Working Trip is stale against the current effective Trip")
+        return working
+
+    def clear_working_trip(self, trip_id: str) -> None:
+        self._registered_trip(trip_id)
+        with self._command() as connection:
+            if connection.execute(
+                "DELETE FROM working_trips WHERE trip_id = ?", (trip_id,)
+            ).rowcount == 0:
+                raise NotFoundError(f"Working Trip not found: {trip_id}")
+
+    def save_working_trip_item_change(
+        self, trip_id: str, source_type: str, source_item_id: str,
+        disposition: str, changes: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Upsert one existing-item Working record without changing Trip authority."""
+        if source_type not in _WORKING_ITEM_FIELDS:
+            raise ValidationError("Working item change requires a scheduleItem or transport target")
+        self._require_text(source_item_id, "source_item_id")
+        if disposition not in _WORKING_ITEM_DISPOSITIONS:
+            raise ValidationError("Working item disposition must be changed or pending_delete")
+        if not isinstance(changes, dict):
+            raise ValidationError("Working item changes must be a JSON object")
+        unknown = set(changes) - _WORKING_ITEM_FIELDS[source_type]
+        if unknown:
+            raise ValidationError(f"Working item field is not allowed: {sorted(unknown)[0]}")
+        if disposition == "changed" and not changes:
+            raise ValidationError("changed Working item requires at least one field change")
+        try:
+            json.dumps(changes, ensure_ascii=False, allow_nan=False)
+        except (TypeError, ValueError) as error:
+            raise ValidationError("Working item changes must be valid JSON") from error
+
+        try:
+            working = self.get_working_trip(trip_id)
+            state = working["state"]
+        except NotFoundError:
+            self._registered_trip(trip_id)
+            state = {"item_changes": [], "temporary_items": [], "day_instructions": []}
+        existing = next((
+            record for record in state["item_changes"]
+            if record.get("source_type") == source_type
+            and record.get("source_item_id") == source_item_id
+        ), None)
+        if existing is None:
+            effective = self.get_effective_trip(trip_id)
+            matches = self._item_matches(effective, source_item_id)
+            if len(matches) != 1 or (source_type == "transport") != (
+                matches[0] in effective["transports"]
+            ):
+                raise ValidationError("Working item target type does not match the stable ID")
+        record = {
+            "source_type": source_type,
+            "source_item_id": source_item_id,
+            "disposition": disposition,
+            "changes": copy.deepcopy(changes),
+        }
+        state["item_changes"] = [
+            item for item in state["item_changes"]
+            if not (
+                item.get("source_type") == source_type
+                and item.get("source_item_id") == source_item_id
+            )
+        ]
+        state["item_changes"].append(record)
+        return self.save_working_trip(trip_id, state)
+
+    def clear_working_trip_item_change(
+        self, trip_id: str, source_type: str, source_item_id: str,
+    ) -> dict[str, Any]:
+        """Return one existing item to normal by removing its Working record."""
+        if source_type not in _WORKING_ITEM_FIELDS:
+            raise ValidationError("Working item change requires a scheduleItem or transport target")
+        self._require_text(source_item_id, "source_item_id")
+        working = self.get_working_trip(trip_id)
+        state = working["state"]
+        retained = [
+            item for item in state["item_changes"]
+            if not (
+                item.get("source_type") == source_type
+                and item.get("source_item_id") == source_item_id
+            )
+        ]
+        if len(retained) == len(state["item_changes"]):
+            raise NotFoundError("Working item change not found")
+        state["item_changes"] = retained
+        return self.save_working_trip(trip_id, state)
+
+    def save_working_trip_temporary_item(
+        self, trip_id: str, temporary_id: str, day_id: str, values: dict[str, Any],
+        position: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Upsert one manually editable temporary item at an existing-item anchor."""
+        self._require_text(temporary_id, "temporary_id")
+        self._require_text(day_id, "day_id")
+        if not isinstance(values, dict):
+            raise ValidationError("Working temporary item values must be a JSON object")
+        unknown = set(values) - _WORKING_TEMPORARY_FIELDS
+        if unknown:
+            raise ValidationError(f"Working temporary item field is not allowed: {sorted(unknown)[0]}")
+        try:
+            json.dumps(values, ensure_ascii=False, allow_nan=False)
+        except (TypeError, ValueError) as error:
+            raise ValidationError("Working temporary item values must be valid JSON") from error
+
+        try:
+            working = self.get_working_trip(trip_id)
+            state = working["state"]
+        except NotFoundError:
+            self._registered_trip(trip_id)
+            state = {"item_changes": [], "temporary_items": [], "day_instructions": []}
+        existing = next((
+            record for record in state["temporary_items"]
+            if record.get("temporary_id") == temporary_id
+        ), None)
+        position_supplied = position is not None
+        if position is None:
+            if existing is None:
+                raise ValidationError("Working temporary item position is required")
+            position = copy.deepcopy(existing.get("position"))
+        if not isinstance(position, dict) or set(position) != {
+            "anchor_source_type", "anchor_source_item_id", "edge",
+        }:
+            raise ValidationError("Working temporary item position is invalid")
+        anchor_type = position["anchor_source_type"]
+        anchor_id = position["anchor_source_item_id"]
+        if anchor_type not in _WORKING_ITEM_FIELDS or position["edge"] not in {"before", "after"}:
+            raise ValidationError("Working temporary item position is invalid")
+        self._require_text(anchor_id, "anchor_source_item_id")
+        validate_location = (
+            existing is None or existing.get("day_id") != day_id
+            or (position_supplied and existing.get("position") != position)
+        )
+        if validate_location:
+            effective = self.get_effective_trip(trip_id)
+            if not any(day.get("id") == day_id for day in effective["days"]):
+                raise ValidationError("Working temporary item day does not exist")
+        if existing is None:
+            if self._item_matches(effective, temporary_id):
+                raise ConflictError("temporary_id conflicts with an existing Trip item ID")
+        if validate_location:
+            anchor_day = next((day for day in effective["days"] if day.get("id") == day_id), None)
+            if anchor_day is None:
+                raise ValidationError("Working temporary item day does not exist")
+            anchor_ids = (
+                set(anchor_day["transportIds"]) if anchor_type == "transport"
+                else {item["id"] for item in anchor_day["scheduleItems"]}
+            )
+            if anchor_id not in anchor_ids:
+                raise ValidationError("Working temporary item anchor does not match the day and type")
+        record = {
+            "temporary_id": temporary_id,
+            "day_id": day_id,
+            "values": copy.deepcopy(values),
+            "position": copy.deepcopy(position),
+        }
+        state["temporary_items"] = [
+            item for item in state["temporary_items"]
+            if item.get("temporary_id") != temporary_id
+        ]
+        state["temporary_items"].append(record)
+        return self.save_working_trip(trip_id, state)
+
+    def clear_working_trip_temporary_item(
+        self, trip_id: str, temporary_id: str,
+    ) -> dict[str, Any]:
+        """Remove one temporary item while preserving the rest of the Working envelope."""
+        self._require_text(temporary_id, "temporary_id")
+        working = self.get_working_trip(trip_id)
+        state = working["state"]
+        retained = [
+            item for item in state["temporary_items"]
+            if item.get("temporary_id") != temporary_id
+        ]
+        if len(retained) == len(state["temporary_items"]):
+            raise NotFoundError("Working temporary item not found")
+        state["temporary_items"] = retained
+        return self.save_working_trip(trip_id, state)
+
+    def save_working_trip_day_instruction(
+        self, trip_id: str, day_id: str, instruction: str,
+    ) -> dict[str, Any]:
+        """Upsert one opaque natural-language instruction for a Trip day."""
+        self._require_text(day_id, "day_id")
+        if not isinstance(instruction, str) or not instruction.strip():
+            raise ValidationError("Working day instruction must be non-empty")
+        normalized = instruction.strip()
+        try:
+            working = self.get_working_trip(trip_id)
+            state = working["state"]
+        except NotFoundError:
+            self._registered_trip(trip_id)
+            state = {"item_changes": [], "temporary_items": [], "day_instructions": []}
+        existing = next((
+            record for record in state["day_instructions"]
+            if record.get("day_id") == day_id
+        ), None)
+        if existing is None:
+            effective = self.get_effective_trip(trip_id)
+            if not any(day.get("id") == day_id for day in effective["days"]):
+                raise ValidationError("Working day instruction target does not exist")
+        state["day_instructions"] = [
+            record for record in state["day_instructions"]
+            if record.get("day_id") != day_id
+        ]
+        state["day_instructions"].append({"day_id": day_id, "instruction": normalized})
+        return self.save_working_trip(trip_id, state)
+
+    def clear_working_trip_day_instruction(
+        self, trip_id: str, day_id: str,
+    ) -> dict[str, Any]:
+        """Remove one day-level instruction without interpreting or applying it."""
+        self._require_text(day_id, "day_id")
+        working = self.get_working_trip(trip_id)
+        state = working["state"]
+        retained = [
+            record for record in state["day_instructions"]
+            if record.get("day_id") != day_id
+        ]
+        if len(retained) == len(state["day_instructions"]):
+            raise NotFoundError("Working day instruction not found")
+        state["day_instructions"] = retained
+        return self.save_working_trip(trip_id, state)
+
     def get_trip_detail_view(
         self, trip_id: str, *, candidate_judgments: dict[str, Any] | None = None,
         weather_by_day: dict[str, Any] | None = None,
@@ -618,6 +929,151 @@ class CalendarDomain:
             candidate_judgments=candidate_judgments,
             weather_by_day=weather_by_day,
         )
+
+    @staticmethod
+    def _working_time_label(time: dict[str, Any]) -> str:
+        if time.get("mode") == "undecided":
+            return "未定"
+        start = time.get("start") or "未定"
+        end = time.get("end")
+        return f"{start}–{end}" if end else start
+
+    @classmethod
+    def _apply_working_entry_changes(cls, entry: dict[str, Any], changes: Any) -> None:
+        if not isinstance(changes, dict):
+            return
+        for field in ("status", "title", "normal_comment"):
+            if field in changes:
+                entry[field] = copy.deepcopy(changes[field])
+        for field in ("start", "end", "time_mode"):
+            if field in changes:
+                entry["time"]["mode" if field == "time_mode" else field] = copy.deepcopy(changes[field])
+        entry["time"]["label"] = cls._working_time_label(entry["time"])
+
+    @classmethod
+    def _working_temporary_entry(cls, record: dict[str, Any]) -> dict[str, Any]:
+        values = record.get("values") if isinstance(record.get("values"), dict) else {}
+        time = {
+            "mode": values.get("time_mode", "undecided"),
+            "start": values.get("start"),
+            "end": values.get("end"),
+            "durationMinutes": None,
+        }
+        time["label"] = cls._working_time_label(time)
+        place_name = values.get("place_name")
+        return {
+            "source_type": "temporaryItem",
+            "source_item_id": record.get("temporary_id"),
+            "order": None,
+            "time": time,
+            "category": "temporary",
+            "category_icon_key": "temporary",
+            "title": values.get("title") or "名称未入力",
+            "places": [{"id": None, "name": place_name, "url": None}] if place_name else [],
+            "status": values.get("status", "undecided"),
+            "has_candidates": False,
+            "candidates": [],
+            "normal_comment": values.get("normal_comment"),
+            "important_comments": [],
+            "supporting_details": [],
+            "direct_edit_paths": {},
+            "ai_local_update_target": None,
+            "working_state": "temporary",
+            "working_values": copy.deepcopy(values),
+            "working_position": copy.deepcopy(record.get("position")),
+        }
+
+    def get_working_trip_detail_view(
+        self, trip_id: str, *, candidate_judgments: dict[str, Any] | None = None,
+        weather_by_day: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Compose effective Trip then overlay latest Working state for display only."""
+        view = self.get_trip_detail_view(
+            trip_id, candidate_judgments=candidate_judgments, weather_by_day=weather_by_day,
+        )
+        try:
+            working = self.get_working_trip(trip_id)
+        except NotFoundError:
+            view["working"] = {"present": False, "stale": False}
+            return view
+
+        state = working["state"]
+        days = {day["day_id"]: day for day in view["days"]}
+        entries = {
+            (entry["source_type"], entry["source_item_id"]): entry
+            for day in view["days"] for entry in day["entries"]
+        }
+        for record in state["item_changes"]:
+            if not isinstance(record, dict):
+                continue
+            entry = entries.get((record.get("source_type"), record.get("source_item_id")))
+            if entry is None or record.get("disposition") not in _WORKING_ITEM_DISPOSITIONS:
+                continue
+            self._apply_working_entry_changes(entry, record.get("changes"))
+            entry["working_state"] = record["disposition"]
+
+        for day in view["days"]:
+            base_entries = day["entries"]
+            ordered: list[dict[str, Any]] = []
+            unresolved: list[dict[str, Any]] = []
+            day_records = [record for record in state["temporary_items"]
+                           if isinstance(record, dict) and record.get("day_id") == day["day_id"]
+                           and isinstance(record.get("position"), dict)]
+            used: set[str] = set()
+            for anchor in base_entries:
+                matches = [record for record in day_records
+                           if record["position"].get("anchor_source_type") == anchor["source_type"]
+                           and record["position"].get("anchor_source_item_id") == anchor["source_item_id"]]
+                for record in matches:
+                    if record["position"].get("edge") == "before":
+                        ordered.append(self._working_temporary_entry(record))
+                        used.add(record.get("temporary_id"))
+                ordered.append(anchor)
+                for record in matches:
+                    if record["position"].get("edge") == "after":
+                        ordered.append(self._working_temporary_entry(record))
+                        used.add(record.get("temporary_id"))
+            for record in day_records:
+                if record.get("temporary_id") not in used:
+                    entry = self._working_temporary_entry(record)
+                    entry["working_position_unresolved"] = True
+                    unresolved.append(entry)
+            day["entries"] = ordered + unresolved
+
+        for record in state["day_instructions"]:
+            if isinstance(record, dict) and record.get("day_id") in days \
+                    and isinstance(record.get("instruction"), str):
+                days[record["day_id"]]["working_instruction"] = record["instruction"]
+        view["working"] = {"present": True, "stale": working["stale"]}
+        return view
+
+    def export_working_trip_for_chat(self, trip_id: str) -> dict[str, Any]:
+        """Return the minimal CAL semantic package for manual complete-Trip regeneration."""
+        authoritative = self._load_trip(trip_id)
+        effective = self.get_effective_trip(trip_id)
+        working = self.get_working_trip(trip_id)
+        return {
+            "format": "cal.complete-trip-regeneration.v1",
+            "task": {
+                "intent": "Reconcile the effective Trip with all user Working intent.",
+                "required_output": "One complete formal CAL Trip JSON object only.",
+                "rules": [
+                    "Preserve existing effective Trip data unless user intent requires a change.",
+                    "Apply changed items, remove pending_delete items, turn temporary items into formal items, and reconcile day instructions across the complete Trip.",
+                    "Keep stable IDs for retained data and produce internally consistent references.",
+                    "Do not return a patch, partial Trip, explanation, or CAL adoption instruction.",
+                ],
+            },
+            "trip_id": trip_id,
+            "authoritative_trip": authoritative,
+            "effective_trip": effective,
+            "working": {
+                "base_effective_revision": copy.deepcopy(working["base_effective_revision"]),
+                "current_effective_revision": copy.deepcopy(working["current_effective_revision"]),
+                "stale": working["stale"],
+            },
+            "user_intent": copy.deepcopy(working["state"]),
+        }
 
     def list_events(self, start_date: str, end_date: str) -> list[UnifiedEvent]:
         try:

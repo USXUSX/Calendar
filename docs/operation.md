@@ -8,11 +8,14 @@ Calendar は正式仕様の旅行 JSON を読み取り、見やすく表示す�
 
 実データは `/Users/us/Tools/LocalData/Calendar_Local/trips/` にだけ置き、Git リポジトリや Google Driveへコピー、コミット、アップロードしない。
 
-SQLiteの現行revisionは`Schemas/calendar-v2.sql`である。v1は初期revisionとして保持する。開発用の空DBは明示した一時pathに`python3 scripts/init_calendar_db.py <path>`で初期化できる。各接続は`PRAGMA foreign_keys = ON`を有効にする。このIssueでは`Calendar_Local/db/calendar.sqlite3`を作成・変更せず、実データ移行も行わない。
+SQLiteの現行revisionは`Schemas/calendar-v3.sql`である。v1・v2は確定済みrevisionとして保持する。開発用の空DBは明示した一時pathに`python3 scripts/init_calendar_db.py <path>`で初期化できる。各接続は`PRAGMA foreign_keys = ON`を有効にする。このIssueでは`Calendar_Local/db/calendar.sqlite3`を作成・変更せず、実データ移行も行わない。
 
 CAL利用側は`CalendarDomain`へDB pathとTrip rootを明示して接続し、SQLite tableやTrip file pathを扱わない。Instruction登録は同じtransactionでrequestをqueuedにし、claimはInstruction本文、Trip内容、base version/hashを返す。workerはJSON Patchだけをsubmitし、complete candidateの構築・Validation・採用はCAL内部で行う。
 
 Domain writeは1 commandを1 SQLite transactionとして扱い、失敗時にpartial updateを残さない。Direct OverrideはSQLiteへ保存するが、effective Tripへの適用はメモリ上だけであり、authoritative Trip JSONを変更しない。
+
+Working TripはSQLite v3の`working_trips`へTripごと1行のJSON objectとして最新状態だけを保存する。初回作成時のTrip versionとeffective Trip digestを保持し、以後のWorking編集では更新しない。確定側が変わった場合はstale警告を返すが、Workingの表示・上書きは継続できる。将来の確定処理だけがcurrent revisionを要求し、staleなら自動再適用・自動mergeせずConflictで停止する。
+`state_json`は`item_changes`、`temporary_items`、`day_instructions`の3配列を必須とする最小envelopeで保存し、record内部は後続Stepの責務とする。Working保存時にformal Trip schemaは適用しない。
 
 ## 2. ファイル配置
 

@@ -12,7 +12,7 @@ SPEC.loader.exec_module(INIT_MODULE)
 TS = "2026-08-30T12:34:56Z"
 
 
-class CalendarSchemaV2Tests(unittest.TestCase):
+class CalendarSchemaV3Tests(unittest.TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.database_path = Path(self.temporary_directory.name) / "calendar.sqlite3"
@@ -32,8 +32,8 @@ class CalendarSchemaV2Tests(unittest.TestCase):
 
     def test_schema_is_reproducible_and_versioned(self):
         tables = {row[0] for row in self.connection.execute("SELECT name FROM sqlite_schema WHERE type = 'table'")}
-        self.assertEqual(tables, {"schema_meta", "trips", "events", "todos", "ai_instructions", "generation_requests", "direct_overrides"})
-        self.assertEqual(self.connection.execute("SELECT version FROM schema_meta").fetchone(), (2,))
+        self.assertEqual(tables, {"schema_meta", "trips", "events", "todos", "ai_instructions", "generation_requests", "direct_overrides", "working_trips"})
+        self.assertEqual(self.connection.execute("SELECT version FROM schema_meta").fetchone(), (3,))
         self.assertEqual(self.connection.execute("SELECT version FROM trips WHERE id = 'trip-1'").fetchone(), None)
 
     def test_foreign_keys_reject_unknown_parents(self):
@@ -94,6 +94,28 @@ class CalendarSchemaV2Tests(unittest.TestCase):
         self.assertEqual(self.connection.execute("SELECT value_json, active FROM direct_overrides WHERE id = 'o1'").fetchone(), ('"Second"', 0))
         with self.assertRaises(sqlite3.IntegrityError):
             self.connection.execute("UPDATE direct_overrides SET value_json = 'not-json' WHERE id = 'o1'")
+
+    def test_working_trip_is_one_json_object_per_trip_and_revision(self):
+        self.insert_trip()
+        empty_state = '{"item_changes":[],"temporary_items":[],"day_instructions":[]}'
+        self.connection.execute(
+            "INSERT INTO working_trips VALUES ('trip-1', 1, ?, ?, ?, ?)",
+            ("a" * 64, empty_state, TS, TS),
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute(
+                "INSERT INTO working_trips VALUES ('trip-1', 1, ?, ?, ?, ?)",
+                ("b" * 64, empty_state, TS, TS),
+            )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute("UPDATE working_trips SET state_json = '[]' WHERE trip_id = 'trip-1'")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute(
+                "UPDATE working_trips SET state_json = "
+                "'{\"item_changes\":[],\"temporary_items\":[]}' WHERE trip_id = 'trip-1'"
+            )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute("UPDATE working_trips SET base_effective_hash = 'bad' WHERE trip_id = 'trip-1'")
 
     def test_initializer_refuses_non_empty_database(self):
         with self.assertRaises(FileExistsError):

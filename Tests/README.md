@@ -22,13 +22,14 @@ browser-memory state and do not add instructions or draft fields to the adopted
 synthetic JSON.
 
 `sqlite-schema.test.sh` initializes a temporary empty SQLite database and
-validates the v2 tables, schema version, foreign keys, enums, relationship
+validates the v3 tables, schema version, foreign keys, enums, relationship
 constraints, Trip version, generation-request lifecycle and same-Trip processing
-uniqueness, Direct Override uniqueness, and JSON values.
+uniqueness, Direct Override uniqueness, and the one-row JSON Working Trip boundary.
 
 `calendar-domain.test.sh` uses only a temporary SQLite database and a copied
 synthetic Trip root. It covers unified ordinary/Trip Events and source-qualified
 identities, effective Trip composition without JSON writes, invalid Overrides,
+latest-only Working state, existing-item change/deletion, manually entered temporary-item positioning, opaque day-instruction upsert and clearing, Working-aware D-plan composition, effective-revision staleness and confirmation blocking,
 ordinary Event and Todo CRUD, Todo completion, AI Instruction cancellation,
 Trip registration, explicit storage paths, and transactional rollback.
 

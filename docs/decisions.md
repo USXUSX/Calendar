@@ -13,6 +13,16 @@
 
 ## Active baseline
 
+- 2026-09-03, Issue #71: Working TripはSQLite v3の`working_trips`へTripごと1行のJSON objectとして最新状態だけを保持する。初回保存時のeffective revision（Trip versionとeffective Trip SHA-256）を固定し、authoritative Tripまたはactive Direct Overrideの後続変更をstaleとして検出する。staleでも表示とWorking編集は継続し、確定処理だけを停止する。自動再適用・自動mergeは行わない。既存`edit_trip_item` / Direct Overrideは確定済み具体値の境界として維持し、Phase 4以降のWorking編集は別commandへ接続する。
+- 2026-09-03, Issue #71: Working `state_json`は`item_changes`、`temporary_items`、`day_instructions`の3配列だけを必須top-level envelopeとする。既存予定の変更と削除予定は`item_changes`へ共通格納する。各配列要素はJSON objectとするだけで内部fieldは後続Stepに委ね、formal Trip相当の厳密schemaにはしない。
+- 2026-09-03, Issue #71 Phase 4 Step 2: 既存予定のWorking変更は`source_type`とstable `source_item_id`をtargetとし、`changed` / `pending_delete`とPhase 3直接編集と同じ意味field名の`changes`を`item_changes`へ1 target 1 recordで保持する。Working値はformal Tripへ適用検証せず、通常へ戻す操作はrecordを削除する。ほかのenvelope領域、authoritative Trip、Direct Override、captured revisionを変更しない。
+- 2026-09-03, Issue #71 Phase 4 Step 3: 新規予定はstable `temporary_id`、既存`day_id`、共通編集sheetからの手入力`values`を`temporary_items`へ1 ID 1 recordで保持する。空の仮追加と後続再編集を許容し、AI入力を要求しない。挿入位置はStep 4へ残し、formal Trip schema、authoritative Trip、Direct Override、captured revisionには影響させない。
+- 2026-09-03, Issue #71 Phase 4 Step 4: 仮予定の挿入位置は同じ日の既存`scheduleItem` / `transport`をstable IDでanchorとし、`before` / `after`だけをWorking recordへ保持する。temporary item連鎖、数値order、day-level指示は導入しない。
+- 2026-09-03, Issue #71 Phase 4 Step 5: 日単位指示は既存`day_id`と非空の自然言語`instruction`を`day_instructions`へ1日1 recordで最新保存し、解除はrecord削除とする。内容はopaque textとして保持し、個別予定への分解・AI適用・Working合成表示は行わない。
+- 2026-09-03, Issue #71 Phase 4 Step 6: CALのWorking-aware D案read modelはauthoritative Trip、active Direct Override、Workingの順で表示専用に合成する。changed / pending_delete / temporary / day instruction / staleを明示し、raw Working envelopeをFRMへ解釈させない。合成は正式Tripへの適用・確定・AI処理を行わない。
+- 2026-09-03, Issue #71 Phase 4 Step 7: 手動Chat向けexportは、format/task、trip ID、完全なauthoritative/effective Trip、Workingのbase/current effective revisionとstale、raw Working envelopeをユーザー意図として返すCAL semantic packageとする。effective Tripを保存優先の出発点とし、ChatにはWorking意図を全体整合させたformal complete Trip JSON object 1個だけを求める。staleでも比較用にexportできるが、CALは自動rebase・自動merge・送信・正式確定・Place enrichmentを行わない。
+- 2026-09-03, Issue #71 Phase 4 Step 8: Place enrichmentはCALが所有するprovider-neutralな候補生成・検証境界とし、effective Tripのstable PlaceまたはWorking temporary itemの名前入力を対象に、住所・緯度経度・HTTPS URLの候補を返す。名前だけのWorking保存と未補完表示を許容し、同名候補の自動採用、既存値の暗黙上書き、外部Place IDのTrip schema追加、provider/API接続は行わない。採用結果は既存formal PlaceまたはPhase 5で生成するstable Placeへ収束させ、地図用の別正本を作らない。
+
 - 2026-09-01, Issue #64: The Phase 1 Trip-detail UI is built from a non-persistent display model derived from the effective Trip. Weather and unsent candidate judgments are explicit context, not new Trip or SQLite authority. Concrete edits map to stable-ID Direct Overrides. Target-scoped AI uses the same semantic field boundary and does not enter `generation_requests`. A new Trip is generated and validated as a complete JSON through its own initial-adoption path; JSON Patch plus complete-candidate adoption is only for existing-Trip initialization or large cross-item restructuring. The current Day, PlaceSelection, Place location/address/URL, and Transport endpoint/order contract is map-ready for Goal 2 without a second map authority. Provider, model, credential, and AIG choices remain outside the CAL contract.
 
 - 2026-08-30, Issue #46: CAL is the domain foundation for personal time and plans, centered on `Trip / Event / Todo`. `Task` is not a CAL domain term; it is reserved for the separate Task / TSK tool, whose execution unit is `Job`. A `Todo` may relate to a `Trip` or `Event`.
@@ -45,7 +55,7 @@
 
 - GitHub repository visibility.
 - Production application platform and framework after the read-only prototype.
-- Migration strategy beyond the reproducible SQLite v2 initialization boundary when a real database exists.
+- Migration strategy beyond the reproducible SQLite v3 initialization boundary when a real database exists.
 - FRM-to-CAL adapter/access method over the implemented semantic domain interface.
 - `AI Instruction / Direct Override` candidate consistency, conflict UI, and hard/soft rules beyond the v1 minimum lifecycle.
 - FRM-to-CAL access method and owner read/write contracts.
