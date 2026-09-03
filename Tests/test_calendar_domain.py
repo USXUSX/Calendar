@@ -292,10 +292,15 @@ class CalendarDomainTests(unittest.TestCase):
     def test_temporary_item_supports_manual_create_edit_and_clear(self):
         original = self.trip_path.read_bytes()
         created = self.domain.save_working_trip_temporary_item(
-            "trip-setouchi-2027", "temporary-lunch", "day-2027-05-14", {},
+            "trip-setouchi-2027", "temporary-lunch", "day-2027-05-14", {}, {
+                "anchor_source_type": "scheduleItem",
+                "anchor_source_item_id": "schedule-port-breakfast", "edge": "after",
+            },
         )
         self.assertEqual(created["state"]["temporary_items"], [{
             "temporary_id": "temporary-lunch", "day_id": "day-2027-05-14", "values": {},
+            "position": {"anchor_source_type": "scheduleItem",
+                         "anchor_source_item_id": "schedule-port-breakfast", "edge": "after"},
         }])
         edited = self.domain.save_working_trip_temporary_item(
             "trip-setouchi-2027", "temporary-lunch", "day-2027-05-14", {
@@ -306,6 +311,7 @@ class CalendarDomainTests(unittest.TestCase):
         )
         self.assertEqual(len(edited["state"]["temporary_items"]), 1)
         self.assertEqual(edited["state"]["temporary_items"][0]["values"]["title"], "港で昼食")
+        self.assertEqual(edited["state"]["temporary_items"][0]["position"]["edge"], "after")
         self.assertEqual(edited["base_effective_revision"], created["base_effective_revision"])
         self.assertEqual(edited["state"]["item_changes"], [])
         self.assertEqual(edited["state"]["day_instructions"], [])
@@ -328,15 +334,38 @@ class CalendarDomainTests(unittest.TestCase):
             with self.subTest(temporary_id=temporary_id, day_id=day_id):
                 with self.assertRaises(error_type):
                     self.domain.save_working_trip_temporary_item(
-                        "trip-setouchi-2027", temporary_id, day_id, values,
+                        "trip-setouchi-2027", temporary_id, day_id, values, {
+                            "anchor_source_type": "scheduleItem",
+                            "anchor_source_item_id": "schedule-port-breakfast", "edge": "after",
+                        },
                     )
         self.domain.save_working_trip_temporary_item(
-            "trip-setouchi-2027", "temporary-lunch", "day-2027-05-14", {"title": "Lunch"},
+            "trip-setouchi-2027", "temporary-lunch", "day-2027-05-14", {"title": "Lunch"}, {
+                "anchor_source_type": "transport", "anchor_source_item_id": "transport-ferry",
+                "edge": "before",
+            },
         )
+
+    def test_temporary_item_requires_a_same_day_existing_item_position(self):
+        base = ("trip-setouchi-2027", "temporary-lunch", "day-2027-05-14", {"title": "Lunch"})
+        invalid_positions = (
+            None,
+            {"anchor_source_type": "scheduleItem", "anchor_source_item_id": "schedule-port-breakfast"},
+            {"anchor_source_type": "temporaryItem", "anchor_source_item_id": "temporary-other", "edge": "after"},
+            {"anchor_source_type": "scheduleItem", "anchor_source_item_id": "schedule-port-breakfast", "edge": "middle"},
+            {"anchor_source_type": "transport", "anchor_source_item_id": "transport-local-train", "edge": "after"},
+        )
+        for position in invalid_positions:
+            with self.subTest(position=position):
+                with self.assertRaises(ValidationError):
+                    self.domain.save_working_trip_temporary_item(*base, position)
 
     def test_stale_temporary_item_remains_manually_editable(self):
         initial = self.domain.save_working_trip_temporary_item(
-            "trip-setouchi-2027", "temporary-lunch", "day-2027-05-14", {"title": "Lunch"},
+            "trip-setouchi-2027", "temporary-lunch", "day-2027-05-14", {"title": "Lunch"}, {
+                "anchor_source_type": "scheduleItem",
+                "anchor_source_item_id": "schedule-port-breakfast", "edge": "after",
+            },
         )
         self.domain.edit_trip_item(
             "edit-after-temporary", "trip-setouchi-2027", "scheduleItem", "schedule-dinner",

@@ -127,6 +127,16 @@ Overrideは変更しない。既存recordはstale後も上書き・解除でき�
 
 仮追加時はdayの存在とtemporary IDが既存Trip item IDに衝突しないことを確認するが、
 Workingの不足状態を許容するためformal Trip schemaは適用しない。既存recordはstale後も
-再編集・解除できる。挿入位置や既存予定との上下関係はStep 4の責務であり、このStepでは
-保存しない。`item_changes`、`day_instructions`、authoritative Trip、Direct Override、初回
+再編集・解除できる。`item_changes`、`day_instructions`、authoritative Trip、Direct Override、初回
 保存時のeffective revisionは変更しない。
+
+### Step 4: 仮予定の挿入位置
+
+新しい`temporary_items` recordは`position`に`anchor_source_type`、
+`anchor_source_item_id`、`edge`を保持する。anchorは同じ日の既存`scheduleItem`または
+`transport`、edgeは`before`または`after`とする。新規作成時はpositionを必須とし、
+再編集時に省略した場合は既存positionを維持する。
+
+この境界は選択した既存予定の直前・直後だけを表し、temporary item同士をanchorにする連鎖、
+独立した数値order、日付行からの追加やday-level指示は導入しない。positionはWorking表示順を
+決める補助情報であり、authoritative TripとDirect Overrideを変更しない。

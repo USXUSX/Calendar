@@ -18,7 +18,8 @@ grep -F '通常へ戻す場合はrecordを削除する' "$contract" >/dev/null
 grep -F 'formal Trip schemaを' "$contract" >/dev/null
 grep -F 'stable `temporary_id`' "$contract" >/dev/null
 grep -F '手入力だけで作成・更新できる' "$contract" >/dev/null
-grep -F '挿入位置や既存予定との上下関係はStep 4' "$contract" >/dev/null
+grep -F '`anchor_source_item_id`、`edge`' "$contract" >/dev/null
+grep -F 'temporary item同士をanchorにする連鎖' "$contract" >/dev/null
 grep -F '新規Trip作成はbaseを持たない' "$contract" >/dev/null
 grep -F 'map-readinessを満たす' "$contract" >/dev/null
 grep -F '地図用の別正本は作らない' "$contract" >/dev/null

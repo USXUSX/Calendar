@@ -785,8 +785,9 @@ class CalendarDomain:
 
     def save_working_trip_temporary_item(
         self, trip_id: str, temporary_id: str, day_id: str, values: dict[str, Any],
+        position: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Upsert one manually editable temporary item without assigning its insertion position."""
+        """Upsert one manually editable temporary item at an existing-item anchor."""
         self._require_text(temporary_id, "temporary_id")
         self._require_text(day_id, "day_id")
         if not isinstance(values, dict):
@@ -809,17 +810,46 @@ class CalendarDomain:
             record for record in state["temporary_items"]
             if record.get("temporary_id") == temporary_id
         ), None)
-        if existing is None or existing.get("day_id") != day_id:
+        position_supplied = position is not None
+        if position is None:
+            if existing is None:
+                raise ValidationError("Working temporary item position is required")
+            position = copy.deepcopy(existing.get("position"))
+        if not isinstance(position, dict) or set(position) != {
+            "anchor_source_type", "anchor_source_item_id", "edge",
+        }:
+            raise ValidationError("Working temporary item position is invalid")
+        anchor_type = position["anchor_source_type"]
+        anchor_id = position["anchor_source_item_id"]
+        if anchor_type not in _WORKING_ITEM_FIELDS or position["edge"] not in {"before", "after"}:
+            raise ValidationError("Working temporary item position is invalid")
+        self._require_text(anchor_id, "anchor_source_item_id")
+        validate_location = (
+            existing is None or existing.get("day_id") != day_id
+            or (position_supplied and existing.get("position") != position)
+        )
+        if validate_location:
             effective = self.get_effective_trip(trip_id)
             if not any(day.get("id") == day_id for day in effective["days"]):
                 raise ValidationError("Working temporary item day does not exist")
         if existing is None:
             if self._item_matches(effective, temporary_id):
                 raise ConflictError("temporary_id conflicts with an existing Trip item ID")
+        if validate_location:
+            anchor_day = next((day for day in effective["days"] if day.get("id") == day_id), None)
+            if anchor_day is None:
+                raise ValidationError("Working temporary item day does not exist")
+            anchor_ids = (
+                set(anchor_day["transportIds"]) if anchor_type == "transport"
+                else {item["id"] for item in anchor_day["scheduleItems"]}
+            )
+            if anchor_id not in anchor_ids:
+                raise ValidationError("Working temporary item anchor does not match the day and type")
         record = {
             "temporary_id": temporary_id,
             "day_id": day_id,
             "values": copy.deepcopy(values),
+            "position": copy.deepcopy(position),
         }
         state["temporary_items"] = [
             item for item in state["temporary_items"]
