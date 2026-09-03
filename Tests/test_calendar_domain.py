@@ -226,6 +226,218 @@ class CalendarDomainTests(unittest.TestCase):
                 "day_instructions": [{"value": float("nan")}],
             })
 
+    def test_working_candidate_accepts_only_a_json_object_for_one_working_trip(self):
+        original = self.trip_path.read_bytes()
+        self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [], "day_instructions": [],
+        })
+        candidate = json.loads(original)
+        result = self.domain.adopt_working_trip_candidate("trip-setouchi-2027", candidate)
+        self.assertEqual((result["trip_id"], result["status"]),
+                         ("trip-setouchi-2027", "adopted"))
+        self.assertEqual((result["version"], result["recovered"]), (2, False))
+        candidate["title"] = "caller-side mutation"
+        self.assertEqual(self.trip_path.read_bytes(), original)
+        with self.assertRaises(NotFoundError):
+            self.domain.get_working_trip("trip-setouchi-2027")
+
+        for invalid in (self.trip_path, str(self.trip_path), [], {"value": float("nan")}):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValidationError):
+                    self.domain.adopt_working_trip_candidate("trip-setouchi-2027", invalid)
+
+    def test_working_candidate_requires_an_existing_working_target(self):
+        candidate = json.loads(self.trip_path.read_bytes())
+        with self.assertRaises(NotFoundError):
+            self.domain.adopt_working_trip_candidate("trip-setouchi-2027", candidate)
+
+    def test_working_candidate_rejects_stale_without_changing_or_blocking_working(self):
+        original = self.trip_path.read_bytes()
+        initial = self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [],
+            "day_instructions": [{"day_id": "day-2027-05-14", "instruction": "雨天想定"}],
+        })
+        self.domain.edit_trip_item(
+            "edit-after-working-candidate", "trip-setouchi-2027", "scheduleItem",
+            "schedule-dinner", {"normal_comment": "確定側の後続変更"},
+        )
+        candidate = json.loads(original)
+
+        with self.assertRaisesRegex(ConflictError, "stale"):
+            self.domain.adopt_working_trip_candidate("trip-setouchi-2027", candidate)
+
+        self.assertEqual(self.trip_path.read_bytes(), original)
+        working = self.domain.get_working_trip("trip-setouchi-2027")
+        self.assertTrue(working["stale"])
+        self.assertEqual(working["base_effective_revision"], initial["base_effective_revision"])
+        self.assertEqual(
+            self.domain.get_working_trip_detail_view("trip-setouchi-2027")["working"],
+            {"present": True, "stale": True},
+        )
+        edited = self.domain.save_working_trip_day_instruction(
+            "trip-setouchi-2027", "day-2027-05-14", "雨天想定を強める",
+        )
+        self.assertTrue(edited["stale"])
+        exported = self.domain.export_working_trip_for_chat("trip-setouchi-2027")
+        self.assertTrue(exported["working"]["stale"])
+
+    def test_working_candidate_reuses_formal_validation_without_changing_state(self):
+        self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [], "day_instructions": [],
+        })
+        original_trip = self.trip_path.read_bytes()
+        original_working = self.domain.get_working_trip("trip-setouchi-2027")
+        valid = json.loads(original_trip)
+        invalid_candidates = []
+
+        wrong_id = json.loads(original_trip)
+        wrong_id["id"] = "another-trip"
+        invalid_candidates.append((wrong_id, ValidationError, "id does not match"))
+
+        schema_invalid = json.loads(original_trip)
+        del schema_invalid["title"]
+        invalid_candidates.append((schema_invalid, ValidationError, "invalid"))
+
+        semantic_invalid = json.loads(original_trip)
+        semantic_invalid["transports"][0]["fromPlaceId"] = "missing-place"
+        invalid_candidates.append((semantic_invalid, ValidationError, "unknown endpoint"))
+
+        for candidate, error_type, message in invalid_candidates:
+            with self.subTest(message=message):
+                with self.assertRaisesRegex(error_type, message):
+                    self.domain.adopt_working_trip_candidate(
+                        "trip-setouchi-2027", candidate,
+                    )
+                self.assertEqual(self.trip_path.read_bytes(), original_trip)
+                self.assertEqual(
+                    self.domain.get_working_trip("trip-setouchi-2027"),
+                    original_working,
+                )
+
+        result = self.domain.adopt_working_trip_candidate(
+            "trip-setouchi-2027", valid,
+        )
+        self.assertEqual(result["status"], "adopted")
+        self.assertEqual(self.trip_path.read_bytes(), original_trip)
+        with self.assertRaises(NotFoundError):
+            self.domain.get_working_trip("trip-setouchi-2027")
+
+    def test_working_candidate_validates_active_overrides_and_todo_item_references(self):
+        self.domain.set_direct_override(
+            "override-1", "trip-setouchi-2027", "schedule-port-breakfast",
+            "/time/start", "09:00",
+        )
+        self.domain.create_todo(
+            "todo-1", label="Keep", trip_id="trip-setouchi-2027",
+            trip_item_id="schedule-dinner",
+        )
+        self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [], "day_instructions": [],
+        })
+        original_trip = self.trip_path.read_bytes()
+        original_working = self.domain.get_working_trip("trip-setouchi-2027")
+
+        invalid_effective = json.loads(original_trip)
+        breakfast_time = invalid_effective["days"][0]["scheduleItems"][0]["time"]
+        breakfast_time.update({"mode": "undecided", "start": None, "end": None})
+        with self.assertRaisesRegex(ValidationError, "effective Trip is invalid"):
+            self.domain.adopt_working_trip_candidate(
+                "trip-setouchi-2027", invalid_effective,
+            )
+
+        missing_stable_item = json.loads(original_trip)
+        missing_stable_item["days"][0]["scheduleItems"].pop(2)
+        with self.assertRaisesRegex(ConflictError, "referenced by a Todo"):
+            self.domain.adopt_working_trip_candidate(
+                "trip-setouchi-2027", missing_stable_item,
+            )
+
+        missing_override_target = json.loads(original_trip)
+        missing_override_target["days"][0]["scheduleItems"].pop(0)
+        with self.assertRaisesRegex(ConflictError, "active Direct Override"):
+            self.domain.adopt_working_trip_candidate(
+                "trip-setouchi-2027", missing_override_target,
+            )
+
+        self.assertEqual(self.trip_path.read_bytes(), original_trip)
+        self.assertEqual(
+            self.domain.get_working_trip("trip-setouchi-2027"), original_working,
+        )
+        self.assertTrue(
+            self.domain.list_active_direct_overrides("trip-setouchi-2027")[0]["active"]
+        )
+
+        valid = json.loads(original_trip)
+        valid["title"] = "採用済み候補"
+        result = self.domain.adopt_working_trip_candidate(
+            "trip-setouchi-2027", valid,
+        )
+        self.assertEqual((result["status"], result["version"]), ("adopted", 2))
+        self.assertEqual(json.loads(self.trip_path.read_bytes())["title"], "採用済み候補")
+        self.assertEqual(
+            self.domain.get_effective_trip("trip-setouchi-2027")["days"][0]
+            ["scheduleItems"][0]["time"]["start"],
+            "09:00",
+        )
+        self.assertTrue(
+            self.domain.list_active_direct_overrides("trip-setouchi-2027")[0]["active"]
+        )
+        with self.assertRaises(NotFoundError):
+            self.domain.get_working_trip("trip-setouchi-2027")
+
+    def test_working_candidate_recovery_finishes_version_and_clear_after_replace(self):
+        self.domain.set_direct_override(
+            "override-recovery", "trip-setouchi-2027", "schedule-port-breakfast",
+            "/summary", "維持するOverride",
+        )
+        self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [], "day_instructions": [],
+        })
+        candidate = json.loads(self.trip_path.read_bytes())
+        candidate["title"] = "中断後に採用"
+
+        def stop_after_replace():
+            raise SystemExit("simulated stop")
+
+        self.domain._after_candidate_replace = stop_after_replace
+        with self.assertRaises(SystemExit):
+            self.domain.adopt_working_trip_candidate("trip-setouchi-2027", candidate)
+
+        recovered = CalendarDomain(self.db_path, self.trip_root).recover_trip_adoption(
+            "trip-setouchi-2027"
+        )
+        self.assertEqual((recovered["status"], recovered["version"], recovered["recovered"]),
+                         ("adopted", 2, True))
+        with self.assertRaises(NotFoundError):
+            self.domain.get_working_trip("trip-setouchi-2027")
+        self.assertTrue(self.domain.list_active_direct_overrides("trip-setouchi-2027")[0]["active"])
+
+    def test_working_candidate_recovery_keeps_working_when_old_current_remains(self):
+        original_working = self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [],
+            "day_instructions": [{"day_id": "day-2027-05-14", "instruction": "維持"}],
+        })
+        candidate = json.loads(self.trip_path.read_bytes())
+        candidate["title"] = "未採用候補"
+        _, payload = self.domain._validated_candidate("trip-setouchi-2027", candidate)
+        candidate_hash = self.domain._digest(payload)
+        old_hash = self.domain._digest(self.trip_path.read_bytes())
+        journal = {
+            "version": 3, "kind": "working_trip", "trip_id": "trip-setouchi-2027",
+            "request_id": None, "instruction_id": None, "old_version": 1,
+            "old_hash": old_hash, "candidate_hash": candidate_hash,
+        }
+        self.domain._write_file(
+            self.domain._staging_path("trip-setouchi-2027", candidate_hash), payload,
+        )
+        self.domain._write_journal(
+            self.domain._journal_path("trip-setouchi-2027"), journal,
+        )
+
+        recovered = self.domain.recover_trip_adoption("trip-setouchi-2027")
+        self.assertEqual((recovered["status"], recovered["version"]), ("not_adopted", 1))
+        self.assertEqual(self.domain.get_working_trip("trip-setouchi-2027"), original_working)
+
     def test_working_item_change_upserts_and_preserves_other_envelope_regions(self):
         original = self.trip_path.read_bytes()
         seeded = self.domain.save_working_trip("trip-setouchi-2027", {
@@ -592,6 +804,75 @@ class CalendarDomainTests(unittest.TestCase):
             exported["working"]["current_effective_revision"],
         )
         self.assertEqual(exported["user_intent"]["item_changes"][0]["changes"]["title"], "Working dinner")
+
+    def test_manual_chat_round_trip_adopts_all_working_intent_as_complete_candidate(self):
+        self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "scheduleItem", "schedule-port-breakfast", "changed",
+            {"title": "港でブランチをとる", "start": "10:30"},
+        )
+        self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "transport", "transport-ferry", "pending_delete", {},
+        )
+        self.domain.save_working_trip_temporary_item(
+            "trip-setouchi-2027", "temporary-coffee", "day-2027-05-14",
+            {"title": "港の喫茶店で休憩"}, {
+                "anchor_source_type": "scheduleItem",
+                "anchor_source_item_id": "schedule-port-breakfast", "edge": "after",
+            },
+        )
+        self.domain.save_working_trip_day_instruction(
+            "trip-setouchi-2027", "day-2027-05-14", "船を使わず港周辺でゆっくり過ごす",
+        )
+
+        package = self.domain.export_working_trip_for_chat("trip-setouchi-2027")
+        self.assertFalse(package["working"]["stale"])
+        self.assertEqual(
+            {record["disposition"] for record in package["user_intent"]["item_changes"]},
+            {"changed", "pending_delete"},
+        )
+
+        # Simulate the one complete formal Trip object returned by a manual Chat round trip.
+        candidate = package["effective_trip"]
+        first_day = candidate["days"][0]
+        breakfast = first_day["scheduleItems"][0]
+        breakfast["action"] = "港でブランチをとる"
+        breakfast["time"]["start"] = "10:30"
+        coffee = json.loads(json.dumps(breakfast, ensure_ascii=False))
+        coffee.update({
+            "id": "schedule-harbor-coffee", "order": 20,
+            "action": "港の喫茶店で休憩", "summary": "港周辺でゆっくり休憩する。",
+        })
+        coffee["time"] = {
+            "mode": "undecided", "start": None, "end": None, "durationMinutes": 45,
+        }
+        first_day["scheduleItems"].insert(1, coffee)
+        first_day["title"] = "船を使わず港周辺でゆっくり過ごす"
+        first_day["routeSummary"] = "自宅 → 青凪港周辺"
+        first_day["transportIds"].remove("transport-ferry")
+        candidate["transports"] = [
+            item for item in candidate["transports"] if item["id"] != "transport-ferry"
+        ]
+        candidate["bookings"] = [
+            item for item in candidate["bookings"] if item["id"] != "booking-ferry"
+        ]
+
+        result = self.domain.adopt_working_trip_candidate(
+            package["trip_id"], candidate,
+        )
+
+        self.assertEqual((result["status"], result["version"]), ("adopted", 2))
+        adopted = json.loads(self.trip_path.read_bytes())
+        adopted_day = adopted["days"][0]
+        adopted_ids = [item["id"] for item in adopted_day["scheduleItems"]]
+        self.assertEqual(adopted_day["scheduleItems"][0]["action"], "港でブランチをとる")
+        self.assertEqual(adopted_day["scheduleItems"][0]["time"]["start"], "10:30")
+        self.assertIn("schedule-harbor-coffee", adopted_ids)
+        self.assertEqual(adopted_day["title"], "船を使わず港周辺でゆっくり過ごす")
+        self.assertNotIn("transport-ferry", adopted_day["transportIds"])
+        self.assertNotIn("transport-ferry", {item["id"] for item in adopted["transports"]})
+        self.assertNotIn("booking-ferry", {item["id"] for item in adopted["bookings"]})
+        with self.assertRaises(NotFoundError):
+            self.domain.get_working_trip("trip-setouchi-2027")
 
     def test_chat_export_requires_existing_working_state(self):
         with self.assertRaisesRegex(NotFoundError, "Working Trip not found"):

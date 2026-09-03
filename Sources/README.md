@@ -16,6 +16,21 @@ digest, then submit only an `add` / `remove` / `replace` JSON Patch. They do not
 manage SQLite tables, file paths, complete candidates, atomic replacement, or
 the private recovery journal.
 
+Working confirmation accepts a generator-neutral complete candidate JSON object
+through `adopt_working_trip_candidate(trip_id, candidate)`. The command confirms
+that the registered Trip has one Working target and, immediately before accepting
+the candidate, requires its captured effective revision to equal the current
+effective revision. A stale target raises Conflict without automatic rebase or
+merge. It then reuses the existing complete-candidate gate for formal Schema,
+semantic/cross-reference, Trip ID, active Direct Override effective-Trip, and
+Todo stable-item-reference validation. It does not accept a candidate file path,
+persist a candidate queue, or identify a generator. A validated candidate is passed
+to the same generator-neutral same-filesystem atomic replacement and digest-journal
+recovery layer used by the Patch pipeline. Successful adoption increments the Trip
+version and clears only the target Working row; active Direct Overrides remain. If
+recovery finds the candidate current it completes the version update and Working
+clear, while an unchanged old current keeps Working state.
+
 `calendar_worker.py` is the CAL-owned one-shot execution boundary. It recovers
 interrupted adoptions, claims at most one request, invokes a replaceable
 semantic-payload-to-Patch generator, and submits through `CalendarDomain`.

@@ -206,3 +206,46 @@ credential、課金、rate limit、cache、外部Place IDはこのsemantic契約
 existing Placeならformal Placeの同じ`address / location / urls`へ、temporary itemならPhase 5のcomplete
 Trip生成時に作るstable Placeへ収束させる。既存の非空値を暗黙に上書きせず、authoritative Tripや
 Direct OverrideをこのStepで変更しない。provider/API接続、実行Job、UI、正式採用は未実装とする。
+
+## Phase 5のcomplete candidate受入れ・確定境界
+
+Phase 5の公開semantic commandは
+`adopt_working_trip_candidate(trip_id, candidate)`とする。callerはcandidate生成元や
+AI Instruction / generation request identityを渡さず、対象Trip IDとformal complete Trip JSON
+objectだけを渡す。CALは対象Workingが存在して一意にTripへ属することを確認し、
+Working作成時の`base_effective_revision`と確定直前のcurrent effective revisionが一致しない場合は
+自動rebase・自動mergeせずConflictとして停止する。stale後もWorkingの表示、編集、再exportは維持する。
+
+既存のwhole-Trip Patch pipelineから、candidate JSON読込、SchemaとTrip ID、semantic / cross-reference、
+active Direct Override適用後のeffective Trip、Todoのstable `trip_item_id`参照、same-filesystem staging、
+`os.replace`、digest journal recovery、Trip version更新を再利用する。ただし現行の
+`_adopt_validated_candidate`とrecovery journalはAI Instruction / generation requestの状態更新に結合して
+いるため、そのまま公開しない。共通のatomic adoption層をgenerator-neutralに分離し、既存Patch経路と
+Working candidate経路をその上へ接続する。Patch経路の既存state遷移は維持する。
+
+Working candidate経路では、formal candidateのValidationとrevision再確認をreplacement前に完了し、
+authoritative TripのreplacementとSQLite Trip version更新を既存recovery方式で一つの採用結果へ収束させる。
+採用成功後だけ同じTripのWorking rowを削除する。中断後のrecoveryも、candidateがcurrentになった場合は
+version更新とWorking clearまで完了し、old currentのままならWorkingを保持する。active Direct Overrideは
+検証に適用するだけで、成功時にも削除・無効化しない。
+
+このcommandはcandidate生成、Chat/API送信、provider/model/credential、candidateの永続queue/history、
+FRM表示を持たない。返却値は既存adoption結果に合わせ、少なくとも`trip_id`、`status: adopted`、
+`candidate_digest`、更新後`version`、`recovered`を返す。ValidationまたはConflictではauthoritative Tripと
+Workingの双方を変更しない。
+
+Phase 5 Step 2では、このcommandの入口としてJSON objectだけをdeep copyして受け取り、登録済みTripに
+対応するWorking rowがちょうど1件あることを確認する。Step 3では`status: accepted`を返す直前にWorkingの
+captured effective revisionとcurrent effective revisionを比較し、不一致なら自動rebase・自動mergeせず
+Conflictで停止する。staleでもWorkingの表示・編集・再exportは継続できる。candidate file pathや生成元情報は受け取らず、
+candidateは永続化しない。Step 4では既存のcomplete-candidate gateを再利用し、formal Schema、
+semantic / cross-reference、candidate内Trip ID、active Direct Override適用後のeffective Trip、Todoの
+stable item参照を確定前にValidationする。失敗時もauthoritative TripとWorkingを変更しない。
+Step 5ではValidation済みcandidateをgenerator-neutralな共通atomic adoption層へ渡す。same-filesystem stagingと
+`os.replace`、digest journal、Trip version更新を既存Patch経路と共有し、Working経路だけの成功時状態更新として
+対象Workingをclearする。中断recoveryはcandidateがcurrentならversion更新とWorking clearを完了し、old currentなら
+Workingを保持する。active Direct Overrideと既存Patch経路のInstruction / request state遷移は変更しない。
+Step 6では`export_working_trip_for_chat()`のpackageを出発点に、changed、pending_delete、temporary item、
+day instructionを反映したcomplete formal Trip candidateを手動Chat返却相当として再投入し、同じ
+`adopt_working_trip_candidate()`境界でatomic adoptionとWorking clearまで完了できることを合成データで確認した。
+Chat/API自動送信、AI生成、FRM UIはこの確認へ含めない。
