@@ -97,17 +97,23 @@ class CalendarSchemaV3Tests(unittest.TestCase):
 
     def test_working_trip_is_one_json_object_per_trip_and_revision(self):
         self.insert_trip()
+        empty_state = '{"item_changes":[],"temporary_items":[],"day_instructions":[]}'
         self.connection.execute(
-            "INSERT INTO working_trips VALUES ('trip-1', 1, ?, '{}', ?, ?)",
-            ("a" * 64, TS, TS),
+            "INSERT INTO working_trips VALUES ('trip-1', 1, ?, ?, ?, ?)",
+            ("a" * 64, empty_state, TS, TS),
         )
         with self.assertRaises(sqlite3.IntegrityError):
             self.connection.execute(
-                "INSERT INTO working_trips VALUES ('trip-1', 1, ?, '{}', ?, ?)",
-                ("b" * 64, TS, TS),
+                "INSERT INTO working_trips VALUES ('trip-1', 1, ?, ?, ?, ?)",
+                ("b" * 64, empty_state, TS, TS),
             )
         with self.assertRaises(sqlite3.IntegrityError):
             self.connection.execute("UPDATE working_trips SET state_json = '[]' WHERE trip_id = 'trip-1'")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute(
+                "UPDATE working_trips SET state_json = "
+                "'{\"item_changes\":[],\"temporary_items\":[]}' WHERE trip_id = 'trip-1'"
+            )
         with self.assertRaises(sqlite3.IntegrityError):
             self.connection.execute("UPDATE working_trips SET base_effective_hash = 'bad' WHERE trip_id = 'trip-1'")
 

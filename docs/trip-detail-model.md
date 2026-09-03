@@ -91,3 +91,14 @@ stateだけを置き換え、このrevisionを自動更新しない。
 
 現行の`get_effective_trip`、`get_trip_detail_view`、`edit_trip_item`は変更しない。Phase 4の
 Working編集commandとD案表示への合成は、この保存境界の上に後続Stepで追加する。
+
+`state_json`のtop-level envelopeは次の3 keyだけとし、すべて必須の配列とする。
+
+- `item_changes`: 既存予定の変更と削除予定を同じ領域へ格納する。
+- `temporary_items`: 新規仮追加を格納する。
+- `day_instructions`: day-level指示を格納する。
+
+各配列の要素はJSON objectとするが、その内部fieldは各機能を実装する後続Stepで定める。
+このenvelopeは格納場所を一貫させるための最小境界であり、Working状態をformal Trip相当の
+厳密schemaで検証しない。top-levelに別keyは追加せず、必要な詳細は上記3領域のrecord内で
+表現する。

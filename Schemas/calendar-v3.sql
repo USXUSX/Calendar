@@ -89,7 +89,13 @@ CREATE TABLE working_trips (
   trip_id TEXT PRIMARY KEY REFERENCES trips(id),
   base_trip_version INTEGER NOT NULL CHECK (base_trip_version >= 1),
   base_effective_hash TEXT NOT NULL CHECK (length(base_effective_hash) = 64 AND base_effective_hash NOT GLOB '*[^0-9a-f]*'),
-  state_json TEXT NOT NULL CHECK (json_valid(state_json) AND json_type(state_json) = 'object'),
+  state_json TEXT NOT NULL CHECK (
+    json_valid(state_json)
+    AND json_type(state_json) = 'object'
+    AND json_type(state_json, '$.item_changes') IS 'array'
+    AND json_type(state_json, '$.temporary_items') IS 'array'
+    AND json_type(state_json, '$.day_instructions') IS 'array'
+  ),
   created_at TEXT NOT NULL CHECK (strftime('%Y-%m-%dT%H:%M:%SZ', created_at) IS created_at),
   updated_at TEXT NOT NULL CHECK (strftime('%Y-%m-%dT%H:%M:%SZ', updated_at) IS updated_at)
 );

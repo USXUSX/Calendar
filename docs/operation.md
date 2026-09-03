@@ -15,6 +15,7 @@ CAL利用側は`CalendarDomain`へDB pathとTrip rootを明示して接続し、
 Domain writeは1 commandを1 SQLite transactionとして扱い、失敗時にpartial updateを残さない。Direct OverrideはSQLiteへ保存するが、effective Tripへの適用はメモリ上だけであり、authoritative Trip JSONを変更しない。
 
 Working TripはSQLite v3の`working_trips`へTripごと1行のJSON objectとして最新状態だけを保存する。初回作成時のTrip versionとeffective Trip digestを保持し、以後のWorking編集では更新しない。確定側が変わった場合はstale警告を返すが、Workingの表示・上書きは継続できる。将来の確定処理だけがcurrent revisionを要求し、staleなら自動再適用・自動mergeせずConflictで停止する。
+`state_json`は`item_changes`、`temporary_items`、`day_instructions`の3配列を必須とする最小envelopeで保存し、record内部は後続Stepの責務とする。Working保存時にformal Trip schemaは適用しない。
 
 ## 2. ファイル配置
 

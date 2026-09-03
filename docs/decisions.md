@@ -14,6 +14,7 @@
 ## Active baseline
 
 - 2026-09-03, Issue #71: Working TripはSQLite v3の`working_trips`へTripごと1行のJSON objectとして最新状態だけを保持する。初回保存時のeffective revision（Trip versionとeffective Trip SHA-256）を固定し、authoritative Tripまたはactive Direct Overrideの後続変更をstaleとして検出する。staleでも表示とWorking編集は継続し、確定処理だけを停止する。自動再適用・自動mergeは行わない。既存`edit_trip_item` / Direct Overrideは確定済み具体値の境界として維持し、Phase 4以降のWorking編集は別commandへ接続する。
+- 2026-09-03, Issue #71: Working `state_json`は`item_changes`、`temporary_items`、`day_instructions`の3配列だけを必須top-level envelopeとする。既存予定の変更と削除予定は`item_changes`へ共通格納する。各配列要素はJSON objectとするだけで内部fieldは後続Stepに委ね、formal Trip相当の厳密schemaにはしない。
 
 - 2026-09-01, Issue #64: The Phase 1 Trip-detail UI is built from a non-persistent display model derived from the effective Trip. Weather and unsent candidate judgments are explicit context, not new Trip or SQLite authority. Concrete edits map to stable-ID Direct Overrides. Target-scoped AI uses the same semantic field boundary and does not enter `generation_requests`. A new Trip is generated and validated as a complete JSON through its own initial-adoption path; JSON Patch plus complete-candidate adoption is only for existing-Trip initialization or large cross-item restructuring. The current Day, PlaceSelection, Place location/address/URL, and Transport endpoint/order contract is map-ready for Goal 2 without a second map authority. Provider, model, credential, and AIG choices remain outside the CAL contract.
 

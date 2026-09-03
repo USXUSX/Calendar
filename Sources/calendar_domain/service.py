@@ -31,6 +31,7 @@ _TODO_FIELDS = {
     "label", "due_date", "due_time", "trip_id", "event_id",
     "trip_item_id", "visibility",
 }
+_WORKING_STATE_KEYS = {"item_changes", "temporary_items", "day_instructions"}
 
 
 def _now() -> str:
@@ -624,6 +625,15 @@ class CalendarDomain:
         self._registered_trip(trip_id)
         if not isinstance(state, dict):
             raise ValidationError("Working Trip state must be a JSON object")
+        if set(state) != _WORKING_STATE_KEYS:
+            raise ValidationError(
+                "Working Trip state must contain only item_changes, temporary_items, "
+                "and day_instructions"
+            )
+        for key in _WORKING_STATE_KEYS:
+            records = state[key]
+            if not isinstance(records, list) or any(not isinstance(record, dict) for record in records):
+                raise ValidationError(f"Working Trip {key} must be an array of JSON objects")
         try:
             state_json = json.dumps(
                 state, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
