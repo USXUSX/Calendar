@@ -282,3 +282,11 @@ authoritative TripとWorkingを変更しない。failed stateは再実行可能�
 手動Chatの`export → 対話調整 → complete candidate → adopt_working_trip_candidate()`は独立fallbackとして
 維持し、AIG generation stateを経由することを要求しない。CAL外旅行計画正本更新、production activation、
 Calendar_Local migration、provider選択UI、常駐workflowはこの境界に含めない。
+
+Step 2のCAL semantic/storage境界は`working_trip_generations`をWorking Trip用の独立した最新1行として使う。
+`get_working_trip_generation()`は行がない場合に永続的な`idle`を作らず`idle` read modelを返す。
+`start_working_trip_generation()`はcurrentなWorkingがある場合だけ開始し、既存の`generating`を上書きしない。
+`store_working_trip_generation_candidate()`と`fail_working_trip_generation()`は最新の`generation_id`と開始時に
+capturedしたWorking effective revisionが一致する場合だけ終端状態へ進める。前者は`review` policyだけが利用し、
+candidateは未信頼JSON objectとして1件だけ保持する。この段階ではAIG呼出し、formal Validation、adoption、FRMを
+接続せず、既存`generation_requests`のqueue型AI Instruction/Patch経路も変更しない。

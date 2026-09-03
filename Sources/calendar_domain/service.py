@@ -40,6 +40,7 @@ _WORKING_ITEM_FIELDS = {
 _WORKING_TEMPORARY_FIELDS = {
     "status", "start", "end", "time_mode", "title", "normal_comment", "place_name",
 }
+_WORKING_GENERATION_POLICIES = {"auto", "review"}
 
 
 def _now() -> str:
@@ -774,6 +775,106 @@ class CalendarDomain:
         if working["stale"]:
             raise ConflictError("Working Trip is stale against the current effective Trip")
         return working
+
+    def get_working_trip_generation(self, trip_id: str) -> dict[str, Any]:
+        """Return the latest CAL-owned generation, or an idle read model when absent."""
+        self._registered_trip(trip_id)
+        with self._read() as connection:
+            row = connection.execute(
+                "SELECT * FROM working_trip_generations WHERE trip_id = ?", (trip_id,)
+            ).fetchone()
+        if row is None:
+            return {"trip_id": trip_id, "state": "idle"}
+        result = dict(row)
+        candidate_json = result.pop("candidate_json")
+        result["candidate"] = json.loads(candidate_json) if candidate_json else None
+        return result
+
+    def start_working_trip_generation(
+        self, trip_id: str, generation_id: str, policy: str,
+    ) -> dict[str, Any]:
+        """Replace a terminal latest generation and capture the current Working revision."""
+        self._require_text(generation_id, "generation_id")
+        if policy not in _WORKING_GENERATION_POLICIES:
+            raise ValidationError("Working Trip generation policy must be auto or review")
+        working = self.require_current_working_trip(trip_id)
+        revision = working["base_effective_revision"]
+        timestamp = _now()
+        with self._command() as connection:
+            current = connection.execute(
+                "SELECT state FROM working_trip_generations WHERE trip_id = ?", (trip_id,)
+            ).fetchone()
+            if current is not None and current["state"] == "generating":
+                raise ConflictError("Working Trip generation is already generating")
+            connection.execute("DELETE FROM working_trip_generations WHERE trip_id = ?", (trip_id,))
+            connection.execute(
+                "INSERT INTO working_trip_generations "
+                "(trip_id, generation_id, policy, base_trip_version, base_effective_hash, state, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, 'generating', ?, ?)",
+                (trip_id, generation_id, policy, revision["trip_version"],
+                 revision["effective_hash"], timestamp, timestamp),
+            )
+        return self.get_working_trip_generation(trip_id)
+
+    def store_working_trip_generation_candidate(
+        self, trip_id: str, generation_id: str, candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Keep one untrusted candidate for the matching latest generation."""
+        if not isinstance(candidate, dict):
+            raise ValidationError("Working Trip generation candidate must be a JSON object")
+        try:
+            candidate_json = json.dumps(
+                candidate, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False,
+            )
+        except (TypeError, ValueError) as error:
+            raise ValidationError("Working Trip generation candidate must be valid JSON") from error
+        self._transition_working_trip_generation(
+            trip_id, generation_id, "candidate_ready", candidate_json=candidate_json,
+        )
+        return self.get_working_trip_generation(trip_id)
+
+    def fail_working_trip_generation(
+        self, trip_id: str, generation_id: str, failure_code: str,
+    ) -> dict[str, Any]:
+        """Record a safe failure classification without retrying or retaining history."""
+        self._require_text(failure_code, "failure_code")
+        self._transition_working_trip_generation(
+            trip_id, generation_id, "failed", failure_code=failure_code,
+        )
+        return self.get_working_trip_generation(trip_id)
+
+    def _transition_working_trip_generation(
+        self, trip_id: str, generation_id: str, state: str, *,
+        candidate_json: str | None = None, failure_code: str | None = None,
+    ) -> None:
+        self._registered_trip(trip_id)
+        self._require_text(generation_id, "generation_id")
+        with self._command() as connection:
+            row = connection.execute(
+                "SELECT generation_id, policy, state, base_trip_version, base_effective_hash "
+                "FROM working_trip_generations WHERE trip_id = ?", (trip_id,),
+            ).fetchone()
+            if row is None:
+                raise NotFoundError(f"Working Trip generation not found: {trip_id}")
+            if row["generation_id"] != generation_id:
+                raise ConflictError("Working Trip generation identity does not match")
+            if row["state"] != "generating":
+                raise ConflictError("Working Trip generation is not generating")
+            if state == "candidate_ready" and row["policy"] != "review":
+                raise ConflictError("only review generation can keep a candidate")
+            working = connection.execute(
+                "SELECT base_trip_version, base_effective_hash FROM working_trips WHERE trip_id = ?",
+                (trip_id,),
+            ).fetchone()
+            if working is None or (
+                working["base_trip_version"], working["base_effective_hash"]
+            ) != (row["base_trip_version"], row["base_effective_hash"]):
+                raise ConflictError("Working Trip generation revision does not match")
+            connection.execute(
+                "UPDATE working_trip_generations SET state = ?, candidate_json = ?, failure_code = ?, updated_at = ? "
+                "WHERE trip_id = ? AND generation_id = ?",
+                (state, candidate_json, failure_code, _now(), trip_id, generation_id),
+            )
 
     def adopt_working_trip_candidate(
         self, trip_id: str, candidate: dict[str, Any],

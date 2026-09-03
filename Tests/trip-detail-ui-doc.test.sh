@@ -26,7 +26,8 @@ grep -F '7. **完了（us確認済み）**: FRMの最小確定導線を実装す
 grep -F '8. **完了（us確認済み）**: Phase 5全体を合成データでValidationする。' "$roadmap" >/dev/null
 grep -F '9. **完了（us確認済み）**: Phase 5を振り返り、Phase 6のAI接続境界を再確認する。' "$roadmap" >/dev/null
 grep -F 'Working export → generator-neutralなcomplete candidate → CAL Validation' "$roadmap" >/dev/null
-grep -F '1. **完了**: AIG接続境界と最小generation stateを確定する。' "$roadmap" >/dev/null
+grep -F '1. **完了（us確認済み）**: AIG接続境界と最小generation stateを確定する。' "$roadmap" >/dev/null
+grep -F '2. **完了**: CALにWorking Tripごとの最新generation stateとcandidateを実装する。' "$roadmap" >/dev/null
 grep -F '`auto / review` adoption policy' "$roadmap" >/dev/null
 grep -F 'AIGはworkflow stateを保持せず' "$roadmap" >/dev/null
 grep -F 'candidate受入れ、Schema・semantic Validation、captured revisionに対するstale確認、all-or-nothingのadoption' "$roadmap" >/dev/null

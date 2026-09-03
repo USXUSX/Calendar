@@ -27,6 +27,12 @@ hash; the worker returns only JSON Patch. CAL applies the Patch to an in-memory
 copy, validates the complete candidate against Schema, semantic references,
 active Overrides, and Todo item references, then atomically adopts it.
 
+Phase 6 Working regeneration uses a separate latest-only CAL state per Trip.
+No row means `idle`; a row fixes one generation identity, `auto` / `review`
+policy, the captured Working revision, and only the current minimal state and
+candidate or safe terminal result. It does not retain a queue, retry count,
+history, or provider/model metadata.
+
 ## Three layers
 
 | Role | Location | Authority |
