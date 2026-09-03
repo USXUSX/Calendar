@@ -14,16 +14,9 @@ grep -F '候補名の右側' "$ui" >/dev/null
 grep -F '日単位では折りたたまない' "$ui" >/dev/null
 grep -F '| 4. Working Trip編集基盤 | 完了 |' "$roadmap" >/dev/null
 grep -F '| 5. Working Trip確定フロー | 現在 |' "$roadmap" >/dev/null
-grep -F '**完了（us確認済み）**: Working Tripの保存・合成境界' "$roadmap" >/dev/null
-grep -F '**完了（us確認済み）**: 既存予定の変更・削除予定化' "$roadmap" >/dev/null
-grep -F '**完了（us確認済み）**: 共通編集sheetを用いた新規予定仮追加' "$roadmap" >/dev/null
-grep -F '**完了（us確認済み）**: 予定上下の `+` から挿入位置' "$roadmap" >/dev/null
-grep -F '**完了（us確認済み）**: 日付見出しからday-level指示' "$roadmap" >/dev/null
-grep -F '**完了（us確認済み）**: Working状態をD案UIへ合成表示' "$roadmap" >/dev/null
-grep -F '**完了（us確認済み）**: Chatへ戻せる確定Trip＋Working状態の出力形式' "$roadmap" >/dev/null
-grep -F '**完了（us確認済み）**: Place enrichmentのCAL責務と最小境界' "$roadmap" >/dev/null
-grep -F '**完了**: 合成データで変更・削除予定・仮追加・複数予定指示・出力をValidation' "$roadmap" >/dev/null
-grep -F '**完了（us確認済み）**: Phase 4を振り返り、Phase 5以降を再確認' "$roadmap" >/dev/null
+grep -F '### 現在のPhase 5: Working Trip確定フロー' "$roadmap" >/dev/null
+grep -F '1. **完了**: candidate受入れ・確定境界を確定する。' "$roadmap" >/dev/null
+grep -F '2. complete candidate受入れを実装する。' "$roadmap" >/dev/null
 grep -F 'candidate受入れ、Schema・semantic Validation、captured revisionに対するstale確認、all-or-nothingのadoption' "$roadmap" >/dev/null
 grep -F 'candidate生成・再構成の自動化はPhase 6' "$roadmap" >/dev/null
 grep -F 'CAL外の旅行計画正本更新は当面手運用でCAL責務に含めない' "$roadmap" >/dev/null

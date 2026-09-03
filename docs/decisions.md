@@ -2,6 +2,8 @@
 
 ## Historical confirmed decisions
 
+- 2026-09-03, Issue #73 Phase 5 Step 1: Workingから返ったcomplete candidateの公開semantic commandは`adopt_working_trip_candidate(trip_id, candidate)`とし、candidate生成元やAI request identityを契約へ入れない。Workingのcaptured effective revisionを確定直前に再確認し、既存のSchema・semantic/cross-reference・Trip ID・active Direct Override・Todo参照Validationとsame-filesystem atomic replacement / digest journal recoveryをgenerator-neutralな共通層として再利用する。成功後だけWorkingをclearし、Direct Overrideは維持する。現行Patch pipelineのInstruction/request state遷移は変えない。
+
 - Project root: `/Users/us/Tools`.
 - Three layers: `Development`, `GoogleDrive`, and `LocalData`, each with a `Calendar` project folder.
 - GitHub will be the canonical system for code, confirmed specifications, Issues, Pull Requests, and tests.
