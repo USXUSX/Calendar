@@ -51,7 +51,7 @@ CALは、次の3領域を内部機能としては十分に分離しつつ、表�
 5. **完了（us確認済み）**: atomic adoptionとWorking後始末を実装する。
 6. **完了（us確認済み）**: Chat手動往復の受入れを合成データで確認する。
 7. **完了（us確認済み）**: FRMの最小確定導線を実装する。
-8. Phase 5全体を合成データでValidationする。
+8. **完了**: Phase 5全体を合成データでValidationする。
 9. Phase 5を振り返り、Phase 6のAI接続境界を再確認する。
 
 完了したPhase 2・3の表示・入力・更新契約は[`trip-detail-model.md`](trip-detail-model.md)に保持する。
