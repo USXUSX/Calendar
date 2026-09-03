@@ -284,12 +284,33 @@ class CalendarDomain:
         expected_version: int,
         expected_hash: str,
     ) -> dict[str, Any]:
-        """Internal complete-candidate validation and atomic adoption layer."""
+        """Adopt an AI Patch candidate through the common atomic layer."""
+        return self._adopt_candidate_atomically(
+            trip_id, candidate, expected_version, expected_hash,
+            kind="generation_request", request_id=request_id,
+            instruction_id=instruction_id,
+        )
+
+    def _adopt_candidate_atomically(
+        self,
+        trip_id: str,
+        candidate: dict[str, Any],
+        expected_version: int,
+        expected_hash: str,
+        *,
+        kind: str,
+        request_id: str | None = None,
+        instruction_id: str | None = None,
+        working_revision: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Generator-neutral complete-candidate atomic adoption layer."""
         self._trip_path(trip_id)
         recovered = self.recover_trip_adoption(trip_id)
         if recovered is not None:
             return recovered
-        instruction_ids = (instruction_id,)
+        if kind not in {"generation_request", "working_trip"}:
+            raise ValidationError("candidate adoption kind is invalid")
+        instruction_ids = (instruction_id,) if instruction_id is not None else ()
         candidate_value, candidate_payload = self._validated_candidate(trip_id, candidate)
         current_path = self._trip_path(trip_id)
         try:
@@ -303,7 +324,8 @@ class CalendarDomain:
         staging_path = self._staging_path(trip_id, candidate_digest)
         journal_path = self._journal_path(trip_id)
         journal = {
-            "version": 2,
+            "version": 3,
+            "kind": kind,
             "trip_id": trip_id,
             "request_id": request_id,
             "instruction_id": instruction_id,
@@ -318,28 +340,40 @@ class CalendarDomain:
             with self._command() as connection:
                 connection.execute("BEGIN IMMEDIATE")
                 self._validate_adoption_constraints(connection, trip_id, candidate_value, instruction_ids)
-                request = connection.execute(
-                    "SELECT instruction_id, trip_id, state FROM generation_requests WHERE id = ?",
-                    (request_id,),
-                ).fetchone()
-                instruction = connection.execute(
-                    "SELECT base_version, base_hash FROM ai_instructions WHERE id = ?",
-                    (instruction_id,),
-                ).fetchone()
                 trip = connection.execute("SELECT version FROM trips WHERE id = ?", (trip_id,)).fetchone()
-                if (
-                    request is None
-                    or request["instruction_id"] != instruction_id
-                    or request["trip_id"] != trip_id
-                    or request["state"] != "processing"
-                    or instruction is None
-                    or instruction["base_version"] != expected_version
-                    or instruction["base_hash"] != expected_hash
-                    or trip is None
-                    or trip["version"] != expected_version
-                    or old_digest != expected_hash
-                ):
-                    raise ConflictError("generation request base changed before adoption")
+                if trip is None or trip["version"] != expected_version or old_digest != expected_hash:
+                    message = (
+                        "generation request base changed before adoption"
+                        if kind == "generation_request"
+                        else "Working Trip is stale against the current effective Trip"
+                    )
+                    raise ConflictError(message)
+                if kind == "generation_request":
+                    request = connection.execute(
+                        "SELECT instruction_id, trip_id, state FROM generation_requests WHERE id = ?",
+                        (request_id,),
+                    ).fetchone()
+                    instruction = connection.execute(
+                        "SELECT base_version, base_hash FROM ai_instructions WHERE id = ?",
+                        (instruction_id,),
+                    ).fetchone()
+                    if (
+                        request is None or request["instruction_id"] != instruction_id
+                        or request["trip_id"] != trip_id or request["state"] != "processing"
+                        or instruction is None or instruction["base_version"] != expected_version
+                        or instruction["base_hash"] != expected_hash
+                    ):
+                        raise ConflictError("generation request base changed before adoption")
+                else:
+                    working = connection.execute(
+                        "SELECT base_trip_version, base_effective_hash FROM working_trips WHERE trip_id = ?",
+                        (trip_id,),
+                    ).fetchone()
+                    if working is None or working_revision is None or {
+                        "trip_version": working["base_trip_version"],
+                        "effective_hash": working["base_effective_hash"],
+                    } != working_revision or self._effective_revision(trip_id) != working_revision:
+                        raise ConflictError("Working Trip is stale against the current effective Trip")
                 self._write_journal(journal_path, journal)
                 journal_written = True
                 if (
@@ -347,7 +381,12 @@ class CalendarDomain:
                     != expected_version
                     or self._digest(current_path.read_bytes()) != expected_hash
                 ):
-                    raise ConflictError("generation request base changed immediately before adoption")
+                    message = (
+                        "generation request base changed immediately before adoption"
+                        if kind == "generation_request"
+                        else "Working Trip is stale against the current effective Trip"
+                    )
+                    raise ConflictError(message)
                 self._replace_current(staging_path, current_path)
                 replaced = True
                 self._after_candidate_replace()
@@ -357,18 +396,23 @@ class CalendarDomain:
                     (timestamp, trip_id, expected_version),
                 ).rowcount != 1:
                     raise ConflictError("Trip version changed during candidate adoption")
-                if connection.execute(
-                    "UPDATE ai_instructions SET state = 'applied', updated_at = ? "
-                    "WHERE id = ? AND trip_id = ? AND state = 'pending'",
-                    (timestamp, instruction_id, trip_id),
+                if kind == "generation_request":
+                    if connection.execute(
+                        "UPDATE ai_instructions SET state = 'applied', updated_at = ? "
+                        "WHERE id = ? AND trip_id = ? AND state = 'pending'",
+                        (timestamp, instruction_id, trip_id),
+                    ).rowcount != 1:
+                        raise ConflictError("AI Instruction state changed during candidate adoption")
+                    if connection.execute(
+                        "UPDATE generation_requests SET state = 'completed', updated_at = ? "
+                        "WHERE id = ? AND instruction_id = ? AND state = 'processing'",
+                        (timestamp, request_id, instruction_id),
+                    ).rowcount != 1:
+                        raise ConflictError("generation request state changed during candidate adoption")
+                elif connection.execute(
+                    "DELETE FROM working_trips WHERE trip_id = ?", (trip_id,),
                 ).rowcount != 1:
-                    raise ConflictError("AI Instruction state changed during candidate adoption")
-                if connection.execute(
-                    "UPDATE generation_requests SET state = 'completed', updated_at = ? "
-                    "WHERE id = ? AND instruction_id = ? AND state = 'processing'",
-                    (timestamp, request_id, instruction_id),
-                ).rowcount != 1:
-                    raise ConflictError("generation request state changed during candidate adoption")
+                    raise ConflictError("Working Trip changed during candidate adoption")
         except Exception:
             if not replaced:
                 self._remove_adoption_file(staging_path)
@@ -377,15 +421,16 @@ class CalendarDomain:
             raise
         self._remove_adoption_file(journal_path)
         self._remove_adoption_file(staging_path)
-        return {
+        result = {
             "trip_id": trip_id,
-            "request_id": request_id,
-            "instruction_id": instruction_id,
             "status": "adopted",
             "candidate_digest": candidate_digest,
             "version": expected_version + 1,
             "recovered": False,
         }
+        if kind == "generation_request":
+            result.update({"request_id": request_id, "instruction_id": instruction_id})
+        return result
 
     def _after_candidate_replace(self) -> None:
         """Test seam for a process stop after replacement and before SQLite update."""
@@ -401,14 +446,26 @@ class CalendarDomain:
                 return None
             try:
                 journal = json.loads(journal_path.read_text(encoding="utf-8"))
-                required = {
+                legacy_required = {
                     "version", "trip_id", "request_id", "instruction_id",
                     "old_version", "old_hash", "candidate_hash",
                 }
-                if set(journal) != required or journal["version"] != 2 or journal["trip_id"] != trip_id:
+                current_required = legacy_required | {"kind"}
+                if set(journal) == legacy_required and journal.get("version") == 2:
+                    kind = "generation_request"
+                elif set(journal) == current_required and journal.get("version") == 3:
+                    kind = journal.get("kind")
+                else:
                     raise ValueError
-                request_id = self._require_text(journal["request_id"], "request_id")
-                instruction_id = self._require_text(journal["instruction_id"], "instruction_id")
+                if journal["trip_id"] != trip_id or kind not in {"generation_request", "working_trip"}:
+                    raise ValueError
+                request_id = journal["request_id"]
+                instruction_id = journal["instruction_id"]
+                if kind == "generation_request":
+                    request_id = self._require_text(request_id, "request_id")
+                    instruction_id = self._require_text(instruction_id, "instruction_id")
+                elif request_id is not None or instruction_id is not None:
+                    raise ValueError
                 old_version = journal["old_version"]
                 candidate_digest = journal["candidate_hash"]
                 old_digest = journal["old_hash"]
@@ -421,68 +478,88 @@ class CalendarDomain:
                 raise ConflictError("candidate adoption journal is invalid or unreadable") from error
 
             if current_digest == candidate_digest:
-                row = connection.execute(
-                    "SELECT i.trip_id, i.state AS instruction_state, r.state AS request_state, "
-                    "t.version AS trip_version FROM ai_instructions i "
-                    "JOIN generation_requests r ON r.instruction_id = i.id "
-                    "JOIN trips t ON t.id = i.trip_id WHERE i.id = ? AND r.id = ?",
-                    (instruction_id, request_id),
-                ).fetchone()
-                if (
-                    row is None or row["trip_id"] != trip_id
-                    or row["instruction_state"] not in {"pending", "applied"}
-                    or row["request_state"] not in {"processing", "completed"}
-                    or row["trip_version"] not in {old_version, old_version + 1}
-                ):
-                    raise ConflictError("journal conflicts with request pipeline state")
+                if kind == "generation_request":
+                    row = connection.execute(
+                        "SELECT i.trip_id, i.state AS instruction_state, r.state AS request_state, "
+                        "t.version AS trip_version FROM ai_instructions i "
+                        "JOIN generation_requests r ON r.instruction_id = i.id "
+                        "JOIN trips t ON t.id = i.trip_id WHERE i.id = ? AND r.id = ?",
+                        (instruction_id, request_id),
+                    ).fetchone()
+                    if (
+                        row is None or row["trip_id"] != trip_id
+                        or row["instruction_state"] not in {"pending", "applied"}
+                        or row["request_state"] not in {"processing", "completed"}
+                        or row["trip_version"] not in {old_version, old_version + 1}
+                    ):
+                        raise ConflictError("journal conflicts with request pipeline state")
+                    trip_version = row["trip_version"]
+                else:
+                    row = connection.execute(
+                        "SELECT version FROM trips WHERE id = ?", (trip_id,),
+                    ).fetchone()
+                    if row is None or row["version"] not in {old_version, old_version + 1}:
+                        raise ConflictError("journal conflicts with Working Trip state")
+                    trip_version = row["version"]
                 timestamp = _now()
-                if row["trip_version"] == old_version:
+                if trip_version == old_version:
                     connection.execute(
                         "UPDATE trips SET version = ?, updated_at = ? WHERE id = ?",
                         (old_version + 1, timestamp, trip_id),
                     )
-                connection.execute(
-                    "UPDATE ai_instructions SET state = 'applied', updated_at = ? WHERE id = ?",
-                    (timestamp, instruction_id),
-                )
-                connection.execute(
-                    "UPDATE generation_requests SET state = 'completed', updated_at = ? WHERE id = ?",
-                    (timestamp, request_id),
-                )
+                if kind == "generation_request":
+                    connection.execute(
+                        "UPDATE ai_instructions SET state = 'applied', updated_at = ? WHERE id = ?",
+                        (timestamp, instruction_id),
+                    )
+                    connection.execute(
+                        "UPDATE generation_requests SET state = 'completed', updated_at = ? WHERE id = ?",
+                        (timestamp, request_id),
+                    )
+                else:
+                    connection.execute("DELETE FROM working_trips WHERE trip_id = ?", (trip_id,))
                 status = "adopted"
             elif current_digest == old_digest:
-                row = connection.execute(
-                    "SELECT i.trip_id, i.state AS instruction_state, r.state AS request_state, "
-                    "t.version AS trip_version FROM ai_instructions i "
-                    "JOIN generation_requests r ON r.instruction_id = i.id "
-                    "JOIN trips t ON t.id = i.trip_id WHERE i.id = ? AND r.id = ?",
-                    (instruction_id, request_id),
-                ).fetchone()
-                if (
-                    row is None or row["trip_id"] != trip_id or row["instruction_state"] != "pending"
-                    or row["request_state"] not in {"processing", "queued"}
-                    or row["trip_version"] != old_version
-                ):
-                    raise ConflictError("journal conflicts with request pipeline state")
-                connection.execute(
-                    "UPDATE generation_requests SET state = 'queued', updated_at = ? WHERE id = ?",
-                    (_now(), request_id),
-                )
+                if kind == "generation_request":
+                    row = connection.execute(
+                        "SELECT i.trip_id, i.state AS instruction_state, r.state AS request_state, "
+                        "t.version AS trip_version FROM ai_instructions i "
+                        "JOIN generation_requests r ON r.instruction_id = i.id "
+                        "JOIN trips t ON t.id = i.trip_id WHERE i.id = ? AND r.id = ?",
+                        (instruction_id, request_id),
+                    ).fetchone()
+                    if (
+                        row is None or row["trip_id"] != trip_id or row["instruction_state"] != "pending"
+                        or row["request_state"] not in {"processing", "queued"}
+                        or row["trip_version"] != old_version
+                    ):
+                        raise ConflictError("journal conflicts with request pipeline state")
+                    connection.execute(
+                        "UPDATE generation_requests SET state = 'queued', updated_at = ? WHERE id = ?",
+                        (_now(), request_id),
+                    )
+                else:
+                    row = connection.execute(
+                        "SELECT version FROM trips WHERE id = ?", (trip_id,),
+                    ).fetchone()
+                    if row is None or row["version"] != old_version:
+                        raise ConflictError("journal conflicts with Working Trip state")
                 status = "not_adopted"
             else:
                 raise ConflictError("current Trip JSON matches neither journal digest")
 
         self._remove_adoption_file(self._staging_path(trip_id, candidate_digest))
         self._remove_adoption_file(journal_path)
-        return {
+        result = {
             "trip_id": trip_id,
-            "request_id": request_id,
-            "instruction_id": instruction_id,
             "status": status,
             "candidate_digest": candidate_digest,
             "version": old_version + 1 if status == "adopted" else old_version,
             "recovered": True,
         }
+        if kind == "generation_request":
+            result.update({"request_id": request_id, "instruction_id": instruction_id})
+        return result
 
     def recover_pending_adoptions(self) -> list[dict[str, Any]]:
         """Converge every adoption journal before a worker claims new work."""
@@ -719,17 +796,24 @@ class CalendarDomain:
             raise NotFoundError(f"Working Trip not found: {trip_id}")
         if len(rows) != 1:
             raise ConflictError("Working Trip candidate target is not unique")
-        self.require_current_working_trip(trip_id)
+        working = self.require_current_working_trip(trip_id)
         validated_candidate, _ = self._validated_candidate(trip_id, accepted_candidate)
         with self._read() as connection:
             self._validate_adoption_constraints(
                 connection, trip_id, validated_candidate, (),
             )
-        return {
-            "trip_id": trip_id,
-            "status": "accepted",
-            "candidate": validated_candidate,
-        }
+            trip = connection.execute(
+                "SELECT version FROM trips WHERE id = ?", (trip_id,),
+            ).fetchone()
+        try:
+            current_hash = self._digest(self._trip_path(trip_id).read_bytes())
+        except OSError as error:
+            raise ValidationError("current Trip JSON cannot be read") from error
+        return self._adopt_candidate_atomically(
+            trip_id, validated_candidate, trip["version"], current_hash,
+            kind="working_trip",
+            working_revision=working["base_effective_revision"],
+        )
 
     def clear_working_trip(self, trip_id: str) -> None:
         self._registered_trip(trip_id)

@@ -18,7 +18,8 @@ grep -F '### 現在のPhase 5: Working Trip確定フロー' "$roadmap" >/dev/nul
 grep -F '1. **完了（us確認済み）**: candidate受入れ・確定境界を確定する。' "$roadmap" >/dev/null
 grep -F '2. **完了（us確認済み）**: complete candidate受入れを実装する。' "$roadmap" >/dev/null
 grep -F '3. **完了（us確認済み）**: stale確認を確定ゲートへ接続する。' "$roadmap" >/dev/null
-grep -F '4. **完了**: formal Validationを確定する。' "$roadmap" >/dev/null
+grep -F '4. **完了（us確認済み）**: formal Validationを確定する。' "$roadmap" >/dev/null
+grep -F '5. **完了**: atomic adoptionとWorking後始末を実装する。' "$roadmap" >/dev/null
 grep -F 'candidate受入れ、Schema・semantic Validation、captured revisionに対するstale確認、all-or-nothingのadoption' "$roadmap" >/dev/null
 grep -F 'candidate生成・再構成の自動化はPhase 6' "$roadmap" >/dev/null
 grep -F 'CAL外の旅行計画正本更新は当面手運用でCAL責務に含めない' "$roadmap" >/dev/null

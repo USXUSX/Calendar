@@ -241,5 +241,7 @@ Conflictで停止する。staleでもWorkingの表示・編集・再exportは継
 candidateは永続化しない。Step 4では既存のcomplete-candidate gateを再利用し、formal Schema、
 semantic / cross-reference、candidate内Trip ID、active Direct Override適用後のeffective Trip、Todoの
 stable item参照を確定前にValidationする。失敗時もauthoritative TripとWorkingを変更しない。
-atomic adoption、version更新、Working clearはStep 5以降でこの入口へ接続するため、Validation成功後も
-authoritative TripとWorkingのどちらも変更しない。
+Step 5ではValidation済みcandidateをgenerator-neutralな共通atomic adoption層へ渡す。same-filesystem stagingと
+`os.replace`、digest journal、Trip version更新を既存Patch経路と共有し、Working経路だけの成功時状態更新として
+対象Workingをclearする。中断recoveryはcandidateがcurrentならversion更新とWorking clearを完了し、old currentなら
+Workingを保持する。active Direct Overrideと既存Patch経路のInstruction / request state遷移は変更しない。

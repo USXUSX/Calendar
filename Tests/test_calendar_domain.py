@@ -234,12 +234,12 @@ class CalendarDomainTests(unittest.TestCase):
         candidate = json.loads(original)
         result = self.domain.adopt_working_trip_candidate("trip-setouchi-2027", candidate)
         self.assertEqual((result["trip_id"], result["status"]),
-                         ("trip-setouchi-2027", "accepted"))
-        self.assertEqual(result["candidate"], candidate)
+                         ("trip-setouchi-2027", "adopted"))
+        self.assertEqual((result["version"], result["recovered"]), (2, False))
         candidate["title"] = "caller-side mutation"
-        self.assertNotEqual(result["candidate"]["title"], candidate["title"])
         self.assertEqual(self.trip_path.read_bytes(), original)
-        self.assertFalse(self.domain.get_working_trip("trip-setouchi-2027")["stale"])
+        with self.assertRaises(NotFoundError):
+            self.domain.get_working_trip("trip-setouchi-2027")
 
         for invalid in (self.trip_path, str(self.trip_path), [], {"value": float("nan")}):
             with self.subTest(invalid=invalid):
@@ -317,11 +317,10 @@ class CalendarDomainTests(unittest.TestCase):
         result = self.domain.adopt_working_trip_candidate(
             "trip-setouchi-2027", valid,
         )
-        self.assertEqual(result["candidate"], valid)
+        self.assertEqual(result["status"], "adopted")
         self.assertEqual(self.trip_path.read_bytes(), original_trip)
-        self.assertEqual(
-            self.domain.get_working_trip("trip-setouchi-2027"), original_working,
-        )
+        with self.assertRaises(NotFoundError):
+            self.domain.get_working_trip("trip-setouchi-2027")
 
     def test_working_candidate_validates_active_overrides_and_todo_item_references(self):
         self.domain.set_direct_override(
@@ -337,17 +336,6 @@ class CalendarDomainTests(unittest.TestCase):
         })
         original_trip = self.trip_path.read_bytes()
         original_working = self.domain.get_working_trip("trip-setouchi-2027")
-
-        valid = json.loads(original_trip)
-        result = self.domain.adopt_working_trip_candidate(
-            "trip-setouchi-2027", valid,
-        )
-        self.assertEqual(result["status"], "accepted")
-        self.assertEqual(
-            self.domain.get_effective_trip("trip-setouchi-2027")["days"][0]
-            ["scheduleItems"][0]["time"]["start"],
-            "09:00",
-        )
 
         invalid_effective = json.loads(original_trip)
         breakfast_time = invalid_effective["days"][0]["scheduleItems"][0]["time"]
@@ -378,6 +366,77 @@ class CalendarDomainTests(unittest.TestCase):
         self.assertTrue(
             self.domain.list_active_direct_overrides("trip-setouchi-2027")[0]["active"]
         )
+
+        valid = json.loads(original_trip)
+        valid["title"] = "採用済み候補"
+        result = self.domain.adopt_working_trip_candidate(
+            "trip-setouchi-2027", valid,
+        )
+        self.assertEqual((result["status"], result["version"]), ("adopted", 2))
+        self.assertEqual(json.loads(self.trip_path.read_bytes())["title"], "採用済み候補")
+        self.assertEqual(
+            self.domain.get_effective_trip("trip-setouchi-2027")["days"][0]
+            ["scheduleItems"][0]["time"]["start"],
+            "09:00",
+        )
+        self.assertTrue(
+            self.domain.list_active_direct_overrides("trip-setouchi-2027")[0]["active"]
+        )
+        with self.assertRaises(NotFoundError):
+            self.domain.get_working_trip("trip-setouchi-2027")
+
+    def test_working_candidate_recovery_finishes_version_and_clear_after_replace(self):
+        self.domain.set_direct_override(
+            "override-recovery", "trip-setouchi-2027", "schedule-port-breakfast",
+            "/summary", "維持するOverride",
+        )
+        self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [], "day_instructions": [],
+        })
+        candidate = json.loads(self.trip_path.read_bytes())
+        candidate["title"] = "中断後に採用"
+
+        def stop_after_replace():
+            raise SystemExit("simulated stop")
+
+        self.domain._after_candidate_replace = stop_after_replace
+        with self.assertRaises(SystemExit):
+            self.domain.adopt_working_trip_candidate("trip-setouchi-2027", candidate)
+
+        recovered = CalendarDomain(self.db_path, self.trip_root).recover_trip_adoption(
+            "trip-setouchi-2027"
+        )
+        self.assertEqual((recovered["status"], recovered["version"], recovered["recovered"]),
+                         ("adopted", 2, True))
+        with self.assertRaises(NotFoundError):
+            self.domain.get_working_trip("trip-setouchi-2027")
+        self.assertTrue(self.domain.list_active_direct_overrides("trip-setouchi-2027")[0]["active"])
+
+    def test_working_candidate_recovery_keeps_working_when_old_current_remains(self):
+        original_working = self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [],
+            "day_instructions": [{"day_id": "day-2027-05-14", "instruction": "維持"}],
+        })
+        candidate = json.loads(self.trip_path.read_bytes())
+        candidate["title"] = "未採用候補"
+        _, payload = self.domain._validated_candidate("trip-setouchi-2027", candidate)
+        candidate_hash = self.domain._digest(payload)
+        old_hash = self.domain._digest(self.trip_path.read_bytes())
+        journal = {
+            "version": 3, "kind": "working_trip", "trip_id": "trip-setouchi-2027",
+            "request_id": None, "instruction_id": None, "old_version": 1,
+            "old_hash": old_hash, "candidate_hash": candidate_hash,
+        }
+        self.domain._write_file(
+            self.domain._staging_path("trip-setouchi-2027", candidate_hash), payload,
+        )
+        self.domain._write_journal(
+            self.domain._journal_path("trip-setouchi-2027"), journal,
+        )
+
+        recovered = self.domain.recover_trip_adoption("trip-setouchi-2027")
+        self.assertEqual((recovered["status"], recovered["version"]), ("not_adopted", 1))
+        self.assertEqual(self.domain.get_working_trip("trip-setouchi-2027"), original_working)
 
     def test_working_item_change_upserts_and_preserves_other_envelope_regions(self):
         original = self.trip_path.read_bytes()
