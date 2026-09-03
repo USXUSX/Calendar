@@ -18,7 +18,7 @@ stable IDs, validation, and complete-JSON regeneration method are reuse targets
 in the rebuilt baseline. No existing data or code has been migrated or removed.
 
 `Sources/calendar_domain/` provides the dependency-free CAL semantic domain
-interface over SQLite v2. Callers supply an explicit SQLite path and Trip data root, then
+interface over SQLite v3. Callers supply an explicit SQLite path and Trip data root, then
 use this interface for unified Events, effective Trips, Todos, and change-input
 commands; they do not query CAL tables or inspect Trip JSON file layout.
 It also owns the AI Instruction Patch pipeline. Instruction registration queues
@@ -47,7 +47,8 @@ active Overrides, and Todo item references, then atomically adopts it.
 - `docs/trip-detail-ui.md`: confirmed iPad mini / iPad itinerary-detail UI requirements
 - `docs/trip-detail-model.md`: Phase 1 UI display derivation and semantic update boundaries
 - `Schemas/trip.schema.json`: current formal Trip JSON contract and reuse baseline
-- `Schemas/calendar-v2.sql`: current reproducible SQLite schema, including Trip versions and generation requests
+- `Schemas/calendar-v3.sql`: current reproducible SQLite schema, including Working Trip state
+- `Schemas/calendar-v2.sql`: retained schema revision for Trip versions and generation requests
 - `Schemas/calendar-v1.sql`: retained initial SQLite schema revision
 - `docs/trip-json-generation.md`: retained complete-Trip-JSON generation workflow
 - `docs/operation.md`: current Trip JSON operation until the hybrid flow is implemented

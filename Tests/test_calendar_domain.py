@@ -152,6 +152,50 @@ class CalendarDomainTests(unittest.TestCase):
         transport = next(item for item in result["trip"]["transports"] if item["id"] == "transport-hotel-walk")
         self.assertEqual((transport["status"], transport["time"]["mode"]), ("confirmed", "undecided"))
 
+    def test_working_trip_keeps_one_latest_state_and_does_not_change_authority(self):
+        original = self.trip_path.read_bytes()
+        first = self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": {"schedule-dinner": {"disposition": "pending_delete"}},
+        })
+        self.assertFalse(first["stale"])
+        self.assertEqual(self.domain.list_active_direct_overrides("trip-setouchi-2027"), [])
+        updated = self.domain.save_working_trip("trip-setouchi-2027", {
+            "temporary_items": [{"id": "working-dinner", "title": "夕食候補"}],
+        })
+        self.assertEqual(updated["state"], {
+            "temporary_items": [{"id": "working-dinner", "title": "夕食候補"}],
+        })
+        self.assertEqual(updated["base_effective_revision"], first["base_effective_revision"])
+        self.assertEqual(self.trip_path.read_bytes(), original)
+        with sqlite3.connect(self.db_path) as connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM working_trips").fetchone()[0], 1)
+
+    def test_stale_working_trip_remains_readable_and_editable_but_blocks_confirmation(self):
+        initial = self.domain.save_working_trip("trip-setouchi-2027", {"day_instructions": {}})
+        self.domain.edit_trip_item(
+            "edit-after-working", "trip-setouchi-2027", "scheduleItem", "schedule-dinner",
+            {"normal_comment": "確定側の後続変更"},
+        )
+        stale = self.domain.get_working_trip("trip-setouchi-2027")
+        self.assertTrue(stale["stale"])
+        self.assertNotEqual(stale["base_effective_revision"], stale["current_effective_revision"])
+        edited = self.domain.save_working_trip("trip-setouchi-2027", {
+            "day_instructions": {"day-1": "午後を雨想定に組み換え"},
+        })
+        self.assertTrue(edited["stale"])
+        self.assertEqual(edited["base_effective_revision"], initial["base_effective_revision"])
+        with self.assertRaisesRegex(ConflictError, "stale"):
+            self.domain.require_current_working_trip("trip-setouchi-2027")
+        self.domain.clear_working_trip("trip-setouchi-2027")
+        with self.assertRaises(NotFoundError):
+            self.domain.get_working_trip("trip-setouchi-2027")
+
+    def test_working_trip_requires_a_json_object(self):
+        with self.assertRaises(ValidationError):
+            self.domain.save_working_trip("trip-setouchi-2027", [])
+        with self.assertRaises(ValidationError):
+            self.domain.save_working_trip("trip-setouchi-2027", {"invalid": float("nan")})
+
     def test_ordinary_event_crud_and_source_boundary(self):
         created = self.domain.create_event("event-1", title="Meeting", start_date="2027-05-15")
         self.assertEqual(created["title"], "Meeting")

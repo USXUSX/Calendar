@@ -59,7 +59,7 @@ filesystem replaceとSQLite更新の間の停止は一時digest journalで収束
 - Trip旅程のAI生成base: formal Trip JSON
 - ユーザーの旅程への直接指定: SQLite上のactive `Direct Override`
 
-Trip由来Eventを通常のSQLite `Event`として正本化しない。SQLite v1はIssue #50の初期revisionとして保持し、Issue #54の現行complete schemaは`Schemas/calendar-v2.sql`とする。v2はTrip logical version、Instruction base snapshot、generation request queueだけを追加する。実運用DBはまだなくmigration frameworkは導入しない。
+Trip由来Eventを通常のSQLite `Event`として正本化しない。SQLite v1はIssue #50、v2はIssue #54の確定revisionとして保持し、Issue #71の現行complete schemaは`Schemas/calendar-v3.sql`とする。v3はTripごと1行の最新Working状態と作成時effective revisionだけを追加する。実運用DBはまだなくmigration frameworkは導入しない。
 
 3層の役割は維持する。
 

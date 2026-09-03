@@ -77,3 +77,17 @@ route生成、navigation連携はGoal 2で決め、地図用の別正本は作�
 Schema・semantic Validationしてから一transactionでDirect Overrideへ反映し、失敗時は
 何も部分反映しない。保存後はeffective Tripから再表示する。候補判断と局所AI executorは
 直接編集を置き換えず、Phase 4以降でこの同じ意味境界へ接続する。
+
+## Phase 4のWorking Trip保存境界
+
+Working Tripはauthoritative TripやDirect Overrideを書き換えず、SQLite上へTripごと1行の
+JSON objectとして最新状態だけを保存する。初回保存時に、その時点のTrip versionと
+effective TripのSHA-256を`base_effective_revision`として固定する。後続のWorking編集は
+stateだけを置き換え、このrevisionを自動更新しない。
+
+読取時には現在のeffective revisionも計算し、差があれば`stale`を返す。staleでもWorkingの
+表示、読取、上書きは継続できる。将来の確定処理が利用するcurrent要求境界だけはConflictで
+停止し、自動再適用・自動mergeを行わない。
+
+現行の`get_effective_trip`、`get_trip_detail_view`、`edit_trip_item`は変更しない。Phase 4の
+Working編集commandとD案表示への合成は、この保存境界の上に後続Stepで追加する。

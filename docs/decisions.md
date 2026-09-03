@@ -13,6 +13,8 @@
 
 ## Active baseline
 
+- 2026-09-03, Issue #71: Working TripはSQLite v3の`working_trips`へTripごと1行のJSON objectとして最新状態だけを保持する。初回保存時のeffective revision（Trip versionとeffective Trip SHA-256）を固定し、authoritative Tripまたはactive Direct Overrideの後続変更をstaleとして検出する。staleでも表示とWorking編集は継続し、確定処理だけを停止する。自動再適用・自動mergeは行わない。既存`edit_trip_item` / Direct Overrideは確定済み具体値の境界として維持し、Phase 4以降のWorking編集は別commandへ接続する。
+
 - 2026-09-01, Issue #64: The Phase 1 Trip-detail UI is built from a non-persistent display model derived from the effective Trip. Weather and unsent candidate judgments are explicit context, not new Trip or SQLite authority. Concrete edits map to stable-ID Direct Overrides. Target-scoped AI uses the same semantic field boundary and does not enter `generation_requests`. A new Trip is generated and validated as a complete JSON through its own initial-adoption path; JSON Patch plus complete-candidate adoption is only for existing-Trip initialization or large cross-item restructuring. The current Day, PlaceSelection, Place location/address/URL, and Transport endpoint/order contract is map-ready for Goal 2 without a second map authority. Provider, model, credential, and AIG choices remain outside the CAL contract.
 
 - 2026-08-30, Issue #46: CAL is the domain foundation for personal time and plans, centered on `Trip / Event / Todo`. `Task` is not a CAL domain term; it is reserved for the separate Task / TSK tool, whose execution unit is `Job`. A `Todo` may relate to a `Trip` or `Event`.
@@ -45,7 +47,7 @@
 
 - GitHub repository visibility.
 - Production application platform and framework after the read-only prototype.
-- Migration strategy beyond the reproducible SQLite v2 initialization boundary when a real database exists.
+- Migration strategy beyond the reproducible SQLite v3 initialization boundary when a real database exists.
 - FRM-to-CAL adapter/access method over the implemented semantic domain interface.
 - `AI Instruction / Direct Override` candidate consistency, conflict UI, and hard/soft rules beyond the v1 minimum lifecycle.
 - FRM-to-CAL access method and owner read/write contracts.

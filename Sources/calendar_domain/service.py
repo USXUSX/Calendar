@@ -608,6 +608,86 @@ class CalendarDomain:
             raise ValidationError(f"effective Trip is invalid: {errors[0]}")
         return effective
 
+    def _effective_revision(self, trip_id: str) -> dict[str, Any]:
+        effective = self.get_effective_trip(trip_id)
+        with self._read() as connection:
+            version = connection.execute(
+                "SELECT version FROM trips WHERE id = ?", (trip_id,)
+            ).fetchone()["version"]
+        payload = json.dumps(
+            effective, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode("utf-8")
+        return {"trip_version": version, "effective_hash": self._digest(payload)}
+
+    def save_working_trip(self, trip_id: str, state: dict[str, Any]) -> dict[str, Any]:
+        """Replace the latest Working state without rebasing its effective revision."""
+        self._registered_trip(trip_id)
+        if not isinstance(state, dict):
+            raise ValidationError("Working Trip state must be a JSON object")
+        try:
+            state_json = json.dumps(
+                state, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+            )
+        except (TypeError, ValueError) as error:
+            raise ValidationError("Working Trip state must be valid JSON") from error
+        revision = self._effective_revision(trip_id)
+        timestamp = _now()
+        with self._command() as connection:
+            row = connection.execute(
+                "SELECT 1 FROM working_trips WHERE trip_id = ?", (trip_id,)
+            ).fetchone()
+            if row is None:
+                connection.execute(
+                    "INSERT INTO working_trips VALUES (?, ?, ?, ?, ?, ?)",
+                    (trip_id, revision["trip_version"], revision["effective_hash"], state_json,
+                     timestamp, timestamp),
+                )
+            else:
+                connection.execute(
+                    "UPDATE working_trips SET state_json = ?, updated_at = ? WHERE trip_id = ?",
+                    (state_json, timestamp, trip_id),
+                )
+        return self.get_working_trip(trip_id)
+
+    def get_working_trip(self, trip_id: str) -> dict[str, Any]:
+        """Return Working state even when its captured effective revision is stale."""
+        self._registered_trip(trip_id)
+        with self._read() as connection:
+            row = connection.execute(
+                "SELECT * FROM working_trips WHERE trip_id = ?", (trip_id,)
+            ).fetchone()
+        if row is None:
+            raise NotFoundError(f"Working Trip not found: {trip_id}")
+        current = self._effective_revision(trip_id)
+        base = {
+            "trip_version": row["base_trip_version"],
+            "effective_hash": row["base_effective_hash"],
+        }
+        return {
+            "trip_id": trip_id,
+            "state": json.loads(row["state_json"]),
+            "base_effective_revision": base,
+            "current_effective_revision": current,
+            "stale": base != current,
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+        }
+
+    def require_current_working_trip(self, trip_id: str) -> dict[str, Any]:
+        """Confirmation boundary: stale Working state remains editable but cannot proceed."""
+        working = self.get_working_trip(trip_id)
+        if working["stale"]:
+            raise ConflictError("Working Trip is stale against the current effective Trip")
+        return working
+
+    def clear_working_trip(self, trip_id: str) -> None:
+        self._registered_trip(trip_id)
+        with self._command() as connection:
+            if connection.execute(
+                "DELETE FROM working_trips WHERE trip_id = ?", (trip_id,)
+            ).rowcount == 0:
+                raise NotFoundError(f"Working Trip not found: {trip_id}")
+
     def get_trip_detail_view(
         self, trip_id: str, *, candidate_judgments: dict[str, Any] | None = None,
         weather_by_day: dict[str, Any] | None = None,
