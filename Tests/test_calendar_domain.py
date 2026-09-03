@@ -805,6 +805,75 @@ class CalendarDomainTests(unittest.TestCase):
         )
         self.assertEqual(exported["user_intent"]["item_changes"][0]["changes"]["title"], "Working dinner")
 
+    def test_manual_chat_round_trip_adopts_all_working_intent_as_complete_candidate(self):
+        self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "scheduleItem", "schedule-port-breakfast", "changed",
+            {"title": "港でブランチをとる", "start": "10:30"},
+        )
+        self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "transport", "transport-ferry", "pending_delete", {},
+        )
+        self.domain.save_working_trip_temporary_item(
+            "trip-setouchi-2027", "temporary-coffee", "day-2027-05-14",
+            {"title": "港の喫茶店で休憩"}, {
+                "anchor_source_type": "scheduleItem",
+                "anchor_source_item_id": "schedule-port-breakfast", "edge": "after",
+            },
+        )
+        self.domain.save_working_trip_day_instruction(
+            "trip-setouchi-2027", "day-2027-05-14", "船を使わず港周辺でゆっくり過ごす",
+        )
+
+        package = self.domain.export_working_trip_for_chat("trip-setouchi-2027")
+        self.assertFalse(package["working"]["stale"])
+        self.assertEqual(
+            {record["disposition"] for record in package["user_intent"]["item_changes"]},
+            {"changed", "pending_delete"},
+        )
+
+        # Simulate the one complete formal Trip object returned by a manual Chat round trip.
+        candidate = package["effective_trip"]
+        first_day = candidate["days"][0]
+        breakfast = first_day["scheduleItems"][0]
+        breakfast["action"] = "港でブランチをとる"
+        breakfast["time"]["start"] = "10:30"
+        coffee = json.loads(json.dumps(breakfast, ensure_ascii=False))
+        coffee.update({
+            "id": "schedule-harbor-coffee", "order": 20,
+            "action": "港の喫茶店で休憩", "summary": "港周辺でゆっくり休憩する。",
+        })
+        coffee["time"] = {
+            "mode": "undecided", "start": None, "end": None, "durationMinutes": 45,
+        }
+        first_day["scheduleItems"].insert(1, coffee)
+        first_day["title"] = "船を使わず港周辺でゆっくり過ごす"
+        first_day["routeSummary"] = "自宅 → 青凪港周辺"
+        first_day["transportIds"].remove("transport-ferry")
+        candidate["transports"] = [
+            item for item in candidate["transports"] if item["id"] != "transport-ferry"
+        ]
+        candidate["bookings"] = [
+            item for item in candidate["bookings"] if item["id"] != "booking-ferry"
+        ]
+
+        result = self.domain.adopt_working_trip_candidate(
+            package["trip_id"], candidate,
+        )
+
+        self.assertEqual((result["status"], result["version"]), ("adopted", 2))
+        adopted = json.loads(self.trip_path.read_bytes())
+        adopted_day = adopted["days"][0]
+        adopted_ids = [item["id"] for item in adopted_day["scheduleItems"]]
+        self.assertEqual(adopted_day["scheduleItems"][0]["action"], "港でブランチをとる")
+        self.assertEqual(adopted_day["scheduleItems"][0]["time"]["start"], "10:30")
+        self.assertIn("schedule-harbor-coffee", adopted_ids)
+        self.assertEqual(adopted_day["title"], "船を使わず港周辺でゆっくり過ごす")
+        self.assertNotIn("transport-ferry", adopted_day["transportIds"])
+        self.assertNotIn("transport-ferry", {item["id"] for item in adopted["transports"]})
+        self.assertNotIn("booking-ferry", {item["id"] for item in adopted["bookings"]})
+        with self.assertRaises(NotFoundError):
+            self.domain.get_working_trip("trip-setouchi-2027")
+
     def test_chat_export_requires_existing_working_state(self):
         with self.assertRaisesRegex(NotFoundError, "Working Trip not found"):
             self.domain.export_working_trip_for_chat("trip-setouchi-2027")

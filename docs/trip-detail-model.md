@@ -245,3 +245,7 @@ Step 5ではValidation済みcandidateをgenerator-neutralな共通atomic adoptio
 `os.replace`、digest journal、Trip version更新を既存Patch経路と共有し、Working経路だけの成功時状態更新として
 対象Workingをclearする。中断recoveryはcandidateがcurrentならversion更新とWorking clearを完了し、old currentなら
 Workingを保持する。active Direct Overrideと既存Patch経路のInstruction / request state遷移は変更しない。
+Step 6では`export_working_trip_for_chat()`のpackageを出発点に、changed、pending_delete、temporary item、
+day instructionを反映したcomplete formal Trip candidateを手動Chat返却相当として再投入し、同じ
+`adopt_working_trip_candidate()`境界でatomic adoptionとWorking clearまで完了できることを合成データで確認した。
+Chat/API自動送信、AI生成、FRM UIはこの確認へ含めない。
