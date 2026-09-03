@@ -293,3 +293,10 @@ candidateは未信頼JSON objectとして1件だけ保持する。この段階�
 接続せず、既存`generation_requests`のqueue型AI Instruction/Patch経路も変更しない。後続Stepでauto adoptionまたは
 review確定を接続する際も、`require_current_working_trip_generation()`で同じdigestを採用直前に再確認し、不一致なら
 candidateをPhase 5境界へ渡さずConflictとする。Working編集を自動rebaseしない。
+
+Step 4では`run_started_generation()`がcurrentな`generating`行から、開始時に固定した`generation_id`と
+`request_package`をそのままprovider-neutral AIG requestへ組み立て、replaceable transportを1回だけ呼ぶ。
+返却identityの不一致は最新stateを変更せずConflictとし、AIG safe failure、transport failure、malformed resultは
+安全なfailure codeだけを`failed`へ保持する。candidate受領時は同じWorking-content digest gateを再確認してから、
+手動candidateと共有するPhase 5 Schema / semantic / constraint Validationへ渡す。Step 4はcandidateを採用も永続保持も
+せず、`auto`の直結adoptionと`review`の`candidate_ready`保持への分岐はStep 5に残す。

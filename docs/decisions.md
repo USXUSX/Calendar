@@ -2,6 +2,8 @@
 
 ## Historical confirmed decisions
 
+- 2026-09-04, Issue #75 Phase 6 Step 4: CALは開始済みgenerationから固定済み`generation_id`、`trip_id`、Working export packageだけのprovider-neutral requestを作り、replaceableなJSON stdin/stdout transportでAIGを1回呼ぶ。返却identityを照合し、candidate受領時はWorking-content digestを再確認して既存Phase 5 formal Validation境界へ渡す。safe AIG / transport / malformed failureはCALの最新stateへ安全な分類だけを保持し、provider情報やraw errorは保持しない。Step 4ではcandidateを採用・永続保持せず、auto/review分岐はStep 5に残す。
+
 - 2026-09-04, Issue #75 Phase 6 Step 2: generation開始時にAIGへ渡すWorking export packageと、そのcanonical `user_intent`のSHA-256 digestをlatest-only generation行へ固定する。generation結果受領時と後続adoption接続の直前に現在のWorking stateを同じ方法でdigest化して照合し、不一致は自動rebaseせずConflictとしてcandidateを採用経路へ渡さない。
 
 - 2026-09-04, Issue #75 Phase 6 Step 1: Working Trip自動再生成の最初の接続先はAIGとし、CAL→AIGはgeneration identityと既存Working export package、AIG→CALは同じidentityとcomplete candidate 1件だけを運ぶ。CALがTripごとの最新generation state / candidateと`auto / review` policyを所有し、AIGはstateless、FRMは表示・操作のみとする。autoとreviewはいずれもPhase 5のValidation / stale gate / atomic adoptionを通し、失敗時はWorkingを保持する。自動retry、queue、履歴、自動rebase / merge、CAL外正本更新は行わず、手動Chat fallbackを維持する。

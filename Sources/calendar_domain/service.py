@@ -931,6 +931,36 @@ class CalendarDomain:
     ) -> dict[str, Any]:
         """Accept one generator-neutral complete candidate for a Working Trip."""
         self._registered_trip(trip_id)
+        validated_candidate = self._validate_working_trip_candidate(trip_id, candidate)
+        working = self.require_current_working_trip(trip_id)
+        with self._read() as connection:
+            trip = connection.execute(
+                "SELECT version FROM trips WHERE id = ?", (trip_id,),
+            ).fetchone()
+        try:
+            current_hash = self._digest(self._trip_path(trip_id).read_bytes())
+        except OSError as error:
+            raise ValidationError("current Trip JSON cannot be read") from error
+        return self._adopt_candidate_atomically(
+            trip_id, validated_candidate, trip["version"], current_hash,
+            kind="working_trip",
+            working_revision=working["base_effective_revision"],
+        )
+
+    def validate_working_trip_generation_candidate(
+        self, trip_id: str, generation_id: str, candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Recheck the captured Working digest, then reuse Phase 5 formal Validation."""
+        self.require_current_working_trip_generation(
+            trip_id, generation_id, "generating",
+        )
+        return self._validate_working_trip_candidate(trip_id, candidate)
+
+    def _validate_working_trip_candidate(
+        self, trip_id: str, candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Shared pre-adoption boundary for manual and AIG complete candidates."""
+        self._registered_trip(trip_id)
         if not isinstance(candidate, dict):
             raise ValidationError("Working Trip candidate must be a JSON object")
         try:
@@ -947,24 +977,13 @@ class CalendarDomain:
             raise NotFoundError(f"Working Trip not found: {trip_id}")
         if len(rows) != 1:
             raise ConflictError("Working Trip candidate target is not unique")
-        working = self.require_current_working_trip(trip_id)
+        self.require_current_working_trip(trip_id)
         validated_candidate, _ = self._validated_candidate(trip_id, accepted_candidate)
         with self._read() as connection:
             self._validate_adoption_constraints(
                 connection, trip_id, validated_candidate, (),
             )
-            trip = connection.execute(
-                "SELECT version FROM trips WHERE id = ?", (trip_id,),
-            ).fetchone()
-        try:
-            current_hash = self._digest(self._trip_path(trip_id).read_bytes())
-        except OSError as error:
-            raise ValidationError("current Trip JSON cannot be read") from error
-        return self._adopt_candidate_atomically(
-            trip_id, validated_candidate, trip["version"], current_hash,
-            kind="working_trip",
-            working_revision=working["base_effective_revision"],
-        )
+        return validated_candidate
 
     def clear_working_trip(self, trip_id: str) -> None:
         self._registered_trip(trip_id)
