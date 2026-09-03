@@ -36,13 +36,13 @@ CALは、次の3領域を内部機能としては十分に分離しつつ、表�
 | 1. 旅程詳細UIの完成像を確定 | 完了 | 後続実装の判断基準となる情報構成、状態表現、主要操作を決める | 対象端末での表示方針と、閲覧・編集・候補等の入口を一つの完成像として確認できる | 確定要求は `docs/trip-detail-ui.md` に保持し、比較案や細かな調整値を恒久仕様にしない |
 | 2. UIに合わせて旅程データ・表示モデルを整理 | 完了 | Phase 1の完成像を、既存の旅程正本とCAL境界から無理なく表示できるようにする | 画面に必要な情報、状態、関係を表示モデルから取得でき、不足や変換規則が明確になっている | formal Trip JSON、SQLite、effective Tripの正本境界を維持し、UI都合の二重正本や将来向けの過剰な汎用化を作らない |
 | 3. 直接編集を完成 | 完了 | usが具体的な値を編集画面で補正できる実用的な経路を完成する | 予定選択から端末別編集画面、Validation、反映状態の確認まで一つの流れで行える | owner-facing UIはFRMが担い、CALの意味ベースのcommandとDirect Overrideを通す。SQLiteやTrip JSONを画面から直接変更せず、曖昧な変更意図はAI指示と分ける |
-| 4. Working Trip編集基盤 | 現在 | authoritative Tripを壊さず、未確定変更を自由に保持・表示・再編集・出力できるようにする | 既存予定の変更・削除予定化、新規予定の仮追加、day-level指示を最新Working状態として扱い、D案UIとChat向け出力から利用できる | Workingは履歴を積まず、formal Trip完全適合や内容の完全整合を要求しない。authoritative Trip、Direct Override、表示モデルの既存責務を保ち、ケース別commandを増やしすぎない |
-| 5. Working Trip確定フロー | 未着手 | Working状態を正式Tripへ戻す一連の経路を完成する | usがそのまま確定、自動補正、Chat調整を選び、complete TripのValidationとauthoritative採用まで進められる | 判定は強制制御にせず、complete Trip生成・formal Validation・atomic adoptionへ収束させる。Chatとの境界は実運用から調整する |
-| 6. AI接続を実用化 | 未着手 | CAL内で処理できるWorking Tripの確定・補正をAIG/API等へ接続する | 軽微な補正・再構成をAIへ委譲でき、Chat調整が必要な場合の判断材料とpackageを生成できる | provider、model、credentialはCAL coreへ入れない。手動Chat往復から得た契約を優先し、AI契約を先に作り込みすぎない |
+| 4. Working Trip編集基盤 | 完了 | authoritative Tripを壊さず、未確定変更を自由に保持・表示・再編集・出力できるようにする | 既存予定の変更・削除予定化、新規予定の仮追加、day-level指示を最新Working状態として扱い、D案UIとChat向け出力から利用できる | Workingは履歴を積まず、formal Trip完全適合や内容の完全整合を要求しない。authoritative Trip、Direct Override、表示モデルの既存責務を保ち、ケース別commandを増やしすぎない |
+| 5. Working Trip確定フロー | 現在 | Workingを反映したcomplete Trip candidateをCAL内で安全に正式Tripへ戻す | 外部または手動経路から受け取ったcomplete candidateをformal Validationし、staleでないことを確認してauthoritative Tripへatomic adoptionできる | CALはcandidate受入れ、Schema・semantic Validation、captured revisionに対するstale確認、all-or-nothingのadoptionを所有する。candidate生成・再構成の自動化はPhase 6とし、CAL外の旅行計画正本更新は当面手運用でCAL責務に含めない |
+| 6. AI接続を実用化 | 未着手 | Workingからcomplete Trip candidateを生成・再構成する処理をAIG/API等へ接続する | 軽微な補正・全体再構成をAIへ委譲し、Phase 5の受入れ境界へcomplete candidateを渡せる | provider、model、credentialはCAL coreへ入れない。手動Chat往復から得た契約を優先し、CAL外の旅行計画正本更新は自動化対象に含めない |
 | 7. 候補・特殊ケースを実利用で整理 | 未着手 | Working Trip方式で候補や複数予定変更等をどこまで自然に扱えるか確認する | 候補追加・判断・選定、複数予定変更、別行動等で既存Working編集に不足するものだけが明確になる | 専用機能を先回りして増やさず、既存経路で足りる場合は小さく完了してよい |
 | 8. 実利用でUI・運用を仕上げる | 未着手 | 対象端末、Chat往復、自動確定の使い勝手を実利用で仕上げる | iPad mini / iPad、Safari / Chromeで主要経路を継続利用でき、Working状態表示や確認導線の支障が取り除かれている | font、余白、icon等は実利用から調整し、Review Handoffを含む確認導線を確認する。全ケース対応を完了条件にしない |
 
-### 現在のPhase 4: Working Trip編集基盤
+### 完了したPhase 4: Working Trip編集基盤
 
 1. **完了（us確認済み）**: Working Tripの保存・合成境界を確定する。
 2. **完了（us確認済み）**: 既存予定の変更・削除予定化をWorkingへ保存する。
@@ -53,7 +53,7 @@ CALは、次の3領域を内部機能としては十分に分離しつつ、表�
 7. **完了（us確認済み）**: Chatへ戻せる確定Trip＋Working状態の出力形式を用意する。
 8. **完了（us確認済み）**: Place enrichmentのCAL責務と最小境界を確定する。provider実装は必要な範囲に限定する。
 9. **完了**: 合成データで変更・削除予定・仮追加・複数予定指示・出力をValidationする。
-10. **現在**: Phase 4を振り返り、Phase 5以降を再確認する。
+10. **完了（us確認済み）**: Phase 4を振り返り、Phase 5以降を再確認する。
 
 完了したPhase 2・3の表示・入力・更新契約は[`trip-detail-model.md`](trip-detail-model.md)に保持する。
 
