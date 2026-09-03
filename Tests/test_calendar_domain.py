@@ -281,6 +281,104 @@ class CalendarDomainTests(unittest.TestCase):
         exported = self.domain.export_working_trip_for_chat("trip-setouchi-2027")
         self.assertTrue(exported["working"]["stale"])
 
+    def test_working_candidate_reuses_formal_validation_without_changing_state(self):
+        self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [], "day_instructions": [],
+        })
+        original_trip = self.trip_path.read_bytes()
+        original_working = self.domain.get_working_trip("trip-setouchi-2027")
+        valid = json.loads(original_trip)
+        invalid_candidates = []
+
+        wrong_id = json.loads(original_trip)
+        wrong_id["id"] = "another-trip"
+        invalid_candidates.append((wrong_id, ValidationError, "id does not match"))
+
+        schema_invalid = json.loads(original_trip)
+        del schema_invalid["title"]
+        invalid_candidates.append((schema_invalid, ValidationError, "invalid"))
+
+        semantic_invalid = json.loads(original_trip)
+        semantic_invalid["transports"][0]["fromPlaceId"] = "missing-place"
+        invalid_candidates.append((semantic_invalid, ValidationError, "unknown endpoint"))
+
+        for candidate, error_type, message in invalid_candidates:
+            with self.subTest(message=message):
+                with self.assertRaisesRegex(error_type, message):
+                    self.domain.adopt_working_trip_candidate(
+                        "trip-setouchi-2027", candidate,
+                    )
+                self.assertEqual(self.trip_path.read_bytes(), original_trip)
+                self.assertEqual(
+                    self.domain.get_working_trip("trip-setouchi-2027"),
+                    original_working,
+                )
+
+        result = self.domain.adopt_working_trip_candidate(
+            "trip-setouchi-2027", valid,
+        )
+        self.assertEqual(result["candidate"], valid)
+        self.assertEqual(self.trip_path.read_bytes(), original_trip)
+        self.assertEqual(
+            self.domain.get_working_trip("trip-setouchi-2027"), original_working,
+        )
+
+    def test_working_candidate_validates_active_overrides_and_todo_item_references(self):
+        self.domain.set_direct_override(
+            "override-1", "trip-setouchi-2027", "schedule-port-breakfast",
+            "/time/start", "09:00",
+        )
+        self.domain.create_todo(
+            "todo-1", label="Keep", trip_id="trip-setouchi-2027",
+            trip_item_id="schedule-dinner",
+        )
+        self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [], "day_instructions": [],
+        })
+        original_trip = self.trip_path.read_bytes()
+        original_working = self.domain.get_working_trip("trip-setouchi-2027")
+
+        valid = json.loads(original_trip)
+        result = self.domain.adopt_working_trip_candidate(
+            "trip-setouchi-2027", valid,
+        )
+        self.assertEqual(result["status"], "accepted")
+        self.assertEqual(
+            self.domain.get_effective_trip("trip-setouchi-2027")["days"][0]
+            ["scheduleItems"][0]["time"]["start"],
+            "09:00",
+        )
+
+        invalid_effective = json.loads(original_trip)
+        breakfast_time = invalid_effective["days"][0]["scheduleItems"][0]["time"]
+        breakfast_time.update({"mode": "undecided", "start": None, "end": None})
+        with self.assertRaisesRegex(ValidationError, "effective Trip is invalid"):
+            self.domain.adopt_working_trip_candidate(
+                "trip-setouchi-2027", invalid_effective,
+            )
+
+        missing_stable_item = json.loads(original_trip)
+        missing_stable_item["days"][0]["scheduleItems"].pop(2)
+        with self.assertRaisesRegex(ConflictError, "referenced by a Todo"):
+            self.domain.adopt_working_trip_candidate(
+                "trip-setouchi-2027", missing_stable_item,
+            )
+
+        missing_override_target = json.loads(original_trip)
+        missing_override_target["days"][0]["scheduleItems"].pop(0)
+        with self.assertRaisesRegex(ConflictError, "active Direct Override"):
+            self.domain.adopt_working_trip_candidate(
+                "trip-setouchi-2027", missing_override_target,
+            )
+
+        self.assertEqual(self.trip_path.read_bytes(), original_trip)
+        self.assertEqual(
+            self.domain.get_working_trip("trip-setouchi-2027"), original_working,
+        )
+        self.assertTrue(
+            self.domain.list_active_direct_overrides("trip-setouchi-2027")[0]["active"]
+        )
+
     def test_working_item_change_upserts_and_preserves_other_envelope_regions(self):
         original = self.trip_path.read_bytes()
         seeded = self.domain.save_working_trip("trip-setouchi-2027", {

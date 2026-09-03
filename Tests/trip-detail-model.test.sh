@@ -34,6 +34,8 @@ grep -F 'candidate file pathや生成元情報は受け取らず' "$contract" >/
 grep -F '`status: accepted`' "$contract" >/dev/null
 grep -F 'captured effective revisionとcurrent effective revisionを比較' "$contract" >/dev/null
 grep -F 'staleでもWorkingの表示・編集・再exportは継続' "$contract" >/dev/null
+grep -F 'active Direct Override適用後のeffective Trip' "$contract" >/dev/null
+grep -F '失敗時もauthoritative TripとWorkingを変更しない' "$contract" >/dev/null
 grep -F '共通のatomic adoption層をgenerator-neutralに分離' "$contract" >/dev/null
 grep -F '採用成功後だけ同じTripのWorking rowを削除' "$contract" >/dev/null
 grep -F 'raw Working envelopeをユーザー意図' "$contract" >/dev/null

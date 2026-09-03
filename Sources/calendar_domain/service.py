@@ -720,10 +720,15 @@ class CalendarDomain:
         if len(rows) != 1:
             raise ConflictError("Working Trip candidate target is not unique")
         self.require_current_working_trip(trip_id)
+        validated_candidate, _ = self._validated_candidate(trip_id, accepted_candidate)
+        with self._read() as connection:
+            self._validate_adoption_constraints(
+                connection, trip_id, validated_candidate, (),
+            )
         return {
             "trip_id": trip_id,
             "status": "accepted",
-            "candidate": accepted_candidate,
+            "candidate": validated_candidate,
         }
 
     def clear_working_trip(self, trip_id: str) -> None:

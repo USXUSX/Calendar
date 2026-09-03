@@ -238,6 +238,8 @@ Phase 5 Step 2では、このcommandの入口としてJSON objectだけをdeep c
 対応するWorking rowがちょうど1件あることを確認する。Step 3では`status: accepted`を返す直前にWorkingの
 captured effective revisionとcurrent effective revisionを比較し、不一致なら自動rebase・自動mergeせず
 Conflictで停止する。staleでもWorkingの表示・編集・再exportは継続できる。candidate file pathや生成元情報は受け取らず、
-candidateは永続化しない。formal Schema・semantic・Trip ID Validation、atomic adoption、version更新、
-Working clearはStep 4以降でこの入口へ接続するため、受入れ成功でもauthoritative TripとWorkingのどちらも
-変更しない。
+candidateは永続化しない。Step 4では既存のcomplete-candidate gateを再利用し、formal Schema、
+semantic / cross-reference、candidate内Trip ID、active Direct Override適用後のeffective Trip、Todoの
+stable item参照を確定前にValidationする。失敗時もauthoritative TripとWorkingを変更しない。
+atomic adoption、version更新、Working clearはStep 5以降でこの入口へ接続するため、Validation成功後も
+authoritative TripとWorkingのどちらも変更しない。
