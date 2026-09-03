@@ -930,6 +930,123 @@ class CalendarDomain:
             weather_by_day=weather_by_day,
         )
 
+    @staticmethod
+    def _working_time_label(time: dict[str, Any]) -> str:
+        if time.get("mode") == "undecided":
+            return "未定"
+        start = time.get("start") or "未定"
+        end = time.get("end")
+        return f"{start}–{end}" if end else start
+
+    @classmethod
+    def _apply_working_entry_changes(cls, entry: dict[str, Any], changes: Any) -> None:
+        if not isinstance(changes, dict):
+            return
+        for field in ("status", "title", "normal_comment"):
+            if field in changes:
+                entry[field] = copy.deepcopy(changes[field])
+        for field in ("start", "end", "time_mode"):
+            if field in changes:
+                entry["time"]["mode" if field == "time_mode" else field] = copy.deepcopy(changes[field])
+        entry["time"]["label"] = cls._working_time_label(entry["time"])
+
+    @classmethod
+    def _working_temporary_entry(cls, record: dict[str, Any]) -> dict[str, Any]:
+        values = record.get("values") if isinstance(record.get("values"), dict) else {}
+        time = {
+            "mode": values.get("time_mode", "undecided"),
+            "start": values.get("start"),
+            "end": values.get("end"),
+            "durationMinutes": None,
+        }
+        time["label"] = cls._working_time_label(time)
+        place_name = values.get("place_name")
+        return {
+            "source_type": "temporaryItem",
+            "source_item_id": record.get("temporary_id"),
+            "order": None,
+            "time": time,
+            "category": "temporary",
+            "category_icon_key": "temporary",
+            "title": values.get("title") or "名称未入力",
+            "places": [{"id": None, "name": place_name, "url": None}] if place_name else [],
+            "status": values.get("status", "undecided"),
+            "has_candidates": False,
+            "candidates": [],
+            "normal_comment": values.get("normal_comment"),
+            "important_comments": [],
+            "supporting_details": [],
+            "direct_edit_paths": {},
+            "ai_local_update_target": None,
+            "working_state": "temporary",
+            "working_values": copy.deepcopy(values),
+            "working_position": copy.deepcopy(record.get("position")),
+        }
+
+    def get_working_trip_detail_view(
+        self, trip_id: str, *, candidate_judgments: dict[str, Any] | None = None,
+        weather_by_day: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Compose effective Trip then overlay latest Working state for display only."""
+        view = self.get_trip_detail_view(
+            trip_id, candidate_judgments=candidate_judgments, weather_by_day=weather_by_day,
+        )
+        try:
+            working = self.get_working_trip(trip_id)
+        except NotFoundError:
+            view["working"] = {"present": False, "stale": False}
+            return view
+
+        state = working["state"]
+        days = {day["day_id"]: day for day in view["days"]}
+        entries = {
+            (entry["source_type"], entry["source_item_id"]): entry
+            for day in view["days"] for entry in day["entries"]
+        }
+        for record in state["item_changes"]:
+            if not isinstance(record, dict):
+                continue
+            entry = entries.get((record.get("source_type"), record.get("source_item_id")))
+            if entry is None or record.get("disposition") not in _WORKING_ITEM_DISPOSITIONS:
+                continue
+            self._apply_working_entry_changes(entry, record.get("changes"))
+            entry["working_state"] = record["disposition"]
+
+        for day in view["days"]:
+            base_entries = day["entries"]
+            ordered: list[dict[str, Any]] = []
+            unresolved: list[dict[str, Any]] = []
+            day_records = [record for record in state["temporary_items"]
+                           if isinstance(record, dict) and record.get("day_id") == day["day_id"]
+                           and isinstance(record.get("position"), dict)]
+            used: set[str] = set()
+            for anchor in base_entries:
+                matches = [record for record in day_records
+                           if record["position"].get("anchor_source_type") == anchor["source_type"]
+                           and record["position"].get("anchor_source_item_id") == anchor["source_item_id"]]
+                for record in matches:
+                    if record["position"].get("edge") == "before":
+                        ordered.append(self._working_temporary_entry(record))
+                        used.add(record.get("temporary_id"))
+                ordered.append(anchor)
+                for record in matches:
+                    if record["position"].get("edge") == "after":
+                        ordered.append(self._working_temporary_entry(record))
+                        used.add(record.get("temporary_id"))
+            for record in day_records:
+                if record.get("temporary_id") not in used:
+                    entry = self._working_temporary_entry(record)
+                    entry["working_position_unresolved"] = True
+                    unresolved.append(entry)
+            day["entries"] = ordered + unresolved
+
+        for record in state["day_instructions"]:
+            if isinstance(record, dict) and record.get("day_id") in days \
+                    and isinstance(record.get("instruction"), str):
+                days[record["day_id"]]["working_instruction"] = record["instruction"]
+        view["working"] = {"present": True, "stale": working["stale"]}
+        return view
+
     def list_events(self, start_date: str, end_date: str) -> list[UnifiedEvent]:
         try:
             range_start = date.fromisoformat(start_date)

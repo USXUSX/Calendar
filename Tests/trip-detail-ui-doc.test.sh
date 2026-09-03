@@ -17,7 +17,8 @@ grep -F '**完了（us確認済み）**: Working Tripの保存・合成境界' "
 grep -F '**完了（us確認済み）**: 既存予定の変更・削除予定化' "$roadmap" >/dev/null
 grep -F '**完了（us確認済み）**: 共通編集sheetを用いた新規予定仮追加' "$roadmap" >/dev/null
 grep -F '**完了（us確認済み）**: 予定上下の `+` から挿入位置' "$roadmap" >/dev/null
-grep -F '**現在**: 日付見出しからday-level指示' "$roadmap" >/dev/null
+grep -F '**完了（us確認済み）**: 日付見出しからday-level指示' "$roadmap" >/dev/null
+grep -F '**現在**: Working状態をD案UIへ合成表示' "$roadmap" >/dev/null
 grep -F '`item_changes`: 既存予定の変更と削除予定' "$model" >/dev/null
 grep -F '`temporary_items`: 新規仮追加' "$model" >/dev/null
 grep -F '`day_instructions`: day-level指示' "$model" >/dev/null

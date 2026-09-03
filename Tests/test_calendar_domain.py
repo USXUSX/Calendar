@@ -432,6 +432,63 @@ class CalendarDomainTests(unittest.TestCase):
         self.assertEqual(cleared["state"]["day_instructions"], [])
         self.assertTrue(cleared["stale"])
 
+    def test_working_trip_detail_composes_effective_then_all_working_display_states(self):
+        original = self.trip_path.read_bytes()
+        self.domain.edit_trip_item(
+            "direct-before-working", "trip-setouchi-2027", "scheduleItem",
+            "schedule-port-breakfast", {"title": "Direct朝食"},
+        )
+        self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "scheduleItem", "schedule-port-breakfast", "changed",
+            {"title": "Working朝食", "start": "07:30"},
+        )
+        self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "transport", "transport-ferry", "pending_delete", {},
+        )
+        self.domain.save_working_trip_temporary_item(
+            "trip-setouchi-2027", "temporary-coffee", "day-2027-05-14",
+            {"title": "珈琲休憩", "status": "tentative", "time_mode": "undecided"}, {
+                "anchor_source_type": "scheduleItem",
+                "anchor_source_item_id": "schedule-port-breakfast", "edge": "after",
+            },
+        )
+        self.domain.save_working_trip_day_instruction(
+            "trip-setouchi-2027", "day-2027-05-14", "午後は雨想定",
+        )
+        composed = self.domain.get_working_trip_detail_view("trip-setouchi-2027")
+        self.assertEqual(composed["working"], {"present": True, "stale": False})
+        self.assertNotIn("state", composed["working"])
+        day = composed["days"][0]
+        self.assertEqual(day["working_instruction"], "午後は雨想定")
+        ids = [entry["source_item_id"] for entry in day["entries"]]
+        breakfast_index = ids.index("schedule-port-breakfast")
+        self.assertEqual(ids[breakfast_index + 1], "temporary-coffee")
+        breakfast = day["entries"][breakfast_index]
+        self.assertEqual((breakfast["title"], breakfast["time"]["label"]), ("Working朝食", "07:30"))
+        self.assertEqual(breakfast["working_state"], "changed")
+        temporary = day["entries"][breakfast_index + 1]
+        self.assertEqual((temporary["title"], temporary["working_state"]), ("珈琲休憩", "temporary"))
+        ferry = next(entry for entry in day["entries"] if entry["source_item_id"] == "transport-ferry")
+        self.assertEqual(ferry["working_state"], "pending_delete")
+        self.assertEqual(self.trip_path.read_bytes(), original)
+
+    def test_working_trip_detail_reports_absent_and_stale_without_confirming(self):
+        plain = self.domain.get_working_trip_detail_view("trip-setouchi-2027")
+        self.assertEqual(plain["working"], {"present": False, "stale": False})
+        self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "scheduleItem", "schedule-dinner", "changed",
+            {"title": "Working dinner"},
+        )
+        self.domain.edit_trip_item(
+            "direct-after-working-view", "trip-setouchi-2027", "scheduleItem",
+            "schedule-port-breakfast", {"normal_comment": "確定側の後続変更"},
+        )
+        composed = self.domain.get_working_trip_detail_view("trip-setouchi-2027")
+        self.assertEqual(composed["working"], {"present": True, "stale": True})
+        dinner = next(entry for day in composed["days"] for entry in day["entries"]
+                      if entry["source_item_id"] == "schedule-dinner")
+        self.assertEqual((dinner["title"], dinner["working_state"]), ("Working dinner", "changed"))
+
     def test_ordinary_event_crud_and_source_boundary(self):
         created = self.domain.create_event("event-1", title="Meeting", start_date="2027-05-15")
         self.assertEqual(created["title"], "Meeting")

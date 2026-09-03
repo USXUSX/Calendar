@@ -150,3 +150,16 @@ Workingの不足状態を許容するためformal Trip schemaは適用しない�
 instructionは前後空白を除いてそのまま保存し、CALやFRMで個別予定へ分解・適用しない。
 AI requestも生成しない。`item_changes`、`temporary_items`、authoritative Trip、Direct
 Override、初回保存時のeffective revisionは変更せず、Step 6のWorking合成表示も行わない。
+
+### Step 6: Working合成表示
+
+`get_working_trip_detail_view`はauthoritative Tripへactive Direct Overrideを適用したeffective
+Tripから既存D案表示モデルを生成し、その後にWorking状態を表示用としてだけ重ねる。
+`item_changes`は対象entryの表示値へ反映して`working_state: changed`、`pending_delete`は
+entryを消さず`working_state: pending_delete`とする。`temporary_items`はpositionのanchor前後へ
+`working_state: temporary`として挿入し、`day_instructions`はdayの`working_instruction`へ
+保持する。top-level `working`はWorking有無と`stale`を返す。
+
+このread modelはraw Working envelopeをconsumerへ渡さず、formal Trip schemaを適用せず、
+authoritative Trip、Direct Override、Working保存内容のいずれも変更しない。正式Tripへの適用、
+確定可否判断、AI処理は別Step / Phaseの責務とする。

@@ -23,6 +23,9 @@ grep -F 'temporary item同士をanchorにする連鎖' "$contract" >/dev/null
 grep -F '`day_instructions`は既存`day_id`' "$contract" >/dev/null
 grep -F '個別予定へ分解・適用しない' "$contract" >/dev/null
 grep -F 'Step 6のWorking合成表示も行わない' "$contract" >/dev/null
+grep -F '`get_working_trip_detail_view`はauthoritative Trip' "$contract" >/dev/null
+grep -F '`working_state: pending_delete`' "$contract" >/dev/null
+grep -F 'raw Working envelopeをconsumerへ渡さず' "$contract" >/dev/null
 grep -F '新規Trip作成はbaseを持たない' "$contract" >/dev/null
 grep -F 'map-readinessを満たす' "$contract" >/dev/null
 grep -F '地図用の別正本は作らない' "$contract" >/dev/null
