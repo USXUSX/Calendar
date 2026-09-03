@@ -31,6 +31,7 @@ synthetic Trip root. It covers unified ordinary/Trip Events and source-qualified
 identities, effective Trip composition without JSON writes, invalid Overrides,
 latest-only Working state, existing-item change/deletion, manually entered temporary-item positioning, opaque day-instruction upsert and clearing, Working-aware D-plan composition, effective-revision staleness and confirmation blocking,
 generator-neutral complete-candidate object acceptance without file-path or authority changes,
+captured-versus-current effective-revision rejection while stale Working remains viewable, editable, and exportable,
 ordinary Event and Todo CRUD, Todo completion, AI Instruction cancellation,
 Trip registration, explicit storage paths, and transactional rollback.
 

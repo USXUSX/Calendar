@@ -45,8 +45,8 @@ CALは、次の3領域を内部機能としては十分に分離しつつ、表�
 ### 現在のPhase 5: Working Trip確定フロー
 
 1. **完了（us確認済み）**: candidate受入れ・確定境界を確定する。
-2. **完了**: complete candidate受入れを実装する。
-3. stale確認を確定ゲートへ接続する。
+2. **完了（us確認済み）**: complete candidate受入れを実装する。
+3. **完了**: stale確認を確定ゲートへ接続する。
 4. formal Validationを確定する。
 5. atomic adoptionとWorking後始末を実装する。
 6. Chat手動往復の受入れを合成データで確認する。

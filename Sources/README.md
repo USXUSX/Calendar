@@ -17,10 +17,12 @@ manage SQLite tables, file paths, complete candidates, atomic replacement, or
 the private recovery journal.
 
 Working confirmation accepts a generator-neutral complete candidate JSON object
-through `adopt_working_trip_candidate(trip_id, candidate)`. Phase 5 Step 2 only
-confirms that the registered Trip has one Working target and returns an accepted
-deep copy; it does not accept a candidate file path, persist the candidate, or
-change the authoritative Trip or Working state.
+through `adopt_working_trip_candidate(trip_id, candidate)`. The command confirms
+that the registered Trip has one Working target and, immediately before accepting
+the candidate, requires its captured effective revision to equal the current
+effective revision. A stale target raises Conflict without automatic rebase or
+merge. It does not accept a candidate file path, formally validate or persist the
+candidate, or change the authoritative Trip or Working state.
 
 `calendar_worker.py` is the CAL-owned one-shot execution boundary. It recovers
 interrupted adoptions, claims at most one request, invokes a replaceable

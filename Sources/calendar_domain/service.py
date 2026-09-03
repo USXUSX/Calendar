@@ -719,6 +719,7 @@ class CalendarDomain:
             raise NotFoundError(f"Working Trip not found: {trip_id}")
         if len(rows) != 1:
             raise ConflictError("Working Trip candidate target is not unique")
+        self.require_current_working_trip(trip_id)
         return {
             "trip_id": trip_id,
             "status": "accepted",

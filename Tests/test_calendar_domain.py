@@ -251,6 +251,36 @@ class CalendarDomainTests(unittest.TestCase):
         with self.assertRaises(NotFoundError):
             self.domain.adopt_working_trip_candidate("trip-setouchi-2027", candidate)
 
+    def test_working_candidate_rejects_stale_without_changing_or_blocking_working(self):
+        original = self.trip_path.read_bytes()
+        initial = self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [],
+            "day_instructions": [{"day_id": "day-2027-05-14", "instruction": "雨天想定"}],
+        })
+        self.domain.edit_trip_item(
+            "edit-after-working-candidate", "trip-setouchi-2027", "scheduleItem",
+            "schedule-dinner", {"normal_comment": "確定側の後続変更"},
+        )
+        candidate = json.loads(original)
+
+        with self.assertRaisesRegex(ConflictError, "stale"):
+            self.domain.adopt_working_trip_candidate("trip-setouchi-2027", candidate)
+
+        self.assertEqual(self.trip_path.read_bytes(), original)
+        working = self.domain.get_working_trip("trip-setouchi-2027")
+        self.assertTrue(working["stale"])
+        self.assertEqual(working["base_effective_revision"], initial["base_effective_revision"])
+        self.assertEqual(
+            self.domain.get_working_trip_detail_view("trip-setouchi-2027")["working"],
+            {"present": True, "stale": True},
+        )
+        edited = self.domain.save_working_trip_day_instruction(
+            "trip-setouchi-2027", "day-2027-05-14", "雨天想定を強める",
+        )
+        self.assertTrue(edited["stale"])
+        exported = self.domain.export_working_trip_for_chat("trip-setouchi-2027")
+        self.assertTrue(exported["working"]["stale"])
+
     def test_working_item_change_upserts_and_preserves_other_envelope_regions(self):
         original = self.trip_path.read_bytes()
         seeded = self.domain.save_working_trip("trip-setouchi-2027", {
