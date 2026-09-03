@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from Sources.aig_trip_generation import command_transport, run_started_generation
-from Sources.calendar_domain import CalendarDomain, ConflictError, ValidationError
+from Sources.calendar_domain import CalendarDomain, ConflictError
 from scripts.init_calendar_db import initialize
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -60,23 +60,41 @@ class AIGTripGenerationTests(unittest.TestCase):
 
     def test_rechecks_digest_before_candidate_enters_phase_5_validation(self):
         candidate = json.loads(self.trip_path.read_bytes())
-        self.domain.save_working_trip_day_instruction(
-            TRIP_ID, candidate["days"][0]["id"], "changed after AIG request",
-        )
-        with self.assertRaisesRegex(ConflictError, "content does not match"):
-            run_started_generation(self.domain, TRIP_ID, "generation-1", lambda _: {
+
+        def transport(_):
+            self.domain.save_working_trip_day_instruction(
+                TRIP_ID, candidate["days"][0]["id"], "changed after AIG request",
+            )
+            return {
                 "generation_id": "generation-1", "trip_id": TRIP_ID,
                 "status": "succeeded", "candidate": candidate,
-            })
+            }
+
+        result = run_started_generation(
+            self.domain, TRIP_ID, "generation-1", transport,
+        )
+        self.assertEqual((result["status"], result["failure_code"]),
+                         ("failed", "obsolete_working"))
+        replacement = self.domain.start_working_trip_generation(
+            TRIP_ID, "generation-2", "auto",
+        )
+        self.assertEqual((replacement["generation_id"], replacement["state"]),
+                         ("generation-2", "generating"))
 
     def test_phase_5_validation_rejects_invalid_candidate(self):
         candidate = json.loads(self.trip_path.read_bytes())
         candidate["days"][0]["transportIds"] = ["missing-transport"]
-        with self.assertRaises(ValidationError):
-            run_started_generation(self.domain, TRIP_ID, "generation-1", lambda _: {
-                "generation_id": "generation-1", "trip_id": TRIP_ID,
-                "status": "succeeded", "candidate": candidate,
-            })
+        result = run_started_generation(self.domain, TRIP_ID, "generation-1", lambda _: {
+            "generation_id": "generation-1", "trip_id": TRIP_ID,
+            "status": "succeeded", "candidate": candidate,
+        })
+        self.assertEqual((result["status"], result["failure_code"]),
+                         ("failed", "invalid_candidate"))
+        replacement = self.domain.start_working_trip_generation(
+            TRIP_ID, "generation-2", "review",
+        )
+        self.assertEqual((replacement["generation_id"], replacement["state"]),
+                         ("generation-2", "generating"))
 
     def test_safe_failure_and_transport_failure_enter_failed_state_once(self):
         result = run_started_generation(self.domain, TRIP_ID, "generation-1", lambda _: {

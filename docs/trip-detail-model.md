@@ -287,8 +287,9 @@ Calendar_Local migration、provider選択UI、常駐workflowはこの境界に�
 Step 2のCAL semantic/storage境界は`working_trip_generations`をWorking Trip用の独立した最新1行として使う。
 `get_working_trip_generation()`は行がない場合に永続的な`idle`を作らず`idle` read modelを返す。
 `start_working_trip_generation()`はcurrentなWorkingがある場合だけ開始し、既存の`generating`を上書きしない。
-`store_working_trip_generation_candidate()`と`fail_working_trip_generation()`は最新の`generation_id`と開始時に
-capturedしたWorking effective revisionとWorking content digestが一致する場合だけ終端状態へ進める。前者は`review` policyだけが利用し、
+`store_working_trip_generation_candidate()`は最新の`generation_id`と開始時にcapturedしたWorking effective revision、
+Working content digestが一致する場合だけ`candidate_ready`へ進める。`fail_working_trip_generation()`は最新identityの
+`generating`だけを`failed`へ終端し、Working変更でdigestが不一致になった場合にも旧generationを再実行可能な終端へ移す。前者は`review` policyだけが利用し、
 candidateは未信頼JSON objectとして1件だけ保持する。この段階ではAIG呼出し、formal Validation、adoption、FRMを
 接続せず、既存`generation_requests`のqueue型AI Instruction/Patch経路も変更しない。後続Stepでauto adoptionまたは
 review確定を接続する際も、`require_current_working_trip_generation()`で同じdigestを採用直前に再確認し、不一致なら
@@ -298,5 +299,8 @@ Step 4では`run_started_generation()`がcurrentな`generating`行から、開�
 `request_package`をそのままprovider-neutral AIG requestへ組み立て、replaceable transportを1回だけ呼ぶ。
 返却identityの不一致は最新stateを変更せずConflictとし、AIG safe failure、transport failure、malformed resultは
 安全なfailure codeだけを`failed`へ保持する。candidate受領時は同じWorking-content digest gateを再確認してから、
-手動candidateと共有するPhase 5 Schema / semantic / constraint Validationへ渡す。Step 4はcandidateを採用も永続保持も
-せず、`auto`の直結adoptionと`review`の`candidate_ready`保持への分岐はStep 5に残す。
+手動candidateと共有するPhase 5 Schema / semantic / constraint Validationへ渡す。Validation失敗は
+`invalid_candidate`、開始後のWorking変更は`obsolete_working`としてraw Validation/provider情報を残さず
+`failed`へ終端する。旧generationのcandidateは拒否し、変更後Workingから新しいgenerationを手動開始できるが、
+自動rebaseや自動retryは行わない。Step 4はcandidateを採用も永続保持もせず、`auto`の直結adoptionと
+`review`の`candidate_ready`保持への分岐はStep 5に残す。

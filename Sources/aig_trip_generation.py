@@ -67,7 +67,10 @@ def receive_aig_result(
     domain: CalendarDomain, trip_id: str, generation_id: str, result: Any,
 ) -> dict[str, Any]:
     """Accept one AIG result without deciding the Step 5 auto/review policy."""
-    domain.require_current_working_trip_generation(trip_id, generation_id, "generating")
+    try:
+        domain.require_current_working_trip_generation(trip_id, generation_id, "generating")
+    except ConflictError:
+        return _fail(domain, trip_id, generation_id, "obsolete_working")
     if not isinstance(result, dict):
         return _fail(domain, trip_id, generation_id, "invalid_result")
 
@@ -88,9 +91,14 @@ def receive_aig_result(
     } or not isinstance(result.get("candidate"), dict):
         return _fail(domain, trip_id, generation_id, "invalid_result")
 
-    candidate = domain.validate_working_trip_generation_candidate(
-        trip_id, generation_id, result["candidate"],
-    )
+    try:
+        candidate = domain.validate_working_trip_generation_candidate(
+            trip_id, generation_id, result["candidate"],
+        )
+    except ValidationError:
+        return _fail(domain, trip_id, generation_id, "invalid_candidate")
+    except ConflictError:
+        return _fail(domain, trip_id, generation_id, "obsolete_working")
     return {
         "status": "candidate_received",
         "generation_id": generation_id,
@@ -103,7 +111,10 @@ def run_started_generation(
     domain: CalendarDomain, trip_id: str, generation_id: str, transport: AIGTransport,
 ) -> dict[str, Any]:
     """Send one frozen request once and accept one stateless AIG result."""
-    request = request_for_started_generation(domain, trip_id, generation_id)
+    try:
+        request = request_for_started_generation(domain, trip_id, generation_id)
+    except ConflictError:
+        return _fail(domain, trip_id, generation_id, "obsolete_working")
     try:
         result = transport(request)
     except Exception:

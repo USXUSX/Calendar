@@ -884,16 +884,23 @@ class CalendarDomain:
     def fail_working_trip_generation(
         self, trip_id: str, generation_id: str, failure_code: str,
     ) -> dict[str, Any]:
-        """Record a safe failure classification without retrying or retaining history."""
+        """Record a safe failure classification without retrying or retaining history.
+
+        Failure terminalization intentionally does not require the captured Working
+        digest to remain current: a changed Working makes the old generation obsolete,
+        and failed must still free the latest-only slot for a manual replacement.
+        """
         self._require_text(failure_code, "failure_code")
         self._transition_working_trip_generation(
             trip_id, generation_id, "failed", failure_code=failure_code,
+            require_matching_working=False,
         )
         return self.get_working_trip_generation(trip_id)
 
     def _transition_working_trip_generation(
         self, trip_id: str, generation_id: str, state: str, *,
         candidate_json: str | None = None, failure_code: str | None = None,
+        require_matching_working: bool = True,
     ) -> None:
         self._registered_trip(trip_id)
         self._require_text(generation_id, "generation_id")
@@ -914,11 +921,11 @@ class CalendarDomain:
                 "SELECT base_trip_version, base_effective_hash, state_json FROM working_trips WHERE trip_id = ?",
                 (trip_id,),
             ).fetchone()
-            if working is None or (
+            if require_matching_working and (working is None or (
                 working["base_trip_version"], working["base_effective_hash"]
             ) != (row["base_trip_version"], row["base_effective_hash"]) or self._digest(
                 self._canonical_json(json.loads(working["state_json"]))
-            ) != row["working_state_digest"]:
+            ) != row["working_state_digest"]):
                 raise ConflictError("Working Trip generation content does not match")
             connection.execute(
                 "UPDATE working_trip_generations SET state = ?, candidate_json = ?, failure_code = ?, updated_at = ? "
