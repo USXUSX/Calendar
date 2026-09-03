@@ -237,7 +237,7 @@ Workingの双方を変更しない。
 Phase 5 Step 2では、このcommandの入口としてJSON objectだけをdeep copyして受け取り、登録済みTripに
 対応するWorking rowがちょうど1件あることを確認する。Step 3では`status: accepted`を返す直前にWorkingの
 captured effective revisionとcurrent effective revisionを比較し、不一致なら自動rebase・自動mergeせず
-Conflictで停止する。staleでもWorkingの表示・編集・再exportは継続できる。candidate file pathや生成元情報は
-受け取らず、candidateは永続化しない。formal Schema・semantic・Trip ID Validation、atomic adoption、version更新、
+Conflictで停止する。staleでもWorkingの表示・編集・再exportは継続できる。candidate file pathや生成元情報は受け取らず、
+candidateは永続化しない。formal Schema・semantic・Trip ID Validation、atomic adoption、version更新、
 Working clearはStep 4以降でこの入口へ接続するため、受入れ成功でもauthoritative TripとWorkingのどちらも
 変更しない。
