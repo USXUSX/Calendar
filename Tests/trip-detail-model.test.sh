@@ -31,6 +31,11 @@ grep -F 'Workingをstale化しない' "$contract" >/dev/null
 grep -F '`export_working_trip_for_chat`' "$contract" >/dev/null
 grep -F 'raw Working envelopeをユーザー意図' "$contract" >/dev/null
 grep -F 'formal complete Trip JSON object 1個だけ' "$contract" >/dev/null
+grep -F '### Step 8: Place enrichment' "$contract" >/dev/null
+grep -F '場所名だけを引き続き許容' "$contract" >/dev/null
+grep -F 'provider-neutralな要求' "$contract" >/dev/null
+grep -F '同名候補を自動採用したりしない' "$contract" >/dev/null
+grep -F '外部Place IDが永続的に必要だと確認された場合だけ' "$contract" >/dev/null
 grep -F 'provider/API接続' "$contract" >/dev/null
 grep -F '新規Trip作成はbaseを持たない' "$contract" >/dev/null
 grep -F 'map-readinessを満たす' "$contract" >/dev/null

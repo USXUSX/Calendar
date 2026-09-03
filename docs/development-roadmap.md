@@ -50,9 +50,9 @@ CALは、次の3領域を内部機能としては十分に分離しつつ、表�
 4. **完了（us確認済み）**: 予定上下の `+` から挿入位置を指定できるようにする。
 5. **完了（us確認済み）**: 日付見出しからday-level指示をWorkingへ登録できるようにする。
 6. **完了（us確認済み）**: Working状態をD案UIへ合成表示する。
-7. **現在**: Chatへ戻せる確定Trip＋Working状態の出力形式を用意する。
-8. Place enrichmentのCAL責務と最小境界を確定する。provider実装は必要な範囲に限定する。
-9. 合成データで変更・削除予定・仮追加・複数予定指示・出力をValidationする。
+7. **完了（us確認済み）**: Chatへ戻せる確定Trip＋Working状態の出力形式を用意する。
+8. **完了**: Place enrichmentのCAL責務と最小境界を確定する。provider実装は必要な範囲に限定する。
+9. **現在**: 合成データで変更・削除予定・仮追加・複数予定指示・出力をValidationする。
 10. Phase 4を振り返り、Phase 5以降を再確認する。
 
 完了したPhase 2・3の表示・入力・更新契約は[`trip-detail-model.md`](trip-detail-model.md)に保持する。

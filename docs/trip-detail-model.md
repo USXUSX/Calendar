@@ -186,3 +186,23 @@ CAL側で自動rebase、自動merge、正式Tripへの適用・Validation・採�
 この境界はJSON objectを返すだけで、provider/API接続、Chatへの自動送信、model/credential、保存先、
 正式Trip確定処理、Place enrichmentを持たない。Workingが存在しないTripは、推測した空のユーザー意図を
 生成せずNot Foundとする。
+
+### Step 8: Place enrichment
+
+Place enrichmentは、usまたはAIが入力した場所名を置き換える生成処理ではなく、CALが既存の
+場所入力を手掛かりに機械的な補完候補を得て、Tripで再利用できる形へ検証する責務とする。
+対象は、effective Tripのstable `place_id`を持つPlace、またはWorking temporary itemのstable
+`temporary_id`と非空の`place_name`で識別する。Workingへの保存時は場所名だけを引き続き許容し、
+enrichmentの未実施、候補なし、取得失敗を保存・表示の失敗にしない。
+
+CALの最小semantic境界は、対象identity、入力済みの名前、利用可能な住所等の検索hintを渡す
+provider-neutralな要求と、その対象に対する`address`、`location`、`urls`の補完候補を返す結果である。
+CALは型、緯度経度範囲、HTTPS URL、要求した対象identityとの一致を検証する。provider固有request、
+credential、課金、rate limit、cache、外部Place IDはこのsemantic契約およびTrip schemaへ入れない。
+外部Place IDが永続的に必要だと確認された場合だけ、providerとの寿命や移行を別Issueで決める。
+
+補完結果は候補であり、名前だけで同一Placeと断定したり、同名候補を自動採用したりしない。
+一意に扱えない結果は候補のままusまたは後続フローへ返す。採用時も新しい地図用正本は作らず、
+existing Placeならformal Placeの同じ`address / location / urls`へ、temporary itemならPhase 5のcomplete
+Trip生成時に作るstable Placeへ収束させる。既存の非空値を暗黙に上書きせず、authoritative Tripや
+Direct OverrideをこのStepで変更しない。provider/API接続、実行Job、UI、正式採用は未実装とする。
