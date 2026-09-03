@@ -520,6 +520,83 @@ class CalendarDomainTests(unittest.TestCase):
                       if entry["source_item_id"] == "schedule-dinner")
         self.assertEqual((dinner["title"], dinner["working_state"]), ("Working dinner", "changed"))
 
+    def test_chat_export_contains_complete_sources_revision_and_user_intent(self):
+        original = self.trip_path.read_bytes()
+        self.domain.edit_trip_item(
+            "direct-before-chat-export", "trip-setouchi-2027", "scheduleItem",
+            "schedule-port-breakfast", {"title": "Direct breakfast"},
+        )
+        self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "transport", "transport-ferry", "pending_delete", {},
+        )
+        self.domain.save_working_trip_temporary_item(
+            "trip-setouchi-2027", "temporary-coffee", "day-2027-05-14",
+            {"title": "Coffee"}, {
+                "anchor_source_type": "scheduleItem",
+                "anchor_source_item_id": "schedule-port-breakfast", "edge": "after",
+            },
+        )
+        self.domain.save_working_trip_day_instruction(
+            "trip-setouchi-2027", "day-2027-05-14", "Keep the afternoon indoors",
+        )
+
+        exported = self.domain.export_working_trip_for_chat("trip-setouchi-2027")
+
+        self.assertEqual(set(exported), {
+            "format", "task", "trip_id", "authoritative_trip", "effective_trip",
+            "working", "user_intent",
+        })
+        self.assertEqual(exported["format"], "cal.complete-trip-regeneration.v1")
+        self.assertEqual(exported["trip_id"], "trip-setouchi-2027")
+        self.assertEqual(exported["authoritative_trip"]["id"], "trip-setouchi-2027")
+        authoritative_breakfast = next(
+            item for day in exported["authoritative_trip"]["days"]
+            for item in day["scheduleItems"] if item["id"] == "schedule-port-breakfast"
+        )
+        effective_breakfast = next(
+            item for day in exported["effective_trip"]["days"]
+            for item in day["scheduleItems"] if item["id"] == "schedule-port-breakfast"
+        )
+        self.assertNotEqual(authoritative_breakfast["action"], "Direct breakfast")
+        self.assertEqual(effective_breakfast["action"], "Direct breakfast")
+        self.assertFalse(exported["working"]["stale"])
+        self.assertEqual(
+            exported["working"]["base_effective_revision"],
+            exported["working"]["current_effective_revision"],
+        )
+        self.assertEqual(exported["user_intent"]["item_changes"][0]["disposition"], "pending_delete")
+        self.assertEqual(exported["user_intent"]["temporary_items"][0]["temporary_id"], "temporary-coffee")
+        self.assertEqual(
+            exported["user_intent"]["day_instructions"][0]["instruction"],
+            "Keep the afternoon indoors",
+        )
+        self.assertIn("One complete formal CAL Trip JSON object only.", exported["task"]["required_output"])
+        self.assertEqual(self.trip_path.read_bytes(), original)
+
+    def test_chat_export_reports_stale_without_rebasing_or_confirming(self):
+        created = self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "scheduleItem", "schedule-dinner", "changed",
+            {"title": "Working dinner"},
+        )
+        self.domain.edit_trip_item(
+            "direct-after-chat-export-base", "trip-setouchi-2027", "scheduleItem",
+            "schedule-port-breakfast", {"normal_comment": "New confirmed context"},
+        )
+
+        exported = self.domain.export_working_trip_for_chat("trip-setouchi-2027")
+
+        self.assertTrue(exported["working"]["stale"])
+        self.assertEqual(exported["working"]["base_effective_revision"], created["base_effective_revision"])
+        self.assertNotEqual(
+            exported["working"]["base_effective_revision"],
+            exported["working"]["current_effective_revision"],
+        )
+        self.assertEqual(exported["user_intent"]["item_changes"][0]["changes"]["title"], "Working dinner")
+
+    def test_chat_export_requires_existing_working_state(self):
+        with self.assertRaisesRegex(NotFoundError, "Working Trip not found"):
+            self.domain.export_working_trip_for_chat("trip-setouchi-2027")
+
     def test_ordinary_event_crud_and_source_boundary(self):
         created = self.domain.create_event("event-1", title="Meeting", start_date="2027-05-15")
         self.assertEqual(created["title"], "Meeting")

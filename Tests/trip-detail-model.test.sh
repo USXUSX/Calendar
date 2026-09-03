@@ -28,6 +28,10 @@ grep -F '`working_state: pending_delete`' "$contract" >/dev/null
 grep -F 'raw Working envelopeをconsumerへ渡さず' "$contract" >/dev/null
 grep -F 'D案UIからの既存予定編集は`save_working_trip_item_change`' "$contract" >/dev/null
 grep -F 'Workingをstale化しない' "$contract" >/dev/null
+grep -F '`export_working_trip_for_chat`' "$contract" >/dev/null
+grep -F 'raw Working envelopeをユーザー意図' "$contract" >/dev/null
+grep -F 'formal complete Trip JSON object 1個だけ' "$contract" >/dev/null
+grep -F 'provider/API接続' "$contract" >/dev/null
 grep -F '新規Trip作成はbaseを持たない' "$contract" >/dev/null
 grep -F 'map-readinessを満たす' "$contract" >/dev/null
 grep -F '地図用の別正本は作らない' "$contract" >/dev/null

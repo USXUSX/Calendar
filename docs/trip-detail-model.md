@@ -168,3 +168,21 @@ D案UIからの既存予定編集は`save_working_trip_item_change`へ接続し�
 削除予定化を`pending_delete`として保存し、解除時は`clear_working_trip_item_change`を使う。
 Phase 3の`edit_trip_item` / Direct Override境界は維持するが、このWorking編集フローからは呼ばない。
 したがってWorking編集だけではeffective revisionやDirect Overrideは変わらず、Workingをstale化しない。
+
+### Step 7: 手動Chat向けcomplete Trip再生成export
+
+`export_working_trip_for_chat`は、手動でChatへ戻して全体整合を取り直すためのCAL semantic
+packageを返す。top-levelはformat、task、trip ID、完全なauthoritative Trip、完全なeffective
+Trip、Workingのbase/current effective revisionとstale、raw Working envelopeをユーザー意図として
+保持する`user_intent`だけとする。画面用のWorking合成モデルは再生成入力にせず、Direct Overrideを
+反映したeffective Tripを保存優先の出発点として明示する。
+
+taskは、既存effectiveデータをユーザー意図が要求しない限り維持し、changed、pending_delete、
+temporary item、day instructionを旅行全体で整合させ、retained dataのstable IDと内部参照を維持した
+formal complete Trip JSON object 1個だけを返すよう求める。Patch、部分Trip、説明、採用指示は出力対象に
+しない。staleでもexportは可能とし、Chatがauthoritative/effectiveとrevision差を確認できるようにするが、
+CAL側で自動rebase、自動merge、正式Tripへの適用・Validation・採用は行わない。
+
+この境界はJSON objectを返すだけで、provider/API接続、Chatへの自動送信、model/credential、保存先、
+正式Trip確定処理、Place enrichmentを持たない。Workingが存在しないTripは、推測した空のユーザー意図を
+生成せずNot Foundとする。

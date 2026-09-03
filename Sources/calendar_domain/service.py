@@ -1047,6 +1047,34 @@ class CalendarDomain:
         view["working"] = {"present": True, "stale": working["stale"]}
         return view
 
+    def export_working_trip_for_chat(self, trip_id: str) -> dict[str, Any]:
+        """Return the minimal CAL semantic package for manual complete-Trip regeneration."""
+        authoritative = self._load_trip(trip_id)
+        effective = self.get_effective_trip(trip_id)
+        working = self.get_working_trip(trip_id)
+        return {
+            "format": "cal.complete-trip-regeneration.v1",
+            "task": {
+                "intent": "Reconcile the effective Trip with all user Working intent.",
+                "required_output": "One complete formal CAL Trip JSON object only.",
+                "rules": [
+                    "Preserve existing effective Trip data unless user intent requires a change.",
+                    "Apply changed items, remove pending_delete items, turn temporary items into formal items, and reconcile day instructions across the complete Trip.",
+                    "Keep stable IDs for retained data and produce internally consistent references.",
+                    "Do not return a patch, partial Trip, explanation, or CAL adoption instruction.",
+                ],
+            },
+            "trip_id": trip_id,
+            "authoritative_trip": authoritative,
+            "effective_trip": effective,
+            "working": {
+                "base_effective_revision": copy.deepcopy(working["base_effective_revision"]),
+                "current_effective_revision": copy.deepcopy(working["current_effective_revision"]),
+                "stale": working["stale"],
+            },
+            "user_intent": copy.deepcopy(working["state"]),
+        }
+
     def list_events(self, start_date: str, end_date: str) -> list[UnifiedEvent]:
         try:
             range_start = date.fromisoformat(start_date)
