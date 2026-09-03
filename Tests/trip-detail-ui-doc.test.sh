@@ -20,8 +20,9 @@ grep -F '**完了（us確認済み）**: 予定上下の `+` から挿入位置'
 grep -F '**完了（us確認済み）**: 日付見出しからday-level指示' "$roadmap" >/dev/null
 grep -F '**完了（us確認済み）**: Working状態をD案UIへ合成表示' "$roadmap" >/dev/null
 grep -F '**完了（us確認済み）**: Chatへ戻せる確定Trip＋Working状態の出力形式' "$roadmap" >/dev/null
-grep -F '**完了**: Place enrichmentのCAL責務と最小境界' "$roadmap" >/dev/null
-grep -F '**現在**: 合成データで変更・削除予定・仮追加・複数予定指示・出力をValidation' "$roadmap" >/dev/null
+grep -F '**完了（us確認済み）**: Place enrichmentのCAL責務と最小境界' "$roadmap" >/dev/null
+grep -F '**完了**: 合成データで変更・削除予定・仮追加・複数予定指示・出力をValidation' "$roadmap" >/dev/null
+grep -F '**現在**: Phase 4を振り返り、Phase 5以降を再確認' "$roadmap" >/dev/null
 grep -F '`item_changes`: 既存予定の変更と削除予定' "$model" >/dev/null
 grep -F '`temporary_items`: 新規仮追加' "$model" >/dev/null
 grep -F '`day_instructions`: day-level指示' "$model" >/dev/null
