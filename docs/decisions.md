@@ -2,6 +2,8 @@
 
 ## Historical confirmed decisions
 
+- 2026-09-04, Issue #75 Phase 6 Step 2: generation開始時にAIGへ渡すWorking export packageと、そのcanonical `user_intent`のSHA-256 digestをlatest-only generation行へ固定する。generation結果受領時と後続adoption接続の直前に現在のWorking stateを同じ方法でdigest化して照合し、不一致は自動rebaseせずConflictとしてcandidateを採用経路へ渡さない。
+
 - 2026-09-04, Issue #75 Phase 6 Step 1: Working Trip自動再生成の最初の接続先はAIGとし、CAL→AIGはgeneration identityと既存Working export package、AIG→CALは同じidentityとcomplete candidate 1件だけを運ぶ。CALがTripごとの最新generation state / candidateと`auto / review` policyを所有し、AIGはstateless、FRMは表示・操作のみとする。autoとreviewはいずれもPhase 5のValidation / stale gate / atomic adoptionを通し、失敗時はWorkingを保持する。自動retry、queue、履歴、自動rebase / merge、CAL外正本更新は行わず、手動Chat fallbackを維持する。
 
 - 2026-09-03, Issue #73 Phase 5 Step 1: Workingから返ったcomplete candidateの公開semantic commandは`adopt_working_trip_candidate(trip_id, candidate)`とし、candidate生成元やAI request identityを契約へ入れない。Workingのcaptured effective revisionを確定直前に再確認し、既存のSchema・semantic/cross-reference・Trip ID・active Direct Override・Todo参照Validationとsame-filesystem atomic replacement / digest journal recoveryをgenerator-neutralな共通層として再利用する。成功後だけWorkingをclearし、Direct Overrideは維持する。現行Patch pipelineのInstruction/request state遷移は変えない。

@@ -263,7 +263,8 @@ request ID、provider、model、token、cost、raw応答はこのCAL semantic re
 candidateの代わりに失敗として返し、CALは安全なfailure分類だけを保持する。
 
 CALはWorking Tripごとに最新generation 1件だけを所有する。Workingがなければ開始せず、開始時に
-`generation_id`、`policy: auto | review`、既存Working exportのcaptured effective revision、
+`generation_id`、`policy: auto | review`、AIGへ渡す既存Working export package、そのcanonicalな
+`user_intent`のSHA-256 digest、captured effective revision、
 `state: generating`を同じCAL transactionで固定する。activeな`generating`を別要求で上書きせず、
 終端stateに対するusの再実行だけが新しいidentityで最新1件を置き換える。履歴、queue、retry count、
 provider実行情報は保存しない。
@@ -287,6 +288,8 @@ Step 2のCAL semantic/storage境界は`working_trip_generations`をWorking Trip�
 `get_working_trip_generation()`は行がない場合に永続的な`idle`を作らず`idle` read modelを返す。
 `start_working_trip_generation()`はcurrentなWorkingがある場合だけ開始し、既存の`generating`を上書きしない。
 `store_working_trip_generation_candidate()`と`fail_working_trip_generation()`は最新の`generation_id`と開始時に
-capturedしたWorking effective revisionが一致する場合だけ終端状態へ進める。前者は`review` policyだけが利用し、
+capturedしたWorking effective revisionとWorking content digestが一致する場合だけ終端状態へ進める。前者は`review` policyだけが利用し、
 candidateは未信頼JSON objectとして1件だけ保持する。この段階ではAIG呼出し、formal Validation、adoption、FRMを
-接続せず、既存`generation_requests`のqueue型AI Instruction/Patch経路も変更しない。
+接続せず、既存`generation_requests`のqueue型AI Instruction/Patch経路も変更しない。後続Stepでauto adoptionまたは
+review確定を接続する際も、`require_current_working_trip_generation()`で同じdigestを採用直前に再確認し、不一致なら
+candidateをPhase 5境界へ渡さずConflictとする。Working編集を自動rebaseしない。
