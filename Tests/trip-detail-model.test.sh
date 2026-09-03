@@ -13,6 +13,9 @@ grep -F 'generation_requests' "$contract" >/dev/null
 grep -F 'complete candidate Validation' "$contract" >/dev/null
 grep -F 'base_effective_revision' "$contract" >/dev/null
 grep -F '自動再適用・自動mergeを行わない' "$contract" >/dev/null
+grep -F '`disposition`を`changed`または`pending_delete`' "$contract" >/dev/null
+grep -F '通常へ戻す場合はrecordを削除する' "$contract" >/dev/null
+grep -F 'formal Trip schemaを' "$contract" >/dev/null
 grep -F '新規Trip作成はbaseを持たない' "$contract" >/dev/null
 grep -F 'map-readinessを満たす' "$contract" >/dev/null
 grep -F '地図用の別正本は作らない' "$contract" >/dev/null

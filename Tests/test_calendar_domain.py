@@ -226,6 +226,69 @@ class CalendarDomainTests(unittest.TestCase):
                 "day_instructions": [{"value": float("nan")}],
             })
 
+    def test_working_item_change_upserts_and_preserves_other_envelope_regions(self):
+        original = self.trip_path.read_bytes()
+        seeded = self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [],
+            "temporary_items": [{"future": "step-3"}],
+            "day_instructions": [{"future": "step-5"}],
+        })
+        changed = self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "scheduleItem", "schedule-dinner", "changed",
+            {"start": None, "title": "夕食候補を再検討"},
+        )
+        self.assertEqual(changed["state"]["item_changes"], [{
+            "source_type": "scheduleItem", "source_item_id": "schedule-dinner",
+            "disposition": "changed", "changes": {"start": None, "title": "夕食候補を再検討"},
+        }])
+        self.assertEqual(changed["state"]["temporary_items"], [{"future": "step-3"}])
+        self.assertEqual(changed["state"]["day_instructions"], [{"future": "step-5"}])
+        deleted = self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "scheduleItem", "schedule-dinner", "pending_delete", {},
+        )
+        self.assertEqual(len(deleted["state"]["item_changes"]), 1)
+        self.assertEqual(deleted["state"]["item_changes"][0]["disposition"], "pending_delete")
+        self.assertEqual(deleted["base_effective_revision"], seeded["base_effective_revision"])
+        self.assertEqual(self.domain.list_active_direct_overrides("trip-setouchi-2027"), [])
+        self.assertEqual(self.trip_path.read_bytes(), original)
+        cleared = self.domain.clear_working_trip_item_change(
+            "trip-setouchi-2027", "scheduleItem", "schedule-dinner",
+        )
+        self.assertEqual(cleared["state"]["item_changes"], [])
+
+    def test_working_item_change_validates_target_and_step_2_fields_without_formal_trip(self):
+        self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "transport", "transport-ferry", "changed", {"start": None},
+        )
+        for source_type, source_item_id, disposition, changes in (
+            ("place", "place-port", "changed", {"title": "x"}),
+            ("transport", "schedule-dinner", "changed", {"start": "10:00"}),
+            ("scheduleItem", "missing", "changed", {"title": "x"}),
+            ("transport", "transport-ferry", "changed", {"title": "x"}),
+            ("scheduleItem", "schedule-dinner", "normal", {}),
+            ("scheduleItem", "schedule-dinner", "changed", {}),
+        ):
+            with self.subTest(source_type=source_type, source_item_id=source_item_id, disposition=disposition):
+                with self.assertRaises(ValidationError):
+                    self.domain.save_working_trip_item_change(
+                        "trip-setouchi-2027", source_type, source_item_id, disposition, changes,
+                    )
+
+    def test_stale_existing_working_item_change_remains_editable(self):
+        initial = self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "scheduleItem", "schedule-dinner", "changed",
+            {"title": "Working title"},
+        )
+        self.domain.edit_trip_item(
+            "edit-after-working-item", "trip-setouchi-2027", "scheduleItem", "schedule-dinner",
+            {"normal_comment": "確定側の後続変更"},
+        )
+        edited = self.domain.save_working_trip_item_change(
+            "trip-setouchi-2027", "scheduleItem", "schedule-dinner", "pending_delete", {},
+        )
+        self.assertTrue(edited["stale"])
+        self.assertEqual(edited["base_effective_revision"], initial["base_effective_revision"])
+
     def test_ordinary_event_crud_and_source_boundary(self):
         created = self.domain.create_event("event-1", title="Meeting", start_date="2027-05-15")
         self.assertEqual(created["title"], "Meeting")

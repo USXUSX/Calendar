@@ -102,3 +102,17 @@ Working編集commandとD案表示への合成は、この保存境界の上に�
 このenvelopeは格納場所を一貫させるための最小境界であり、Working状態をformal Trip相当の
 厳密schemaで検証しない。top-levelに別keyは追加せず、必要な詳細は上記3領域のrecord内で
 表現する。
+
+### Step 2: 既存予定のWorking変更
+
+`item_changes`は既存`source_type`（`scheduleItem` / `transport`）とstable
+`source_item_id`の組をtargetとし、同じtargetは1 recordへ上書きする。recordは
+`disposition`を`changed`または`pending_delete`とし、`changes`へPhase 3直接編集と同じ
+意味field名の値を保持する。`pending_delete`は表示対象から除去する指示ではなく、確定時に
+削除する予定状態である。通常へ戻す場合はrecordを削除する。
+
+Working変更はtargetの存在と種類、許可field、JSONとしての保存可能性だけを確認する。
+未確定・一時的不整合を許容するため、変更値をeffective Tripへ適用してformal Trip schemaを
+通すことはしない。保存は`item_changes`だけを更新し、`temporary_items`と
+`day_instructions`、初回保存時のeffective revisionを維持する。authoritative TripとDirect
+Overrideは変更しない。既存recordはstale後も上書き・解除でき、確定だけを停止する。

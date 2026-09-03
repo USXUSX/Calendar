@@ -32,6 +32,11 @@ _TODO_FIELDS = {
     "trip_item_id", "visibility",
 }
 _WORKING_STATE_KEYS = {"item_changes", "temporary_items", "day_instructions"}
+_WORKING_ITEM_DISPOSITIONS = {"changed", "pending_delete"}
+_WORKING_ITEM_FIELDS = {
+    "scheduleItem": {"status", "start", "end", "time_mode", "title", "normal_comment"},
+    "transport": {"status", "start", "end", "time_mode"},
+}
 
 
 def _now() -> str:
@@ -697,6 +702,83 @@ class CalendarDomain:
                 "DELETE FROM working_trips WHERE trip_id = ?", (trip_id,)
             ).rowcount == 0:
                 raise NotFoundError(f"Working Trip not found: {trip_id}")
+
+    def save_working_trip_item_change(
+        self, trip_id: str, source_type: str, source_item_id: str,
+        disposition: str, changes: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Upsert one existing-item Working record without changing Trip authority."""
+        if source_type not in _WORKING_ITEM_FIELDS:
+            raise ValidationError("Working item change requires a scheduleItem or transport target")
+        self._require_text(source_item_id, "source_item_id")
+        if disposition not in _WORKING_ITEM_DISPOSITIONS:
+            raise ValidationError("Working item disposition must be changed or pending_delete")
+        if not isinstance(changes, dict):
+            raise ValidationError("Working item changes must be a JSON object")
+        unknown = set(changes) - _WORKING_ITEM_FIELDS[source_type]
+        if unknown:
+            raise ValidationError(f"Working item field is not allowed: {sorted(unknown)[0]}")
+        if disposition == "changed" and not changes:
+            raise ValidationError("changed Working item requires at least one field change")
+        try:
+            json.dumps(changes, ensure_ascii=False, allow_nan=False)
+        except (TypeError, ValueError) as error:
+            raise ValidationError("Working item changes must be valid JSON") from error
+
+        try:
+            working = self.get_working_trip(trip_id)
+            state = working["state"]
+        except NotFoundError:
+            self._registered_trip(trip_id)
+            state = {"item_changes": [], "temporary_items": [], "day_instructions": []}
+        existing = next((
+            record for record in state["item_changes"]
+            if record.get("source_type") == source_type
+            and record.get("source_item_id") == source_item_id
+        ), None)
+        if existing is None:
+            effective = self.get_effective_trip(trip_id)
+            matches = self._item_matches(effective, source_item_id)
+            if len(matches) != 1 or (source_type == "transport") != (
+                matches[0] in effective["transports"]
+            ):
+                raise ValidationError("Working item target type does not match the stable ID")
+        record = {
+            "source_type": source_type,
+            "source_item_id": source_item_id,
+            "disposition": disposition,
+            "changes": copy.deepcopy(changes),
+        }
+        state["item_changes"] = [
+            item for item in state["item_changes"]
+            if not (
+                item.get("source_type") == source_type
+                and item.get("source_item_id") == source_item_id
+            )
+        ]
+        state["item_changes"].append(record)
+        return self.save_working_trip(trip_id, state)
+
+    def clear_working_trip_item_change(
+        self, trip_id: str, source_type: str, source_item_id: str,
+    ) -> dict[str, Any]:
+        """Return one existing item to normal by removing its Working record."""
+        if source_type not in _WORKING_ITEM_FIELDS:
+            raise ValidationError("Working item change requires a scheduleItem or transport target")
+        self._require_text(source_item_id, "source_item_id")
+        working = self.get_working_trip(trip_id)
+        state = working["state"]
+        retained = [
+            item for item in state["item_changes"]
+            if not (
+                item.get("source_type") == source_type
+                and item.get("source_item_id") == source_item_id
+            )
+        ]
+        if len(retained) == len(state["item_changes"]):
+            raise NotFoundError("Working item change not found")
+        state["item_changes"] = retained
+        return self.save_working_trip(trip_id, state)
 
     def get_trip_detail_view(
         self, trip_id: str, *, candidate_judgments: dict[str, Any] | None = None,
