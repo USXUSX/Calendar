@@ -99,12 +99,25 @@ def receive_aig_result(
         return _fail(domain, trip_id, generation_id, "invalid_candidate")
     except ConflictError:
         return _fail(domain, trip_id, generation_id, "obsolete_working")
-    return {
-        "status": "candidate_received",
-        "generation_id": generation_id,
-        "trip_id": trip_id,
-        "candidate": candidate,
-    }
+    generation = domain.get_working_trip_generation(trip_id)
+    if generation["policy"] == "review":
+        ready = domain.store_working_trip_generation_candidate(
+            trip_id, generation_id, candidate,
+        )
+        return {
+            "status": "candidate_ready",
+            "generation_id": generation_id,
+            "trip_id": trip_id,
+            "candidate": ready["candidate"],
+        }
+    try:
+        return domain.adopt_working_trip_generation_candidate(
+            trip_id, generation_id, candidate,
+        )
+    except ValidationError:
+        return _fail(domain, trip_id, generation_id, "invalid_candidate")
+    except ConflictError:
+        return _fail(domain, trip_id, generation_id, "obsolete_working")
 
 
 def run_started_generation(

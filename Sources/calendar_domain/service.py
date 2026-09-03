@@ -303,6 +303,7 @@ class CalendarDomain:
         request_id: str | None = None,
         instruction_id: str | None = None,
         working_revision: dict[str, Any] | None = None,
+        working_generation: tuple[str, str] | None = None,
     ) -> dict[str, Any]:
         """Generator-neutral complete-candidate atomic adoption layer."""
         self._trip_path(trip_id)
@@ -375,6 +376,22 @@ class CalendarDomain:
                         "effective_hash": working["base_effective_hash"],
                     } != working_revision or self._effective_revision(trip_id) != working_revision:
                         raise ConflictError("Working Trip is stale against the current effective Trip")
+                    if working_generation is not None:
+                        generation_id, generation_state = working_generation
+                        generation = connection.execute(
+                            "SELECT generation_id, state, working_state_digest FROM working_trip_generations "
+                            "WHERE trip_id = ?", (trip_id,),
+                        ).fetchone()
+                        working_content = connection.execute(
+                            "SELECT state_json FROM working_trips WHERE trip_id = ?", (trip_id,),
+                        ).fetchone()
+                        if (
+                            generation is None or generation["generation_id"] != generation_id
+                            or generation["state"] != generation_state or working_content is None
+                            or self._digest(self._canonical_json(json.loads(working_content["state_json"])))
+                            != generation["working_state_digest"]
+                        ):
+                            raise ConflictError("Working Trip generation content does not match")
                 self._write_journal(journal_path, journal)
                 journal_written = True
                 if (
@@ -414,6 +431,16 @@ class CalendarDomain:
                     "DELETE FROM working_trips WHERE trip_id = ?", (trip_id,),
                 ).rowcount != 1:
                     raise ConflictError("Working Trip changed during candidate adoption")
+                if kind == "working_trip" and working_generation is not None:
+                    generation_id, generation_state = working_generation
+                    if connection.execute(
+                        "UPDATE working_trip_generations SET state = 'adopted', candidate_json = NULL, "
+                        "failure_code = NULL, adopted_version = ?, adopted_digest = ?, updated_at = ? "
+                        "WHERE trip_id = ? AND generation_id = ? AND state = ?",
+                        (expected_version + 1, candidate_digest, timestamp, trip_id,
+                         generation_id, generation_state),
+                    ).rowcount != 1:
+                        raise ConflictError("Working Trip generation changed during adoption")
         except Exception:
             if not replaced:
                 self._remove_adoption_file(staging_path)
@@ -962,6 +989,36 @@ class CalendarDomain:
             trip_id, generation_id, "generating",
         )
         return self._validate_working_trip_candidate(trip_id, candidate)
+
+    def adopt_working_trip_generation_candidate(
+        self, trip_id: str, generation_id: str, candidate: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Adopt an auto result or retained review result through the Phase 5 boundary."""
+        generation = self.get_working_trip_generation(trip_id)
+        expected_state = "generating" if generation.get("policy") == "auto" else "candidate_ready"
+        self.require_current_working_trip_generation(trip_id, generation_id, expected_state)
+        if expected_state == "candidate_ready":
+            if candidate is not None:
+                raise ValidationError("review adoption uses the retained candidate")
+            candidate = generation["candidate"]
+        elif candidate is None:
+            raise ValidationError("auto adoption requires the returned candidate")
+        validated_candidate = self._validate_working_trip_candidate(trip_id, candidate)
+        working = self.require_current_working_trip(trip_id)
+        with self._read() as connection:
+            trip = connection.execute(
+                "SELECT version FROM trips WHERE id = ?", (trip_id,),
+            ).fetchone()
+        try:
+            current_hash = self._digest(self._trip_path(trip_id).read_bytes())
+        except OSError as error:
+            raise ValidationError("current Trip JSON cannot be read") from error
+        result = self._adopt_candidate_atomically(
+            trip_id, validated_candidate, trip["version"], current_hash,
+            kind="working_trip", working_revision=working["base_effective_revision"],
+            working_generation=(generation_id, expected_state),
+        )
+        return {**result, "generation_id": generation_id, "generation_state": "adopted"}
 
     def _validate_working_trip_candidate(
         self, trip_id: str, candidate: dict[str, Any],

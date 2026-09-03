@@ -2,6 +2,8 @@
 
 ## Historical confirmed decisions
 
+- 2026-09-04, Issue #75 Phase 6 Step 5: generation開始時に固定したpolicyが`auto`なら、Validation済みcomplete candidateを採用直前のWorking-content gateからPhase 5 atomic adoptionへ直結する。`review`なら最新generationへ`candidate_ready`として保持し、後続確定も同じgateとadoption境界を通す。成功時はcandidateをclearし、generationへ`adopted`と更新後Trip version / candidate digestだけを記録する。
+
 - 2026-09-04, Issue #75 Phase 6 Step 4: CALは開始済みgenerationから固定済み`generation_id`、`trip_id`、Working export packageだけのprovider-neutral requestを作り、replaceableなJSON stdin/stdout transportでAIGを1回呼ぶ。返却identityを照合し、candidate受領時はWorking-content digestを再確認して既存Phase 5 formal Validation境界へ渡す。safe AIG / transport / malformed failureはCALの最新stateへ安全な分類だけを保持し、provider情報やraw errorは保持しない。Step 4ではcandidateを採用・永続保持せず、auto/review分岐はStep 5に残す。
 
 - 2026-09-04, Issue #75 Phase 6 Step 2: generation開始時にAIGへ渡すWorking export packageと、そのcanonical `user_intent`のSHA-256 digestをlatest-only generation行へ固定する。generation結果受領時と後続adoption接続の直前に現在のWorking stateを同じ方法でdigest化して照合し、不一致は自動rebaseせずConflictとしてcandidateを採用経路へ渡さない。

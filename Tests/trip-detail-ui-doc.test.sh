@@ -29,8 +29,8 @@ grep -F 'Working export → generator-neutralなcomplete candidate → CAL Valid
 grep -F '1. **完了（us確認済み）**: AIG接続境界と最小generation stateを確定する。' "$roadmap" >/dev/null
 grep -F '2. **完了（us確認済み）**: CALにWorking Tripごとの最新generation stateとcandidateを実装する。' "$roadmap" >/dev/null
 grep -F '3. **完了（us確認済み）**: AIGにWorking exportからcomplete candidateを1件返すstatelessな最小生成境界を実装する。' "$roadmap" >/dev/null
-grep -F '4. **完了**: CAL → AIG → Phase 5 candidate受入れを接続する。' "$roadmap" >/dev/null
-grep -F '`auto / review` adoption policy' "$roadmap" >/dev/null
+grep -F '4. **完了（us確認済み）**: CAL → AIG → Phase 5 candidate受入れを接続する。' "$roadmap" >/dev/null
+grep -F '5. **完了**: `auto / review` adoption policyを実装する。' "$roadmap" >/dev/null
 grep -F 'AIGはworkflow stateを保持せず' "$roadmap" >/dev/null
 grep -F 'candidate受入れ、Schema・semantic Validation、captured revisionに対するstale確認、all-or-nothingのadoption' "$roadmap" >/dev/null
 grep -F '自動retry、queue、履歴' "$roadmap" >/dev/null

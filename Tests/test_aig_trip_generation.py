@@ -34,7 +34,7 @@ class AIGTripGenerationTests(unittest.TestCase):
     def tearDown(self):
         self.temporary.cleanup()
 
-    def test_sends_frozen_request_and_validates_candidate_without_policy_transition(self):
+    def test_auto_policy_rechecks_and_adopts_through_phase_5(self):
         candidate = json.loads(self.trip_path.read_bytes())
         seen = []
 
@@ -48,15 +48,54 @@ class AIGTripGenerationTests(unittest.TestCase):
         result = run_started_generation(
             self.domain, TRIP_ID, "generation-1", transport,
         )
-        self.assertEqual(result["status"], "candidate_received")
+        self.assertEqual((result["status"], result["generation_state"]), ("adopted", "adopted"))
         self.assertEqual(seen, [{
             "contract_version": "cal.aig.complete-trip-generation.v1",
             "generation_id": "generation-1",
             "trip_id": TRIP_ID,
             "working_export_package": self.started["request_package"],
         }])
-        self.assertEqual(self.domain.get_working_trip_generation(TRIP_ID)["state"], "generating")
+        generation = self.domain.get_working_trip_generation(TRIP_ID)
+        self.assertEqual((generation["state"], generation["adopted_version"]), ("adopted", 2))
+        self.assertEqual(generation["adopted_digest"], result["candidate_digest"])
+        self.assertIsNone(generation["candidate"])
         self.assertEqual(json.loads(self.trip_path.read_bytes()), candidate)
+
+    def test_review_policy_retains_candidate_then_confirms_through_same_gate(self):
+        self.domain.fail_working_trip_generation(TRIP_ID, "generation-1", "manual_restart")
+        self.domain.start_working_trip_generation(TRIP_ID, "generation-2", "review")
+        candidate = json.loads(self.trip_path.read_bytes())
+        result = run_started_generation(self.domain, TRIP_ID, "generation-2", lambda _: {
+            "generation_id": "generation-2", "trip_id": TRIP_ID,
+            "status": "succeeded", "candidate": candidate,
+        })
+        self.assertEqual(result["status"], "candidate_ready")
+        self.assertEqual(self.domain.get_working_trip_generation(TRIP_ID)["state"], "candidate_ready")
+        confirmed = self.domain.adopt_working_trip_generation_candidate(TRIP_ID, "generation-2")
+        self.assertEqual((confirmed["status"], confirmed["generation_state"]),
+                         ("adopted", "adopted"))
+        generation = self.domain.get_working_trip_generation(TRIP_ID)
+        self.assertEqual((generation["state"], generation["candidate"]), ("adopted", None))
+
+    def test_review_confirmation_rechecks_working_content_without_mutating_trip(self):
+        self.domain.fail_working_trip_generation(TRIP_ID, "generation-1", "manual_restart")
+        self.domain.start_working_trip_generation(TRIP_ID, "generation-2", "review")
+        candidate = json.loads(self.trip_path.read_bytes())
+        original = self.trip_path.read_bytes()
+        run_started_generation(self.domain, TRIP_ID, "generation-2", lambda _: {
+            "generation_id": "generation-2", "trip_id": TRIP_ID,
+            "status": "succeeded", "candidate": candidate,
+        })
+        self.domain.save_working_trip_day_instruction(
+            TRIP_ID, candidate["days"][0]["id"], "edited after review candidate",
+        )
+        with self.assertRaisesRegex(ConflictError, "content does not match"):
+            self.domain.adopt_working_trip_generation_candidate(TRIP_ID, "generation-2")
+        self.assertEqual(self.trip_path.read_bytes(), original)
+        self.assertEqual(self.domain.get_working_trip_generation(TRIP_ID)["state"],
+                         "candidate_ready")
+        self.assertIn("edited after review candidate",
+                      json.dumps(self.domain.get_working_trip(TRIP_ID)["state"]))
 
     def test_rechecks_digest_before_candidate_enters_phase_5_validation(self):
         candidate = json.loads(self.trip_path.read_bytes())
