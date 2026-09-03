@@ -30,6 +30,8 @@ grep -F 'D案UIからの既存予定編集は`save_working_trip_item_change`' "$
 grep -F 'Workingをstale化しない' "$contract" >/dev/null
 grep -F '`export_working_trip_for_chat`' "$contract" >/dev/null
 grep -F '`adopt_working_trip_candidate(trip_id, candidate)`' "$contract" >/dev/null
+grep -F 'candidate file pathや生成元情報は受け取らず' "$contract" >/dev/null
+grep -F '`status: accepted`' "$contract" >/dev/null
 grep -F '共通のatomic adoption層をgenerator-neutralに分離' "$contract" >/dev/null
 grep -F '採用成功後だけ同じTripのWorking rowを削除' "$contract" >/dev/null
 grep -F 'raw Working envelopeをユーザー意図' "$contract" >/dev/null

@@ -212,7 +212,7 @@ Direct OverrideをこのStepで変更しない。provider/API接続、実行Job�
 Phase 5の公開semantic commandは
 `adopt_working_trip_candidate(trip_id, candidate)`とする。callerはcandidate生成元や
 AI Instruction / generation request identityを渡さず、対象Trip IDとformal complete Trip JSON
-objectまたは別candidate fileだけを渡す。CALは対象Workingが存在して一意にTripへ属することを確認し、
+objectだけを渡す。CALは対象Workingが存在して一意にTripへ属することを確認し、
 Working作成時の`base_effective_revision`と確定直前のcurrent effective revisionが一致しない場合は
 自動rebase・自動mergeせずConflictとして停止する。stale後もWorkingの表示、編集、再exportは維持する。
 
@@ -233,3 +233,9 @@ version更新とWorking clearまで完了し、old currentのままならWorking
 FRM表示を持たない。返却値は既存adoption結果に合わせ、少なくとも`trip_id`、`status: adopted`、
 `candidate_digest`、更新後`version`、`recovered`を返す。ValidationまたはConflictではauthoritative Tripと
 Workingの双方を変更しない。
+
+Phase 5 Step 2では、このcommandの入口としてJSON objectだけをdeep copyして受け取り、登録済みTripに
+対応するWorking rowがちょうど1件あることを確認し、`status: accepted`と受入れcandidateを返すところまでを
+実装する。candidate file pathや生成元情報は受け取らず、candidateは永続化しない。captured revisionのstale
+拒否、formal Schema・semantic・Trip ID Validation、atomic adoption、version更新、Working clearはStep 3以降で
+この入口へ接続するため、Step 2の受入れ成功だけではauthoritative TripとWorkingのどちらも変更しない。

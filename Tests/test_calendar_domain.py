@@ -226,6 +226,31 @@ class CalendarDomainTests(unittest.TestCase):
                 "day_instructions": [{"value": float("nan")}],
             })
 
+    def test_working_candidate_accepts_only_a_json_object_for_one_working_trip(self):
+        original = self.trip_path.read_bytes()
+        self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [], "day_instructions": [],
+        })
+        candidate = json.loads(original)
+        result = self.domain.adopt_working_trip_candidate("trip-setouchi-2027", candidate)
+        self.assertEqual((result["trip_id"], result["status"]),
+                         ("trip-setouchi-2027", "accepted"))
+        self.assertEqual(result["candidate"], candidate)
+        candidate["title"] = "caller-side mutation"
+        self.assertNotEqual(result["candidate"]["title"], candidate["title"])
+        self.assertEqual(self.trip_path.read_bytes(), original)
+        self.assertFalse(self.domain.get_working_trip("trip-setouchi-2027")["stale"])
+
+        for invalid in (self.trip_path, str(self.trip_path), [], {"value": float("nan")}):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValidationError):
+                    self.domain.adopt_working_trip_candidate("trip-setouchi-2027", invalid)
+
+    def test_working_candidate_requires_an_existing_working_target(self):
+        candidate = json.loads(self.trip_path.read_bytes())
+        with self.assertRaises(NotFoundError):
+            self.domain.adopt_working_trip_candidate("trip-setouchi-2027", candidate)
+
     def test_working_item_change_upserts_and_preserves_other_envelope_regions(self):
         original = self.trip_path.read_bytes()
         seeded = self.domain.save_working_trip("trip-setouchi-2027", {

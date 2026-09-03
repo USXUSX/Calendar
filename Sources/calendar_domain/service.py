@@ -698,6 +698,33 @@ class CalendarDomain:
             raise ConflictError("Working Trip is stale against the current effective Trip")
         return working
 
+    def adopt_working_trip_candidate(
+        self, trip_id: str, candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Accept one generator-neutral complete candidate for a Working Trip."""
+        self._registered_trip(trip_id)
+        if not isinstance(candidate, dict):
+            raise ValidationError("Working Trip candidate must be a JSON object")
+        try:
+            accepted_candidate = json.loads(json.dumps(
+                candidate, ensure_ascii=False, allow_nan=False,
+            ))
+        except (TypeError, ValueError) as error:
+            raise ValidationError("Working Trip candidate must be a JSON object") from error
+        with self._read() as connection:
+            rows = connection.execute(
+                "SELECT trip_id FROM working_trips WHERE trip_id = ?", (trip_id,)
+            ).fetchall()
+        if not rows:
+            raise NotFoundError(f"Working Trip not found: {trip_id}")
+        if len(rows) != 1:
+            raise ConflictError("Working Trip candidate target is not unique")
+        return {
+            "trip_id": trip_id,
+            "status": "accepted",
+            "candidate": accepted_candidate,
+        }
+
     def clear_working_trip(self, trip_id: str) -> None:
         self._registered_trip(trip_id)
         with self._command() as connection:
