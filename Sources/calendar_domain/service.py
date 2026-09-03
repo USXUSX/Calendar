@@ -37,6 +37,9 @@ _WORKING_ITEM_FIELDS = {
     "scheduleItem": {"status", "start", "end", "time_mode", "title", "normal_comment"},
     "transport": {"status", "start", "end", "time_mode"},
 }
+_WORKING_TEMPORARY_FIELDS = {
+    "status", "start", "end", "time_mode", "title", "normal_comment", "place_name",
+}
 
 
 def _now() -> str:
@@ -778,6 +781,67 @@ class CalendarDomain:
         if len(retained) == len(state["item_changes"]):
             raise NotFoundError("Working item change not found")
         state["item_changes"] = retained
+        return self.save_working_trip(trip_id, state)
+
+    def save_working_trip_temporary_item(
+        self, trip_id: str, temporary_id: str, day_id: str, values: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Upsert one manually editable temporary item without assigning its insertion position."""
+        self._require_text(temporary_id, "temporary_id")
+        self._require_text(day_id, "day_id")
+        if not isinstance(values, dict):
+            raise ValidationError("Working temporary item values must be a JSON object")
+        unknown = set(values) - _WORKING_TEMPORARY_FIELDS
+        if unknown:
+            raise ValidationError(f"Working temporary item field is not allowed: {sorted(unknown)[0]}")
+        try:
+            json.dumps(values, ensure_ascii=False, allow_nan=False)
+        except (TypeError, ValueError) as error:
+            raise ValidationError("Working temporary item values must be valid JSON") from error
+
+        try:
+            working = self.get_working_trip(trip_id)
+            state = working["state"]
+        except NotFoundError:
+            self._registered_trip(trip_id)
+            state = {"item_changes": [], "temporary_items": [], "day_instructions": []}
+        existing = next((
+            record for record in state["temporary_items"]
+            if record.get("temporary_id") == temporary_id
+        ), None)
+        if existing is None or existing.get("day_id") != day_id:
+            effective = self.get_effective_trip(trip_id)
+            if not any(day.get("id") == day_id for day in effective["days"]):
+                raise ValidationError("Working temporary item day does not exist")
+        if existing is None:
+            if self._item_matches(effective, temporary_id):
+                raise ConflictError("temporary_id conflicts with an existing Trip item ID")
+        record = {
+            "temporary_id": temporary_id,
+            "day_id": day_id,
+            "values": copy.deepcopy(values),
+        }
+        state["temporary_items"] = [
+            item for item in state["temporary_items"]
+            if item.get("temporary_id") != temporary_id
+        ]
+        state["temporary_items"].append(record)
+        return self.save_working_trip(trip_id, state)
+
+    def clear_working_trip_temporary_item(
+        self, trip_id: str, temporary_id: str,
+    ) -> dict[str, Any]:
+        """Remove one temporary item while preserving the rest of the Working envelope."""
+        self._require_text(temporary_id, "temporary_id")
+        working = self.get_working_trip(trip_id)
+        state = working["state"]
+        retained = [
+            item for item in state["temporary_items"]
+            if item.get("temporary_id") != temporary_id
+        ]
+        if len(retained) == len(state["temporary_items"]):
+            raise NotFoundError("Working temporary item not found")
+        state["temporary_items"] = retained
         return self.save_working_trip(trip_id, state)
 
     def get_trip_detail_view(

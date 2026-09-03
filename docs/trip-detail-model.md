@@ -116,3 +116,17 @@ Working変更はtargetの存在と種類、許可field、JSONとしての保存�
 通すことはしない。保存は`item_changes`だけを更新し、`temporary_items`と
 `day_instructions`、初回保存時のeffective revisionを維持する。authoritative TripとDirect
 Overrideは変更しない。既存recordはstale後も上書き・解除でき、確定だけを停止する。
+
+### Step 3: 新規予定のWorking仮追加
+
+`temporary_items`はcallerが生成するstable `temporary_id`、既存の`day_id`、共通編集sheetの
+手入力値を保持する`values` objectを1 recordとする。同じ`temporary_id`は同じ日で最新値へ
+上書きでき、空の`values`から作成して後から再編集できる。`values`は`status`、`start`、
+`end`、`time_mode`、`title`、`normal_comment`、`place_name`を受け付ける。AI Instructionは
+必須でも保存fieldでもなく、手入力だけで作成・更新できる。
+
+仮追加時はdayの存在とtemporary IDが既存Trip item IDに衝突しないことを確認するが、
+Workingの不足状態を許容するためformal Trip schemaは適用しない。既存recordはstale後も
+再編集・解除できる。挿入位置や既存予定との上下関係はStep 4の責務であり、このStepでは
+保存しない。`item_changes`、`day_instructions`、authoritative Trip、Direct Override、初回
+保存時のeffective revisionは変更しない。

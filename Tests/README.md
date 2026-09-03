@@ -29,7 +29,7 @@ uniqueness, Direct Override uniqueness, and the one-row JSON Working Trip bounda
 `calendar-domain.test.sh` uses only a temporary SQLite database and a copied
 synthetic Trip root. It covers unified ordinary/Trip Events and source-qualified
 identities, effective Trip composition without JSON writes, invalid Overrides,
-latest-only Working state, existing-item change/deletion upsert and clearing, effective-revision staleness and confirmation blocking,
+latest-only Working state, existing-item change/deletion and manually entered temporary-item upsert and clearing, effective-revision staleness and confirmation blocking,
 ordinary Event and Todo CRUD, Todo completion, AI Instruction cancellation,
 Trip registration, explicit storage paths, and transactional rollback.
 

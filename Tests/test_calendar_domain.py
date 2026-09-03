@@ -289,6 +289,65 @@ class CalendarDomainTests(unittest.TestCase):
         self.assertTrue(edited["stale"])
         self.assertEqual(edited["base_effective_revision"], initial["base_effective_revision"])
 
+    def test_temporary_item_supports_manual_create_edit_and_clear(self):
+        original = self.trip_path.read_bytes()
+        created = self.domain.save_working_trip_temporary_item(
+            "trip-setouchi-2027", "temporary-lunch", "day-2027-05-14", {},
+        )
+        self.assertEqual(created["state"]["temporary_items"], [{
+            "temporary_id": "temporary-lunch", "day_id": "day-2027-05-14", "values": {},
+        }])
+        edited = self.domain.save_working_trip_temporary_item(
+            "trip-setouchi-2027", "temporary-lunch", "day-2027-05-14", {
+                "title": "港で昼食", "status": "tentative", "start": "12:30",
+                "end": None, "time_mode": "start_only", "normal_comment": "手入力",
+                "place_name": "青凪港食堂",
+            },
+        )
+        self.assertEqual(len(edited["state"]["temporary_items"]), 1)
+        self.assertEqual(edited["state"]["temporary_items"][0]["values"]["title"], "港で昼食")
+        self.assertEqual(edited["base_effective_revision"], created["base_effective_revision"])
+        self.assertEqual(edited["state"]["item_changes"], [])
+        self.assertEqual(edited["state"]["day_instructions"], [])
+        self.assertEqual(self.domain.list_active_direct_overrides("trip-setouchi-2027"), [])
+        self.assertEqual(self.trip_path.read_bytes(), original)
+        cleared = self.domain.clear_working_trip_temporary_item(
+            "trip-setouchi-2027", "temporary-lunch",
+        )
+        self.assertEqual(cleared["state"]["temporary_items"], [])
+
+    def test_temporary_item_validates_identity_day_and_manual_fields(self):
+        for temporary_id, day_id, values, error_type in (
+            ("", "day-2027-05-14", {}, ValidationError),
+            ("temporary-lunch", "missing-day", {}, ValidationError),
+            ("schedule-dinner", "day-2027-05-14", {}, ConflictError),
+            ("temporary-lunch", "day-2027-05-14", {"ai_instruction": "make lunch"}, ValidationError),
+            ("temporary-lunch", "day-2027-05-14", {"insertion_position": "after:item"}, ValidationError),
+            ("temporary-lunch", "day-2027-05-14", {"title": float("nan")}, ValidationError),
+        ):
+            with self.subTest(temporary_id=temporary_id, day_id=day_id):
+                with self.assertRaises(error_type):
+                    self.domain.save_working_trip_temporary_item(
+                        "trip-setouchi-2027", temporary_id, day_id, values,
+                    )
+        self.domain.save_working_trip_temporary_item(
+            "trip-setouchi-2027", "temporary-lunch", "day-2027-05-14", {"title": "Lunch"},
+        )
+
+    def test_stale_temporary_item_remains_manually_editable(self):
+        initial = self.domain.save_working_trip_temporary_item(
+            "trip-setouchi-2027", "temporary-lunch", "day-2027-05-14", {"title": "Lunch"},
+        )
+        self.domain.edit_trip_item(
+            "edit-after-temporary", "trip-setouchi-2027", "scheduleItem", "schedule-dinner",
+            {"normal_comment": "確定側の後続変更"},
+        )
+        edited = self.domain.save_working_trip_temporary_item(
+            "trip-setouchi-2027", "temporary-lunch", "day-2027-05-14", {"title": "Manual lunch"},
+        )
+        self.assertTrue(edited["stale"])
+        self.assertEqual(edited["base_effective_revision"], initial["base_effective_revision"])
+
     def test_ordinary_event_crud_and_source_boundary(self):
         created = self.domain.create_event("event-1", title="Meeting", start_date="2027-05-15")
         self.assertEqual(created["title"], "Meeting")
