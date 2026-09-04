@@ -63,7 +63,7 @@ Phase 5で確立した一連の境界は、Working export → generator-neutral�
 3. **完了（us確認済み）**: AIGにWorking exportからcomplete candidateを1件返すstatelessな最小生成境界を実装する。
 4. **完了（us確認済み）**: CAL → AIG → Phase 5 candidate受入れを接続する。
 5. **完了（us確認済み）**: `auto / review` adoption policyを実装する。
-6. **実装済み・us確認待ち**: FRMに生成開始と`generating / failed / candidate_ready / adopted`の最小表示・操作を追加する。
+6. **実装中（未完了）**: FRMに生成開始と`generating / failed / candidate_ready / adopted`の最小表示・操作を追加する。
 7. 既存の手動Chat fallbackを維持して確認する。
 8. auto / review、stale、malformed / Validation failure、AIG failure、Working clearを合成データでValidationする。
 9. Phase 6を振り返り、Phase 7で候補・特殊ケースを専用機能化する必要を再評価する。

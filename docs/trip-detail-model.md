@@ -285,6 +285,9 @@ authoritative TripとWorkingを変更しない。failed stateは再実行可能�
 Calendar_Local migration、provider選択UI、常駐workflowはこの境界に含めない。
 
 Step 2のCAL semantic/storage境界は`working_trip_generations`をWorking Trip用の独立した最新1行として使う。
+`start_working_trip()`は確定Tripを再編集するため、現行effective revisionをbaseに空のWorkingを開始する。
+既存Workingを上書きせず、前のWorkingに属する終端generationだけをclearする。FRMは空のWorking保存envelopeを
+組み立てず、このcommandを編集開始に利用する。
 `get_working_trip_generation()`は行がない場合に永続的な`idle`を作らず`idle` read modelを返す。
 `start_working_trip_generation()`はcurrentなWorkingがある場合だけ開始し、既存の`generating`を上書きしない。
 `store_working_trip_generation_candidate()`は最新の`generation_id`と開始時にcapturedしたWorking effective revision、

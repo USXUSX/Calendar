@@ -60,6 +60,11 @@ class AIGTripGenerationTests(unittest.TestCase):
         self.assertEqual(generation["adopted_digest"], result["candidate_digest"])
         self.assertIsNone(generation["candidate"])
         self.assertEqual(json.loads(self.trip_path.read_bytes()), candidate)
+        restarted = self.domain.start_working_trip(TRIP_ID)
+        self.assertEqual(restarted["state"], {
+            "item_changes": [], "temporary_items": [], "day_instructions": [],
+        })
+        self.assertEqual(self.domain.get_working_trip_generation(TRIP_ID)["state"], "idle")
 
     def test_review_policy_retains_candidate_then_confirms_through_same_gate(self):
         self.domain.fail_working_trip_generation(TRIP_ID, "generation-1", "manual_restart")

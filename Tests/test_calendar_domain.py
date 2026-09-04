@@ -102,6 +102,19 @@ class CalendarDomainTests(unittest.TestCase):
                 candidate_judgments={"schedule-island-art": {"place-art-museum": "maybe"}},
             )
 
+    def test_start_working_trip_uses_current_effective_revision_without_overwrite(self):
+        started = self.domain.start_working_trip("trip-setouchi-2027")
+        self.assertEqual(started["state"], {
+            "item_changes": [], "temporary_items": [], "day_instructions": [],
+        })
+        self.assertEqual(started["base_effective_revision"],
+                         started["current_effective_revision"])
+        self.assertTrue(self.domain.get_working_trip_detail_view(
+            "trip-setouchi-2027",
+        )["working"]["present"])
+        with self.assertRaisesRegex(ConflictError, "already exists"):
+            self.domain.start_working_trip("trip-setouchi-2027")
+
     def test_local_ai_update_request_is_target_scoped_and_not_queued(self):
         effective = self.domain.get_effective_trip("trip-setouchi-2027")
         request = build_local_ai_update_request(

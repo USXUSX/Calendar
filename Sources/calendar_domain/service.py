@@ -772,6 +772,39 @@ class CalendarDomain:
                 )
         return self.get_working_trip(trip_id)
 
+    def start_working_trip(self, trip_id: str) -> dict[str, Any]:
+        """Start one empty Working Trip from the current effective revision.
+
+        This command is the semantic entry point for a caller that wants to edit
+        an adopted Trip again. It never overwrites an existing Working Trip and
+        clears only the terminal generation that belonged to the prior Working.
+        """
+        self._registered_trip(trip_id)
+        revision = self._effective_revision(trip_id)
+        state = {"item_changes": [], "temporary_items": [], "day_instructions": []}
+        state_json = self._canonical_json(state).decode("utf-8")
+        timestamp = _now()
+        with self._command() as connection:
+            current = connection.execute(
+                "SELECT 1 FROM working_trips WHERE trip_id = ?", (trip_id,),
+            ).fetchone()
+            if current is not None:
+                raise ConflictError("Working Trip already exists")
+            generation = connection.execute(
+                "SELECT state FROM working_trip_generations WHERE trip_id = ?", (trip_id,),
+            ).fetchone()
+            if generation is not None and generation["state"] in {"generating", "candidate_ready"}:
+                raise ConflictError("Working Trip generation is still active")
+            connection.execute(
+                "DELETE FROM working_trip_generations WHERE trip_id = ?", (trip_id,),
+            )
+            connection.execute(
+                "INSERT INTO working_trips VALUES (?, ?, ?, ?, ?, ?)",
+                (trip_id, revision["trip_version"], revision["effective_hash"], state_json,
+                 timestamp, timestamp),
+            )
+        return self.get_working_trip(trip_id)
+
     def get_working_trip(self, trip_id: str) -> dict[str, Any]:
         """Return Working state even when its captured effective revision is stale."""
         self._registered_trip(trip_id)
