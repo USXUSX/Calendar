@@ -12,9 +12,9 @@ import tempfile
 from contextlib import contextmanager
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 
-from scripts.validate_trip import DEFAULT_SCHEMA, semantic_errors, validate_value
+from scripts.validate_trip import DEFAULT_SCHEMA, semantic_errors, validate_value, validation_stage_errors
 
 from .errors import ConflictError, NotFoundError, ValidationError
 from .models import UnifiedEvent
@@ -118,7 +118,10 @@ class CalendarDomain:
     def _digest(value: bytes) -> str:
         return hashlib.sha256(value).hexdigest()
 
-    def _validated_candidate(self, trip_id: str, candidate: str | Path | dict[str, Any]) -> tuple[dict[str, Any], bytes]:
+    def _validated_candidate(
+        self, trip_id: str, candidate: str | Path | dict[str, Any],
+        *, diagnostic: Callable[[str], None] | None = None,
+    ) -> tuple[dict[str, Any], bytes]:
         try:
             if isinstance(candidate, dict):
                 value = copy.deepcopy(candidate)
@@ -135,10 +138,14 @@ class CalendarDomain:
             raise
         except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as error:
             raise ValidationError("candidate Trip JSON cannot be read") from error
-        errors = validate_value(value, self._trip_schema)
+        stage, errors = validation_stage_errors(value, self._trip_schema)
         if errors:
+            if diagnostic is not None:
+                diagnostic(stage)
             raise ValidationError(f"candidate Trip JSON is invalid: {errors[0]}")
         if value.get("id") != trip_id:
+            if diagnostic is not None:
+                diagnostic("constraint")
             raise ValidationError("candidate Trip JSON id does not match trip_id")
         return value, payload
 
@@ -1053,18 +1060,41 @@ class CalendarDomain:
         )
         return {**result, "generation_id": generation_id, "generation_state": "adopted"}
 
+    def diagnose_working_trip_generation_candidate(
+        self, trip_id: str, generation_id: str, candidate: dict[str, Any],
+    ) -> str:
+        """Explicit read-only diagnostic; never retain or return candidate/error details.
+
+        Run before normal result reception. Stale/obsolete state still raises the
+        existing domain error and is not misclassified as a candidate failure.
+        """
+        self.require_current_working_trip_generation(trip_id, generation_id, "generating")
+        stages: list[str] = []
+        try:
+            self._validate_working_trip_candidate(trip_id, candidate, diagnostic=stages.append)
+        except (ValidationError, ConflictError):
+            if not stages:
+                raise
+            return stages[0]
+        return "valid"
+
     def _validate_working_trip_candidate(
         self, trip_id: str, candidate: dict[str, Any],
+        *, diagnostic: Callable[[str], None] | None = None,
     ) -> dict[str, Any]:
         """Shared pre-adoption boundary for manual and AIG complete candidates."""
         self._registered_trip(trip_id)
         if not isinstance(candidate, dict):
+            if diagnostic is not None:
+                diagnostic("schema")
             raise ValidationError("Working Trip candidate must be a JSON object")
         try:
             accepted_candidate = json.loads(json.dumps(
                 candidate, ensure_ascii=False, allow_nan=False,
             ))
         except (TypeError, ValueError) as error:
+            if diagnostic is not None:
+                diagnostic("schema")
             raise ValidationError("Working Trip candidate must be a JSON object") from error
         with self._read() as connection:
             rows = connection.execute(
@@ -1075,11 +1105,16 @@ class CalendarDomain:
         if len(rows) != 1:
             raise ConflictError("Working Trip candidate target is not unique")
         self.require_current_working_trip(trip_id)
-        validated_candidate, _ = self._validated_candidate(trip_id, accepted_candidate)
+        validated_candidate, _ = self._validated_candidate(
+            trip_id, accepted_candidate, diagnostic=diagnostic,
+        )
         with self._read() as connection:
-            self._validate_adoption_constraints(
-                connection, trip_id, validated_candidate, (),
-            )
+            try:
+                self._validate_adoption_constraints(connection, trip_id, validated_candidate, ())
+            except (ValidationError, ConflictError):
+                if diagnostic is not None:
+                    diagnostic("constraint")
+                raise
         return validated_candidate
 
     def clear_working_trip(self, trip_id: str) -> None:

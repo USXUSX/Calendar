@@ -36,6 +36,23 @@ After adoption clears Working, `start_working_trip()` is the semantic command fo
 starting a new empty Working state from the current effective Trip. Callers do not
 construct or persist the empty Working envelope themselves.
 
+For explicitly authorized synthetic/live diagnostics, call
+`diagnose_working_trip_generation_candidate(trip_id, generation_id, candidate)`
+before normal AIG result reception. It reuses the current Working/stale gate and
+Phase 5 checks, returning only `valid`, `schema`, `semantic_reference`, or
+`constraint`. The semantic label covers the existing semantic consistency checks,
+including references and dates. It returns no values, field paths, exception text,
+or candidate and writes no state. Obsolete/stale workflow errors still raise;
+they are not candidate classifications. `valid` does not establish that a user's
+intent was satisfied or authorize adoption.
+
+Normal result reception and adoption still run their own checks. External result,
+generation state and FRM behavior are unchanged (`invalid_candidate` for Validation
+failures; existing constraint conflicts can remain `obsolete_working`). Diagnostics
+do not retain failed candidates or enable retries. Keep live request/response and
+candidate bodies in memory, report only the fixed stage, and do not invoke the
+normal review candidate-storage path merely to diagnose a failure.
+
 ## Three layers
 
 | Role | Location | Authority |
