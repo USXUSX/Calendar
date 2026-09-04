@@ -14,7 +14,8 @@ grep -F '候補名の右側' "$ui" >/dev/null
 grep -F '日単位では折りたたまない' "$ui" >/dev/null
 grep -F '| 4. Working Trip編集基盤 | 完了 |' "$roadmap" >/dev/null
 grep -F '| 5. Working Trip確定フロー | 完了 |' "$roadmap" >/dev/null
-grep -F '| 6. AI接続を実用化 | 現在 |' "$roadmap" >/dev/null
+grep -F '| 6. AI接続を実用化 | 完了 |' "$roadmap" >/dev/null
+grep -F '| 7. 候補・特殊ケースを実利用で検証 | 現在 |' "$roadmap" >/dev/null
 grep -F '### 完了したPhase 5: Working Trip確定フロー' "$roadmap" >/dev/null
 grep -F '1. **完了（us確認済み）**: candidate受入れ・確定境界を確定する。' "$roadmap" >/dev/null
 grep -F '2. **完了（us確認済み）**: complete candidate受入れを実装する。' "$roadmap" >/dev/null
@@ -34,7 +35,10 @@ grep -F '4. **完了（us確認済み）**: CAL → AIG → Phase 5 candidate受
 grep -F '5. **完了（us確認済み）**: `auto / review` adoption policyを実装する。' "$roadmap" >/dev/null
 grep -F '6. **完了（us実機確認済み）**: FRMに生成開始と`generating / failed / candidate_ready / adopted`の最小表示・操作を追加する。' "$roadmap" >/dev/null
 grep -F '7. **完了（us確認済み）**: AIG生成失敗、複雑な変更、ユーザー判断が必要な場合も、既存のWorking export → Chat手動調整 → complete candidate → Phase 5 adoptionへ戻れることを合成データで確認する。' "$roadmap" >/dev/null
-grep -F '8. **完了**: auto / review、stale、malformed / Validation failure、AIG failure、Working clearを合成データと必要なブラウザ確認でValidationする。' "$roadmap" >/dev/null
+grep -F '8. **完了（us確認済み）**: auto / review、stale、malformed / Validation failure、AIG failure、Working clearを合成データと必要なブラウザ確認でValidationする。' "$roadmap" >/dev/null
+grep -F '9. **完了（us確認済み）**: Phase 6を振り返り、確立した責務・policy・fallbackを確定し、Phase 7を実利用による不足確認のPhaseとする。' "$roadmap" >/dev/null
+grep -F '### 現在のPhase 7: 候補・特殊ケースを実利用で検証' "$roadmap" >/dev/null
+grep -F '専用機能を先に設計・追加しない' "$roadmap" >/dev/null
 grep -F 'AIGはworkflow stateを保持せず' "$roadmap" >/dev/null
 grep -F 'candidate受入れ、Schema・semantic Validation、captured revisionに対するstale確認、all-or-nothingのadoption' "$roadmap" >/dev/null
 grep -F '自動retry、queue、履歴' "$roadmap" >/dev/null

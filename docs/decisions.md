@@ -2,6 +2,8 @@
 
 ## Historical confirmed decisions
 
+- 2026-09-04, Issue #75 Phase 6 Step 9: Phase 6の確定構成は、CAL-owned latest generation state、stateless AIG、CAL semantic境界だけを使う表示・操作限定のFRM、generation開始時に固定する`auto / review`両policy、両policyが共有するPhase 5 Validation / stale gate / atomic adoption、AIG失敗時にも独立して利用できるWorking export → Chat手動調整 → complete candidate → Phase 5 adoptionである。Phase 7は候補・特殊ケースの専用機能を先行追加せず、現行Working指示とAIG再生成を実利用し、既存経路で扱えない不足が確認されたものだけを後続Issueで追加する検証Phaseとする。
+
 - 2026-09-04, Issue #75 Phase 6 Step 7: AIG生成失敗、複雑な変更、ユーザー判断が必要な場合は、Phase 4/5で確立したWorking export → Chat手動調整 → complete candidate → Phase 5 adoptionへ戻る。AIGのlatest generation stateはこの手動経路を塞がず、手動candidateも既存のValidation / stale gate / atomic adoptionを通す。自動Chat送信、Chat session管理、新しいfallback state・機構は追加しない。
 
 - 2026-09-04, Issue #75 Phase 6 Step 5: generation開始時に固定したpolicyが`auto`なら、Validation済みcomplete candidateを採用直前のWorking-content gateからPhase 5 atomic adoptionへ直結する。`review`なら最新generationへ`candidate_ready`として保持し、後続確定も同じgateとadoption境界を通す。成功時はcandidateをclearし、generationへ`adopted`と更新後Trip version / candidate digestだけを記録する。

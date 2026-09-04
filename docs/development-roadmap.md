@@ -38,8 +38,8 @@ CALは、次の3領域を内部機能としては十分に分離しつつ、表�
 | 3. 直接編集を完成 | 完了 | usが具体的な値を編集画面で補正できる実用的な経路を完成する | 予定選択から端末別編集画面、Validation、反映状態の確認まで一つの流れで行える | owner-facing UIはFRMが担い、CALの意味ベースのcommandとDirect Overrideを通す。SQLiteやTrip JSONを画面から直接変更せず、曖昧な変更意図はAI指示と分ける |
 | 4. Working Trip編集基盤 | 完了 | authoritative Tripを壊さず、未確定変更を自由に保持・表示・再編集・出力できるようにする | 既存予定の変更・削除予定化、新規予定の仮追加、day-level指示を最新Working状態として扱い、D案UIとChat向け出力から利用できる | Workingは履歴を積まず、formal Trip完全適合や内容の完全整合を要求しない。authoritative Trip、Direct Override、表示モデルの既存責務を保ち、ケース別commandを増やしすぎない |
 | 5. Working Trip確定フロー | 完了 | Workingを反映したcomplete Trip candidateをCAL内で安全に正式Tripへ戻す | Working exportから作成したcomplete candidateをformal Validationし、staleでないことを確認してauthoritative Tripへatomic adoptionし、成功後だけWorkingをclearしてFRMへ結果を返せる | CALはcandidate受入れ、Schema・semantic Validation、captured revisionに対するstale確認、all-or-nothingのadoptionを所有する。candidate生成元を契約へ持ち込まず、失敗時はauthoritative TripとWorkingを変更しない |
-| 6. AI接続を実用化 | 現在 | Working exportからcomplete Trip candidateを生成・再構成する部分をAIGへ接続する | auto policyでは既存Phase 5 gateを通して自動採用し、review policyではcandidate確認後に同じgateから採用でき、結果をFRMで把握できる | CALが最新1件のgeneration stateとcandidateを所有し、AIGはstateless、FRMは表示・操作に限定する。provider、model、credentialはAIG側へ閉じ、stale解消・自動retry・CAL外正本更新は行わない |
-| 7. 候補・特殊ケースを実利用で整理 | 未着手 | Working Trip方式で候補や複数予定変更等をどこまで自然に扱えるか確認する | 候補追加・判断・選定、複数予定変更、別行動等で既存Working編集に不足するものだけが明確になる | 専用機能を先回りして増やさず、既存経路で足りる場合は小さく完了してよい |
+| 6. AI接続を実用化 | 完了 | Working exportからcomplete Trip candidateを生成・再構成する部分をAIGへ接続する | auto policyでは既存Phase 5 gateを通して自動採用し、review policyではcandidate確認後に同じgateから採用でき、結果をFRMで把握できる | CALが最新1件のgeneration stateとcandidateを所有し、AIGはstateless、FRMは表示・操作に限定する。provider、model、credentialはAIG側へ閉じ、stale解消・自動retry・CAL外正本更新は行わない |
+| 7. 候補・特殊ケースを実利用で検証 | 現在 | 現行Working指示とAIG再生成で候補や複数予定変更等をどこまで自然に扱えるか実利用で確認する | 候補追加・判断・選定、複数予定変更、別行動等について、既存経路で足りる範囲と実際に不足する範囲が明確になる | 候補・特殊ケースの専用機能を先回りして追加しない。不足が実利用で確認されたものだけを後続Issueで追加する |
 | 8. 実利用でUI・運用を仕上げる | 未着手 | 対象端末、Chat往復、自動確定の使い勝手を実利用で仕上げる | iPad mini / iPad、Safari / Chromeで主要経路を継続利用でき、Working状態表示や確認導線の支障が取り除かれている | font、余白、icon等は実利用から調整し、Review Handoffを含む確認導線を確認する。全ケース対応を完了条件にしない |
 
 ### 完了したPhase 5: Working Trip確定フロー
@@ -56,7 +56,7 @@ CALは、次の3領域を内部機能としては十分に分離しつつ、表�
 
 Phase 5で確立した一連の境界は、Working export → generator-neutralなcomplete candidate → CAL Validation → captured effective revisionのstale gate → atomic adoption → 成功後だけWorking clear → FRMでのsuccess / stale / Validation結果表示である。candidateの作成経路にかかわらず、Phase 6もこの境界を迂回・重複実装しない。
 
-### 現在のPhase 6: AI接続を実用化
+### 完了したPhase 6: AI接続を実用化
 
 1. **完了（us確認済み）**: AIG接続境界と最小generation stateを確定する。
 2. **完了（us確認済み）**: CALにWorking Tripごとの最新generation stateとcandidateを実装する。
@@ -65,14 +65,20 @@ Phase 5で確立した一連の境界は、Working export → generator-neutral�
 5. **完了（us確認済み）**: `auto / review` adoption policyを実装する。
 6. **完了（us実機確認済み）**: FRMに生成開始と`generating / failed / candidate_ready / adopted`の最小表示・操作を追加する。
 7. **完了（us確認済み）**: AIG生成失敗、複雑な変更、ユーザー判断が必要な場合も、既存のWorking export → Chat手動調整 → complete candidate → Phase 5 adoptionへ戻れることを合成データで確認する。
-8. **完了**: auto / review、stale、malformed / Validation failure、AIG failure、Working clearを合成データと必要なブラウザ確認でValidationする。
-9. Phase 6を振り返り、Phase 7で候補・特殊ケースを専用機能化する必要を再評価する。
+8. **完了（us確認済み）**: auto / review、stale、malformed / Validation failure、AIG failure、Working clearを合成データと必要なブラウザ確認でValidationする。
+9. **完了（us確認済み）**: Phase 6を振り返り、確立した責務・policy・fallbackを確定し、Phase 7を実利用による不足確認のPhaseとする。
 
 Step 1で、最初の接続先をAIGとし、CAL → AIG requestはgeneration identityと既存Working export package、AIG → CAL resultは同じidentityとcomplete Trip candidate 1件だけを運ぶprovider-neutral契約に確定した。CALはTripごとの最新1件だけを`generating / candidate_ready / failed / adopted`として所有し、policyはgeneration開始時に`auto / review`から固定する。AIGはworkflow stateを保持せず、FRMも正本stateやcandidateを持たない。
 
 `auto`はAIG返却後にPhase 5のValidation / stale gate / atomic adoptionへ直結し、`review`はcandidateをCALの`candidate_ready`へ保持してusの確定操作後に同じ境界へ渡す。どちらもPhase 5 gateを迂回せず、失敗時はWorkingを保持する。新しい手動実行は最新の終端stateを置き換えるが、自動retry、queue、履歴、staleの自動rebase / mergeは設けない。手動Chat fallback、CAL外旅行計画正本更新、production activationはこのstate machineの外に保つ。
 
 Step 7では、AIGのsafe failure後もWorkingとraw user intentが既存exportから取得でき、Chatで手動調整したcomplete candidateをgeneration stateとは独立したPhase 5のValidation / stale gate / atomic adoptionへ渡せることを合成データで確認した。複雑な変更やユーザー判断が必要な場合も同じ既存経路を利用し、自動Chat送信、Chat session管理、新しいfallback stateや機構は追加しない。
+
+### 現在のPhase 7: 候補・特殊ケースを実利用で検証
+
+Phase 7では、候補、複数予定変更、別行動等の専用機能を先に設計・追加しない。まず現行のWorking変更・day instruction等の指示をAIG再生成へ渡す経路を実利用し、`auto / review` policyと必要時の手動Chat fallbackを使い分ける。
+
+実利用で既存経路では表現・判断・確定できない不足が再現可能に確認された場合だけ、その不足を対象とする後続Issueを作成して最小機能を追加する。既存経路で扱えるケースは専用state、command、UIを増やさず、Phase 7の検証結果として整理する。
 
 完了したPhase 2・3の表示・入力・更新契約は[`trip-detail-model.md`](trip-detail-model.md)に保持する。
 
