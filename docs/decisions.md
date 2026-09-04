@@ -2,6 +2,8 @@
 
 ## Historical confirmed decisions
 
+- 2026-09-04, Issue #75 Phase 6 Step 7: AIG生成失敗、複雑な変更、ユーザー判断が必要な場合は、Phase 4/5で確立したWorking export → Chat手動調整 → complete candidate → Phase 5 adoptionへ戻る。AIGのlatest generation stateはこの手動経路を塞がず、手動candidateも既存のValidation / stale gate / atomic adoptionを通す。自動Chat送信、Chat session管理、新しいfallback state・機構は追加しない。
+
 - 2026-09-04, Issue #75 Phase 6 Step 5: generation開始時に固定したpolicyが`auto`なら、Validation済みcomplete candidateを採用直前のWorking-content gateからPhase 5 atomic adoptionへ直結する。`review`なら最新generationへ`candidate_ready`として保持し、後続確定も同じgateとadoption境界を通す。成功時はcandidateをclearし、generationへ`adopted`と更新後Trip version / candidate digestだけを記録する。
 
 - 2026-09-04, Issue #75 Phase 6 Step 4: CALは開始済みgenerationから固定済み`generation_id`、`trip_id`、Working export packageだけのprovider-neutral requestを作り、replaceableなJSON stdin/stdout transportでAIGを1回呼ぶ。返却identityを照合し、candidate受領時はWorking-content digestを再確認して既存Phase 5 formal Validation境界へ渡す。safe AIG / transport / malformed failureはCALの最新stateへ安全な分類だけを保持し、provider情報やraw errorは保持しない。Step 4ではcandidateを採用・永続保持せず、auto/review分岐はStep 5に残す。

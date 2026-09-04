@@ -156,6 +156,40 @@ class AIGTripGenerationTests(unittest.TestCase):
         self.assertEqual(result["failure_code"], "transport_failed")
         self.assertNotIn("provider secret", json.dumps(result))
 
+    def test_failed_aig_generation_can_return_to_manual_chat_phase_5_adoption(self):
+        day_id = json.loads(self.trip_path.read_bytes())["days"][0]["id"]
+        self.domain.save_working_trip_day_instruction(
+            TRIP_ID, day_id, "利用者と相談して港周辺中心に組み直す",
+        )
+        self.domain.fail_working_trip_generation(
+            TRIP_ID, "generation-1", "obsolete_working",
+        )
+        self.domain.start_working_trip_generation(TRIP_ID, "generation-2", "auto")
+        failed = run_started_generation(self.domain, TRIP_ID, "generation-2", lambda _: {
+            "generation_id": "generation-2", "trip_id": TRIP_ID,
+            "status": "failed", "failure_code": "generation_failed",
+        })
+        self.assertEqual((failed["status"], failed["failure_code"]),
+                         ("failed", "generation_failed"))
+
+        package = self.domain.export_working_trip_for_chat(TRIP_ID)
+        self.assertEqual(package["format"], "cal.complete-trip-regeneration.v1")
+        self.assertEqual(
+            package["user_intent"]["day_instructions"][0]["instruction"],
+            "利用者と相談して港周辺中心に組み直す",
+        )
+
+        # Simulate the one complete Trip object returned after manual Chat adjustment.
+        candidate = package["effective_trip"]
+        candidate["days"][0]["title"] = "相談結果を反映した港周辺プラン"
+        adopted = self.domain.adopt_working_trip_candidate(TRIP_ID, candidate)
+        self.assertEqual((adopted["status"], adopted["version"]), ("adopted", 2))
+        self.assertEqual(
+            json.loads(self.trip_path.read_bytes())["days"][0]["title"],
+            "相談結果を反映した港周辺プラン",
+        )
+        self.assertFalse(self.domain.get_working_trip_detail_view(TRIP_ID)["working"]["present"])
+
     def test_mismatched_identity_does_not_change_latest_generation(self):
         with self.assertRaisesRegex(ConflictError, "identity does not match"):
             run_started_generation(self.domain, TRIP_ID, "generation-1", lambda _: {

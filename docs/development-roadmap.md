@@ -63,14 +63,16 @@ Phase 5で確立した一連の境界は、Working export → generator-neutral�
 3. **完了（us確認済み）**: AIGにWorking exportからcomplete candidateを1件返すstatelessな最小生成境界を実装する。
 4. **完了（us確認済み）**: CAL → AIG → Phase 5 candidate受入れを接続する。
 5. **完了（us確認済み）**: `auto / review` adoption policyを実装する。
-6. **実装中（未完了）**: FRMに生成開始と`generating / failed / candidate_ready / adopted`の最小表示・操作を追加する。
-7. 既存の手動Chat fallbackを維持して確認する。
+6. **完了（us実機確認済み）**: FRMに生成開始と`generating / failed / candidate_ready / adopted`の最小表示・操作を追加する。
+7. **完了**: AIG生成失敗、複雑な変更、ユーザー判断が必要な場合も、既存のWorking export → Chat手動調整 → complete candidate → Phase 5 adoptionへ戻れることを合成データで確認する。
 8. auto / review、stale、malformed / Validation failure、AIG failure、Working clearを合成データでValidationする。
 9. Phase 6を振り返り、Phase 7で候補・特殊ケースを専用機能化する必要を再評価する。
 
 Step 1で、最初の接続先をAIGとし、CAL → AIG requestはgeneration identityと既存Working export package、AIG → CAL resultは同じidentityとcomplete Trip candidate 1件だけを運ぶprovider-neutral契約に確定した。CALはTripごとの最新1件だけを`generating / candidate_ready / failed / adopted`として所有し、policyはgeneration開始時に`auto / review`から固定する。AIGはworkflow stateを保持せず、FRMも正本stateやcandidateを持たない。
 
 `auto`はAIG返却後にPhase 5のValidation / stale gate / atomic adoptionへ直結し、`review`はcandidateをCALの`candidate_ready`へ保持してusの確定操作後に同じ境界へ渡す。どちらもPhase 5 gateを迂回せず、失敗時はWorkingを保持する。新しい手動実行は最新の終端stateを置き換えるが、自動retry、queue、履歴、staleの自動rebase / mergeは設けない。手動Chat fallback、CAL外旅行計画正本更新、production activationはこのstate machineの外に保つ。
+
+Step 7では、AIGのsafe failure後もWorkingとraw user intentが既存exportから取得でき、Chatで手動調整したcomplete candidateをgeneration stateとは独立したPhase 5のValidation / stale gate / atomic adoptionへ渡せることを合成データで確認した。複雑な変更やユーザー判断が必要な場合も同じ既存経路を利用し、自動Chat送信、Chat session管理、新しいfallback stateや機構は追加しない。
 
 完了したPhase 2・3の表示・入力・更新契約は[`trip-detail-model.md`](trip-detail-model.md)に保持する。
 
