@@ -32,7 +32,7 @@ class CalendarSchemaV3Tests(unittest.TestCase):
 
     def test_schema_is_reproducible_and_versioned(self):
         tables = {row[0] for row in self.connection.execute("SELECT name FROM sqlite_schema WHERE type = 'table'")}
-        self.assertEqual(tables, {"schema_meta", "trips", "events", "todos", "ai_instructions", "generation_requests", "direct_overrides", "working_trips"})
+        self.assertEqual(tables, {"schema_meta", "trips", "events", "todos", "ai_instructions", "generation_requests", "direct_overrides", "working_trips", "working_trip_generations"})
         self.assertEqual(self.connection.execute("SELECT version FROM schema_meta").fetchone(), (3,))
         self.assertEqual(self.connection.execute("SELECT version FROM trips WHERE id = 'trip-1'").fetchone(), None)
 
@@ -120,6 +120,34 @@ class CalendarSchemaV3Tests(unittest.TestCase):
     def test_initializer_refuses_non_empty_database(self):
         with self.assertRaises(FileExistsError):
             INIT_MODULE.initialize(self.database_path)
+
+    def test_working_generation_keeps_one_latest_row_and_minimal_states(self):
+        self.insert_trip()
+        self.connection.execute(
+            "INSERT INTO working_trip_generations "
+            "(trip_id, generation_id, policy, base_trip_version, base_effective_hash, working_state_digest, request_package_json, state, created_at, updated_at) "
+            "VALUES ('trip-1', 'generation-1', 'review', 1, ?, ?, '{}', 'generating', ?, ?)",
+            ("a" * 64, "b" * 64, TS, TS),
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute(
+                "INSERT INTO working_trip_generations "
+                "(trip_id, generation_id, policy, base_trip_version, base_effective_hash, working_state_digest, request_package_json, state, created_at, updated_at) "
+                "VALUES ('trip-1', 'generation-2', 'review', 1, ?, ?, '{}', 'generating', ?, ?)",
+                ("a" * 64, "b" * 64, TS, TS),
+            )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute("UPDATE working_trip_generations SET state = 'queued' WHERE trip_id = 'trip-1'")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute("UPDATE working_trip_generations SET state = 'candidate_ready' WHERE trip_id = 'trip-1'")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute(
+                "UPDATE working_trip_generations SET working_state_digest = 'bad' WHERE trip_id = 'trip-1'"
+            )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute(
+                "UPDATE working_trip_generations SET request_package_json = '[]' WHERE trip_id = 'trip-1'"
+            )
 
 
 if __name__ == "__main__":

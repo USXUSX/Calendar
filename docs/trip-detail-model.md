@@ -249,3 +249,61 @@ Step 6では`export_working_trip_for_chat()`のpackageを出発点に、changed�
 day instructionを反映したcomplete formal Trip candidateを手動Chat返却相当として再投入し、同じ
 `adopt_working_trip_candidate()`境界でatomic adoptionとWorking clearまで完了できることを合成データで確認した。
 Chat/API自動送信、AI生成、FRM UIはこの確認へ含めない。
+
+## Phase 6のAIG接続境界と最小generation state
+
+Phase 6の最初の接続先はAIGとする。CALはAIGのprovider、model、credential、provider固有payloadを
+知らず、AIGもCALのSQLite、Trip file、Working保存形式、adoption policyを知らない。FRMはCALの
+semantic commandとread modelだけを使い、generation stateやcandidateの正本を保持しない。
+
+CALからAIGへ渡すrequestは、契約version、CALが発行した`generation_id`、`trip_id`、および
+`export_working_trip_for_chat()`が返す`cal.complete-trip-regeneration.v1` packageだけで構成する。
+AIGは同じ`generation_id`と`trip_id`、complete formal Trip JSON object 1件だけを返す。AIG側の
+request ID、provider、model、token、cost、raw応答はこのCAL semantic resultへ入れない。transport失敗は
+candidateの代わりに失敗として返し、CALは安全なfailure分類だけを保持する。
+
+CALはWorking Tripごとに最新generation 1件だけを所有する。Workingがなければ開始せず、開始時に
+`generation_id`、`policy: auto | review`、AIGへ渡す既存Working export package、そのcanonicalな
+`user_intent`のSHA-256 digest、captured effective revision、
+`state: generating`を同じCAL transactionで固定する。activeな`generating`を別要求で上書きせず、
+終端stateに対するusの再実行だけが新しいidentityで最新1件を置き換える。履歴、queue、retry count、
+provider実行情報は保存しない。
+
+最小stateは`generating / candidate_ready / failed / adopted`とする。`review`でidentityが一致する正常な
+candidateを受けた場合だけcomplete candidateを`candidate_ready`に保持する。`auto`ではcandidateを
+永続的な確認待ちにせず、直ちに既存`adopt_working_trip_candidate()`相当のPhase 5 Validation、captured
+revision stale gate、atomic adoptionへ渡す。`review`の確定操作も保持candidateを同じPhase 5境界へ渡す。
+成功時は`adopted`とadoption結果のversion / digestだけを残し、candidateをclearする。
+
+AIG transport失敗、malformed result、Validation / semantic conflict、staleは`failed`として分類し、
+authoritative TripとWorkingを変更しない。failed stateは再実行可能だが自動retryしない。staleはWorking
+再編集・再export後の新しい手動生成でだけ解消し、自動rebase・自動mergeしない。生成identity不一致の
+遅延resultは現行stateを変更せずConflictとして拒否する。
+
+手動Chatの`export → 対話調整 → complete candidate → adopt_working_trip_candidate()`は独立fallbackとして
+維持し、AIG generation stateを経由することを要求しない。CAL外旅行計画正本更新、production activation、
+Calendar_Local migration、provider選択UI、常駐workflowはこの境界に含めない。
+
+Step 2のCAL semantic/storage境界は`working_trip_generations`をWorking Trip用の独立した最新1行として使う。
+`start_working_trip()`は確定Tripを再編集するため、現行effective revisionをbaseに空のWorkingを開始する。
+既存Workingを上書きせず、前のWorkingに属する終端generationだけをclearする。FRMは空のWorking保存envelopeを
+組み立てず、このcommandを編集開始に利用する。
+`get_working_trip_generation()`は行がない場合に永続的な`idle`を作らず`idle` read modelを返す。
+`start_working_trip_generation()`はcurrentなWorkingがある場合だけ開始し、既存の`generating`を上書きしない。
+`store_working_trip_generation_candidate()`は最新の`generation_id`と開始時にcapturedしたWorking effective revision、
+Working content digestが一致する場合だけ`candidate_ready`へ進める。`fail_working_trip_generation()`は最新identityの
+`generating`だけを`failed`へ終端し、Working変更でdigestが不一致になった場合にも旧generationを再実行可能な終端へ移す。前者は`review` policyだけが利用し、
+candidateは未信頼JSON objectとして1件だけ保持する。この段階ではAIG呼出し、formal Validation、adoption、FRMを
+接続せず、既存`generation_requests`のqueue型AI Instruction/Patch経路も変更しない。後続Stepでauto adoptionまたは
+review確定を接続する際も、`require_current_working_trip_generation()`で同じdigestを採用直前に再確認し、不一致なら
+candidateをPhase 5境界へ渡さずConflictとする。Working編集を自動rebaseしない。
+
+Step 4では`run_started_generation()`がcurrentな`generating`行から、開始時に固定した`generation_id`と
+`request_package`をそのままprovider-neutral AIG requestへ組み立て、replaceable transportを1回だけ呼ぶ。
+返却identityの不一致は最新stateを変更せずConflictとし、AIG safe failure、transport failure、malformed resultは
+安全なfailure codeだけを`failed`へ保持する。candidate受領時は同じWorking-content digest gateを再確認してから、
+手動candidateと共有するPhase 5 Schema / semantic / constraint Validationへ渡す。Validation失敗は
+`invalid_candidate`、開始後のWorking変更は`obsolete_working`としてraw Validation/provider情報を残さず
+`failed`へ終端する。旧generationのcandidateは拒否し、変更後Workingから新しいgenerationを手動開始できるが、
+自動rebaseや自動retryは行わない。Step 4はcandidateを採用も永続保持もせず、`auto`の直結adoptionと
+`review`の`candidate_ready`保持への分岐はStep 5に残す。

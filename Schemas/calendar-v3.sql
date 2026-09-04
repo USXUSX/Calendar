@@ -99,3 +99,24 @@ CREATE TABLE working_trips (
   created_at TEXT NOT NULL CHECK (strftime('%Y-%m-%dT%H:%M:%SZ', created_at) IS created_at),
   updated_at TEXT NOT NULL CHECK (strftime('%Y-%m-%dT%H:%M:%SZ', updated_at) IS updated_at)
 );
+
+CREATE TABLE working_trip_generations (
+  trip_id TEXT PRIMARY KEY REFERENCES trips(id),
+  generation_id TEXT NOT NULL UNIQUE CHECK (length(generation_id) > 0),
+  policy TEXT NOT NULL CHECK (policy IN ('auto', 'review')),
+  base_trip_version INTEGER NOT NULL CHECK (base_trip_version >= 1),
+  base_effective_hash TEXT NOT NULL CHECK (length(base_effective_hash) = 64 AND base_effective_hash NOT GLOB '*[^0-9a-f]*'),
+  working_state_digest TEXT NOT NULL CHECK (length(working_state_digest) = 64 AND working_state_digest NOT GLOB '*[^0-9a-f]*'),
+  request_package_json TEXT NOT NULL CHECK (json_valid(request_package_json) AND json_type(request_package_json) = 'object'),
+  state TEXT NOT NULL CHECK (state IN ('generating', 'candidate_ready', 'failed', 'adopted')),
+  candidate_json TEXT CHECK (candidate_json IS NULL OR (json_valid(candidate_json) AND json_type(candidate_json) = 'object')),
+  failure_code TEXT CHECK (failure_code IS NULL OR length(failure_code) > 0),
+  adopted_version INTEGER CHECK (adopted_version IS NULL OR adopted_version >= 1),
+  adopted_digest TEXT CHECK (adopted_digest IS NULL OR (length(adopted_digest) = 64 AND adopted_digest NOT GLOB '*[^0-9a-f]*')),
+  created_at TEXT NOT NULL CHECK (strftime('%Y-%m-%dT%H:%M:%SZ', created_at) IS created_at),
+  updated_at TEXT NOT NULL CHECK (strftime('%Y-%m-%dT%H:%M:%SZ', updated_at) IS updated_at),
+  CHECK ((state = 'candidate_ready') = (candidate_json IS NOT NULL)),
+  CHECK ((state = 'failed') = (failure_code IS NOT NULL)),
+  CHECK ((adopted_version IS NULL) = (adopted_digest IS NULL)),
+  CHECK ((state = 'adopted') = (adopted_version IS NOT NULL))
+);

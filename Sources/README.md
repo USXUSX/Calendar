@@ -31,6 +31,15 @@ version and clears only the target Working row; active Direct Overrides remain. 
 recovery finds the candidate current it completes the version update and Working
 clear, while an unchanged old current keeps Working state.
 
+Phase 6 Working generation uses `aig_trip_generation.py` to send the exact
+`generation_id`, `trip_id`, and frozen Working export package over a replaceable JSON
+stdin/stdout AIG command. Result receipt rechecks the Working-content digest and sends a
+complete candidate through the shared Phase 5 formal Validation boundary. The policy
+captured at generation start sends `auto` directly through the Phase 5 Working-content
+gate and atomic adoption, or retains one `review` candidate as `candidate_ready`. Review
+confirmation uses the same gate and adoption boundary. Success records only `adopted`,
+the new Trip version, and candidate digest on the latest generation.
+
 `calendar_worker.py` is the CAL-owned one-shot execution boundary. It recovers
 interrupted adoptions, claims at most one request, invokes a replaceable
 semantic-payload-to-Patch generator, and submits through `CalendarDomain`.

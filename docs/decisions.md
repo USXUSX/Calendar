@@ -2,6 +2,18 @@
 
 ## Historical confirmed decisions
 
+- 2026-09-04, Issue #75 Phase 6 Step 9: Phase 6の確定構成は、CAL-owned latest generation state、stateless AIG、CAL semantic境界だけを使う表示・操作限定のFRM、generation開始時に固定する`auto / review`両policy、両policyが共有するPhase 5 Validation / stale gate / atomic adoption、AIG失敗時にも独立して利用できるWorking export → Chat手動調整 → complete candidate → Phase 5 adoptionである。Phase 7は候補・特殊ケースの専用機能を先行追加せず、現行Working指示とAIG再生成を実利用し、既存経路で扱えない不足が確認されたものだけを後続Issueで追加する検証Phaseとする。
+
+- 2026-09-04, Issue #75 Phase 6 Step 7: AIG生成失敗、複雑な変更、ユーザー判断が必要な場合は、Phase 4/5で確立したWorking export → Chat手動調整 → complete candidate → Phase 5 adoptionへ戻る。AIGのlatest generation stateはこの手動経路を塞がず、手動candidateも既存のValidation / stale gate / atomic adoptionを通す。自動Chat送信、Chat session管理、新しいfallback state・機構は追加しない。
+
+- 2026-09-04, Issue #75 Phase 6 Step 5: generation開始時に固定したpolicyが`auto`なら、Validation済みcomplete candidateを採用直前のWorking-content gateからPhase 5 atomic adoptionへ直結する。`review`なら最新generationへ`candidate_ready`として保持し、後続確定も同じgateとadoption境界を通す。成功時はcandidateをclearし、generationへ`adopted`と更新後Trip version / candidate digestだけを記録する。
+
+- 2026-09-04, Issue #75 Phase 6 Step 4: CALは開始済みgenerationから固定済み`generation_id`、`trip_id`、Working export packageだけのprovider-neutral requestを作り、replaceableなJSON stdin/stdout transportでAIGを1回呼ぶ。返却identityを照合し、candidate受領時はWorking-content digestを再確認して既存Phase 5 formal Validation境界へ渡す。safe AIG / transport / malformed failureはCALの最新stateへ安全な分類だけを保持し、provider情報やraw errorは保持しない。Step 4ではcandidateを採用・永続保持せず、auto/review分岐はStep 5に残す。
+
+- 2026-09-04, Issue #75 Phase 6 Step 2: generation開始時にAIGへ渡すWorking export packageと、そのcanonical `user_intent`のSHA-256 digestをlatest-only generation行へ固定する。generation結果受領時と後続adoption接続の直前に現在のWorking stateを同じ方法でdigest化して照合し、不一致は自動rebaseせずConflictとしてcandidateを採用経路へ渡さない。
+
+- 2026-09-04, Issue #75 Phase 6 Step 1: Working Trip自動再生成の最初の接続先はAIGとし、CAL→AIGはgeneration identityと既存Working export package、AIG→CALは同じidentityとcomplete candidate 1件だけを運ぶ。CALがTripごとの最新generation state / candidateと`auto / review` policyを所有し、AIGはstateless、FRMは表示・操作のみとする。autoとreviewはいずれもPhase 5のValidation / stale gate / atomic adoptionを通し、失敗時はWorkingを保持する。自動retry、queue、履歴、自動rebase / merge、CAL外正本更新は行わず、手動Chat fallbackを維持する。
+
 - 2026-09-03, Issue #73 Phase 5 Step 1: Workingから返ったcomplete candidateの公開semantic commandは`adopt_working_trip_candidate(trip_id, candidate)`とし、candidate生成元やAI request identityを契約へ入れない。Workingのcaptured effective revisionを確定直前に再確認し、既存のSchema・semantic/cross-reference・Trip ID・active Direct Override・Todo参照Validationとsame-filesystem atomic replacement / digest journal recoveryをgenerator-neutralな共通層として再利用する。成功後だけWorkingをclearし、Direct Overrideは維持する。現行Patch pipelineのInstruction/request state遷移は変えない。
 
 - Project root: `/Users/us/Tools`.

@@ -102,6 +102,19 @@ class CalendarDomainTests(unittest.TestCase):
                 candidate_judgments={"schedule-island-art": {"place-art-museum": "maybe"}},
             )
 
+    def test_start_working_trip_uses_current_effective_revision_without_overwrite(self):
+        started = self.domain.start_working_trip("trip-setouchi-2027")
+        self.assertEqual(started["state"], {
+            "item_changes": [], "temporary_items": [], "day_instructions": [],
+        })
+        self.assertEqual(started["base_effective_revision"],
+                         started["current_effective_revision"])
+        self.assertTrue(self.domain.get_working_trip_detail_view(
+            "trip-setouchi-2027",
+        )["working"]["present"])
+        with self.assertRaisesRegex(ConflictError, "already exists"):
+            self.domain.start_working_trip("trip-setouchi-2027")
+
     def test_local_ai_update_request_is_target_scoped_and_not_queued(self):
         effective = self.domain.get_effective_trip("trip-setouchi-2027")
         request = build_local_ai_update_request(
@@ -175,6 +188,110 @@ class CalendarDomainTests(unittest.TestCase):
         self.assertEqual(self.trip_path.read_bytes(), original)
         with sqlite3.connect(self.db_path) as connection:
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM working_trips").fetchone()[0], 1)
+
+    def test_working_generation_is_idle_without_row_and_keeps_only_latest_terminal(self):
+        self.assertEqual(
+            self.domain.get_working_trip_generation("trip-setouchi-2027"),
+            {"trip_id": "trip-setouchi-2027", "state": "idle"},
+        )
+        with self.assertRaises(NotFoundError):
+            self.domain.start_working_trip_generation(
+                "trip-setouchi-2027", "generation-1", "review",
+            )
+        working = self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [], "day_instructions": [],
+        })
+        started = self.domain.start_working_trip_generation(
+            "trip-setouchi-2027", "generation-1", "review",
+        )
+        self.assertEqual((started["generation_id"], started["policy"], started["state"]),
+                         ("generation-1", "review", "generating"))
+        self.assertEqual(
+            (started["base_trip_version"], started["base_effective_hash"]),
+            (working["base_effective_revision"]["trip_version"],
+             working["base_effective_revision"]["effective_hash"]),
+        )
+        self.assertEqual(started["request_package"]["user_intent"], working["state"])
+        self.assertEqual(
+            started["working_state_digest"],
+            self.domain._digest(self.domain._canonical_json(working["state"])),
+        )
+        with self.assertRaisesRegex(ConflictError, "already generating"):
+            self.domain.start_working_trip_generation(
+                "trip-setouchi-2027", "generation-2", "auto",
+            )
+        failed = self.domain.fail_working_trip_generation(
+            "trip-setouchi-2027", "generation-1", "transport",
+        )
+        self.assertEqual((failed["state"], failed["failure_code"]), ("failed", "transport"))
+        replacement = self.domain.start_working_trip_generation(
+            "trip-setouchi-2027", "generation-2", "auto",
+        )
+        self.assertEqual((replacement["generation_id"], replacement["state"]),
+                         ("generation-2", "generating"))
+        with sqlite3.connect(self.db_path) as connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM working_trip_generations").fetchone()[0], 1)
+
+    def test_working_generation_rejects_wrong_identity_and_keeps_latest_candidate(self):
+        self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [], "day_instructions": [],
+        })
+        self.domain.start_working_trip_generation(
+            "trip-setouchi-2027", "generation-1", "review",
+        )
+        candidate = json.loads(self.trip_path.read_bytes())
+        with self.assertRaisesRegex(ConflictError, "identity"):
+            self.domain.store_working_trip_generation_candidate(
+                "trip-setouchi-2027", "late-generation", candidate,
+            )
+        ready = self.domain.store_working_trip_generation_candidate(
+            "trip-setouchi-2027", "generation-1", candidate,
+        )
+        self.assertEqual((ready["state"], ready["candidate"]), ("candidate_ready", candidate))
+        with self.assertRaisesRegex(ConflictError, "not generating"):
+            self.domain.fail_working_trip_generation(
+                "trip-setouchi-2027", "generation-1", "transport",
+            )
+
+    def test_working_generation_rejects_result_and_adoption_gate_after_working_edit(self):
+        self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [], "day_instructions": [],
+        })
+        started = self.domain.start_working_trip_generation(
+            "trip-setouchi-2027", "generation-1", "review",
+        )
+        self.domain.save_working_trip_day_instruction(
+            "trip-setouchi-2027", "day-2027-05-14", "Use the newly edited Working intent",
+        )
+        candidate = json.loads(self.trip_path.read_bytes())
+        with self.assertRaisesRegex(ConflictError, "content does not match"):
+            self.domain.store_working_trip_generation_candidate(
+                "trip-setouchi-2027", "generation-1", candidate,
+            )
+        self.assertEqual(
+            self.domain.get_working_trip_generation("trip-setouchi-2027")["state"],
+            "generating",
+        )
+        self.assertEqual(started["request_package"]["user_intent"]["day_instructions"], [])
+
+    def test_candidate_ready_adoption_gate_rejects_later_working_edit(self):
+        self.domain.save_working_trip("trip-setouchi-2027", {
+            "item_changes": [], "temporary_items": [], "day_instructions": [],
+        })
+        self.domain.start_working_trip_generation(
+            "trip-setouchi-2027", "generation-1", "review",
+        )
+        candidate = json.loads(self.trip_path.read_bytes())
+        self.domain.store_working_trip_generation_candidate(
+            "trip-setouchi-2027", "generation-1", candidate,
+        )
+        self.domain.save_working_trip_day_instruction(
+            "trip-setouchi-2027", "day-2027-05-14", "Edited after candidate receipt",
+        )
+        with self.assertRaisesRegex(ConflictError, "content does not match"):
+            self.domain.require_current_working_trip_generation(
+                "trip-setouchi-2027", "generation-1", "candidate_ready",
+            )
 
     def test_stale_working_trip_remains_readable_and_editable_but_blocks_confirmation(self):
         initial = self.domain.save_working_trip("trip-setouchi-2027", {
