@@ -64,8 +64,8 @@ Phase 5で確立した一連の境界は、Working export → generator-neutral�
 4. **完了（us確認済み）**: CAL → AIG → Phase 5 candidate受入れを接続する。
 5. **完了（us確認済み）**: `auto / review` adoption policyを実装する。
 6. **完了（us実機確認済み）**: FRMに生成開始と`generating / failed / candidate_ready / adopted`の最小表示・操作を追加する。
-7. **完了**: AIG生成失敗、複雑な変更、ユーザー判断が必要な場合も、既存のWorking export → Chat手動調整 → complete candidate → Phase 5 adoptionへ戻れることを合成データで確認する。
-8. auto / review、stale、malformed / Validation failure、AIG failure、Working clearを合成データでValidationする。
+7. **完了（us確認済み）**: AIG生成失敗、複雑な変更、ユーザー判断が必要な場合も、既存のWorking export → Chat手動調整 → complete candidate → Phase 5 adoptionへ戻れることを合成データで確認する。
+8. **完了**: auto / review、stale、malformed / Validation failure、AIG failure、Working clearを合成データと必要なブラウザ確認でValidationする。
 9. Phase 6を振り返り、Phase 7で候補・特殊ケースを専用機能化する必要を再評価する。
 
 Step 1で、最初の接続先をAIGとし、CAL → AIG requestはgeneration identityと既存Working export package、AIG → CAL resultは同じidentityとcomplete Trip candidate 1件だけを運ぶprovider-neutral契約に確定した。CALはTripごとの最新1件だけを`generating / candidate_ready / failed / adopted`として所有し、policyはgeneration開始時に`auto / review`から固定する。AIGはworkflow stateを保持せず、FRMも正本stateやcandidateを持たない。

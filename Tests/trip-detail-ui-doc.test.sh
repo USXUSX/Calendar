@@ -32,7 +32,9 @@ grep -F '2. **完了（us確認済み）**: CALにWorking Tripごとの最新gen
 grep -F '3. **完了（us確認済み）**: AIGにWorking exportからcomplete candidateを1件返すstatelessな最小生成境界を実装する。' "$roadmap" >/dev/null
 grep -F '4. **完了（us確認済み）**: CAL → AIG → Phase 5 candidate受入れを接続する。' "$roadmap" >/dev/null
 grep -F '5. **完了（us確認済み）**: `auto / review` adoption policyを実装する。' "$roadmap" >/dev/null
-grep -F '7. **完了**: AIG生成失敗、複雑な変更、ユーザー判断が必要な場合も、既存のWorking export → Chat手動調整 → complete candidate → Phase 5 adoptionへ戻れることを合成データで確認する。' "$roadmap" >/dev/null
+grep -F '6. **完了（us実機確認済み）**: FRMに生成開始と`generating / failed / candidate_ready / adopted`の最小表示・操作を追加する。' "$roadmap" >/dev/null
+grep -F '7. **完了（us確認済み）**: AIG生成失敗、複雑な変更、ユーザー判断が必要な場合も、既存のWorking export → Chat手動調整 → complete candidate → Phase 5 adoptionへ戻れることを合成データで確認する。' "$roadmap" >/dev/null
+grep -F '8. **完了**: auto / review、stale、malformed / Validation failure、AIG failure、Working clearを合成データと必要なブラウザ確認でValidationする。' "$roadmap" >/dev/null
 grep -F 'AIGはworkflow stateを保持せず' "$roadmap" >/dev/null
 grep -F 'candidate受入れ、Schema・semantic Validation、captured revisionに対するstale確認、all-or-nothingのadoption' "$roadmap" >/dev/null
 grep -F '自動retry、queue、履歴' "$roadmap" >/dev/null
