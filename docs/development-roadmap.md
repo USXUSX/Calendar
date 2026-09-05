@@ -39,8 +39,8 @@ CALは、次の3領域を内部機能としては十分に分離しつつ、表�
 | 4. Working Trip編集基盤 | 完了 | authoritative Tripを壊さず、未確定変更を自由に保持・表示・再編集・出力できるようにする | 既存予定の変更・削除予定化、新規予定の仮追加、day-level指示を最新Working状態として扱い、D案UIとChat向け出力から利用できる | Workingは履歴を積まず、formal Trip完全適合や内容の完全整合を要求しない。authoritative Trip、Direct Override、表示モデルの既存責務を保ち、ケース別commandを増やしすぎない |
 | 5. Working Trip確定フロー | 完了 | Workingを反映したcomplete Trip candidateをCAL内で安全に正式Tripへ戻す | Working exportから作成したcomplete candidateをformal Validationし、staleでないことを確認してauthoritative Tripへatomic adoptionし、成功後だけWorkingをclearしてFRMへ結果を返せる | CALはcandidate受入れ、Schema・semantic Validation、captured revisionに対するstale確認、all-or-nothingのadoptionを所有する。candidate生成元を契約へ持ち込まず、失敗時はauthoritative TripとWorkingを変更しない |
 | 6. AI接続を実用化 | 完了 | Working exportからcomplete Trip candidateを生成・再構成する部分をAIGへ接続する | auto policyでは既存Phase 5 gateを通して自動採用し、review policyではcandidate確認後に同じgateから採用でき、結果をFRMで把握できる | CALが最新1件のgeneration stateとcandidateを所有し、AIGはstateless、FRMは表示・操作に限定する。provider、model、credentialはAIG側へ閉じ、stale解消・自動retry・CAL外正本更新は行わない |
-| 7. 候補・特殊ケースを実利用で検証 | 現在 | 現行Working指示とAIG再生成で候補や複数予定変更等をどこまで自然に扱えるか実利用で確認する | 候補追加・判断・選定、複数予定変更、別行動等について、既存経路で足りる範囲と実際に不足する範囲が明確になる | 候補・特殊ケースの専用機能を先回りして追加しない。不足が実利用で確認されたものだけを後続Issueで追加する |
-| 8. 実利用でUI・運用を仕上げる | 未着手 | 対象端末、Chat往復、自動確定の使い勝手を実利用で仕上げる | iPad mini / iPad、Safari / Chromeで主要経路を継続利用でき、Working状態表示や確認導線の支障が取り除かれている | font、余白、icon等は実利用から調整し、Review Handoffを含む確認導線を確認する。全ケース対応を完了条件にしない |
+| 7. 候補・特殊ケースを実利用で検証 | 完了（限定付き） | 現行Working指示とAIG再生成で候補や複数予定変更等をどこまで自然に扱えるか実利用で確認する | 候補追加・判断・選定、複数予定変更、別行動等について、既存経路で足りる範囲と実際に不足する範囲が明確になる | 候補・特殊ケースの専用機能を先回りして追加しない。不足が実利用で確認されたものだけを後続Issueで追加する |
+| 8. 実利用でUI・運用を仕上げる | 現在 | 対象端末、Chat往復、自動確定の使い勝手を実利用で仕上げる | iPad mini / iPad、Safari / Chromeで主要経路を継続利用でき、Working状態表示や確認導線の支障が取り除かれている | font、余白、icon等は実利用から調整し、Review Handoffを含む確認導線を確認する。全ケース対応を完了条件にしない |
 
 ### 完了したPhase 5: Working Trip確定フロー
 
@@ -74,11 +74,17 @@ Step 1で、最初の接続先をAIGとし、CAL → AIG requestはgeneration id
 
 Step 7では、AIGのsafe failure後もWorkingとraw user intentが既存exportから取得でき、Chatで手動調整したcomplete candidateをgeneration stateとは独立したPhase 5のValidation / stale gate / atomic adoptionへ渡せることを合成データで確認した。複雑な変更やユーザー判断が必要な場合も同じ既存経路を利用し、自動Chat送信、Chat session管理、新しいfallback stateや機構は追加しない。
 
-### 現在のPhase 7: 候補・特殊ケースを実利用で検証
+### 限定付き完了したPhase 7: 候補・特殊ケースを実利用で検証
 
-Phase 7では、候補、複数予定変更、別行動等の専用機能を先に設計・追加しない。まず現行のWorking変更・day instruction等の指示をAIG再生成へ渡す経路を実利用し、`auto / review` policyと必要時の手動Chat fallbackを使い分ける。
+[Issue #77](https://github.com/USXUSX/Calendar/issues/77)のus判断により限定付き完了とする。代表ケースを一通り確認し、既存Working＋AIG経路で扱える範囲と、complete-Trip生成による不要な既存データ変更を区別した。候補・別行動の専用schema / command / UIやparticipant scopeを追加する根拠は得られていない。
 
-実利用で既存経路では表現・判断・確定できない不足が再現可能に確認された場合だけ、その不足を対象とする後続Issueを作成して最小機能を追加する。既存経路で扱えるケースは専用state、command、UIを増やさず、Phase 7の検証結果として整理する。
+保持性の不足にはIssue #80 / PR #81で限定3 ruleと同一generationのauto→review昇格を実装した。検出時は既存review確認へ合流し、採用は引き続きPhase 5のValidation / stale gate / atomic adoptionを通す。ruleの契約は[`trip-detail-model.md`](trip-detail-model.md)を参照する。
+
+自由文意図の未達、未指定field、Place / Day等の検出外は残余リスクとして受け入れる。一般的な生成安定性、全ケースでのadoption成功、過去の保存していないcandidateの原因復元を保証・完了条件とせず、追加liveで追跡しない。同種の不要変更が実利用で繰り返される領域だけ、将来のscope指定／固定rule化を局所的に検討する。
+
+### 現在のPhase 8: 実利用でUI・運用を仕上げる
+
+対象端末でのUI、Working状態表示、candidate確認負担、Chat往復、Review Handoff等の運用を実利用から仕上げる。具体的な支障と必要最小限の調整を次のIssueで定め、全ケース対応や初期rule検出外の先回り実装は行わない。今回の現在地更新はPhase 8の製品変更、追加live、production activation / Calendar_Local操作の開始許可を含まない。
 
 完了したPhase 2・3の表示・入力・更新契約は[`trip-detail-model.md`](trip-detail-model.md)に保持する。
 
