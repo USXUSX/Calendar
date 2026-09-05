@@ -35,10 +35,23 @@ Phase 6 Working generation uses `aig_trip_generation.py` to send the exact
 `generation_id`, `trip_id`, and frozen Working export package over a replaceable JSON
 stdin/stdout AIG command. Result receipt rechecks the Working-content digest and sends a
 complete candidate through the shared Phase 5 formal Validation boundary. The policy
-captured at generation start sends `auto` directly through the Phase 5 Working-content
-gate and atomic adoption, or retains one `review` candidate as `candidate_ready`. Review
+is the current adoption policy. After formal Validation, `auto` passes the limited
+rules in `calendar_domain/candidate_diff.py`; no signal continues through the Phase 5
+Working-content gate and atomic adoption. A signal uses
+`promote_working_trip_generation_candidate()` to atomically set `policy=review`,
+retain that candidate, and enter `candidate_ready`. The same transaction checks the
+current generation, Working, effective revision, and adoption constraints.
+An existing `review` generation retains its candidate without requiring these rules. Review
 confirmation uses the same gate and adoption boundary. Success records only `adopted`,
 the new Trip version, and candidate digest on the latest generation.
+
+`diff_check_failed` is a CAL-local terminal classification for rule evaluation errors,
+including unsupported structured fields. Promotion DB write failures raise
+`GenerationWriteError` and roll back without a terminal-state claim. A zero-row
+conditional transition is Conflict; stale/constraint validation keeps the existing
+failure mapping. No original-policy, rule-reason history, or inspection-version
+columns are added. Re-evaluated reasons would describe current rules, not historical
+evidence. The AIG request/result contract is unchanged.
 
 `calendar_worker.py` is the CAL-owned one-shot execution boundary. It recovers
 interrupted adoptions, claims at most one request, invokes a replaceable

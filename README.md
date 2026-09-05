@@ -29,9 +29,19 @@ active Overrides, and Todo item references, then atomically adopts it.
 
 Phase 6 Working regeneration uses a separate latest-only CAL state per Trip.
 No row means `idle`; a row fixes one generation identity, `auto` / `review`
-policy, the frozen Working export package and canonical Working digest, the captured revision, and only the current minimal state and
+current adoption policy, the frozen Working export package and canonical Working digest, the captured revision, and only the current minimal state and
 candidate or safe terminal result. It does not retain a queue, retry count,
 history, or provider/model metadata.
+After formal Validation, auto candidates are checked for explicit structured Working
+field mismatches, Trip summary changes, and unrequested ScheduleItem/Transport removal.
+A signal atomically promotes the same generation to `review / candidate_ready`;
+confirmation and adoption use the existing review path. Policy means the current
+adoption policy, not a retained record of the initial choice. No automatic downgrade,
+repair, retry, or complete intent/preservation guarantee is added.
+Rule evaluation errors become the fixed CAL failure `diff_check_failed`. Promotion
+database write errors raise `GenerationWriteError` without claiming a failed or ready
+transition; the transaction rolls back. Old or duplicate results raise Conflict and
+cannot terminalize a different generation or an already retained candidate.
 After adoption clears Working, `start_working_trip()` is the semantic command for
 starting a new empty Working state from the current effective Trip. Callers do not
 construct or persist the empty Working envelope themselves.
