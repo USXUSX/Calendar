@@ -1,5 +1,7 @@
 # Architecture decisions
 
+- 2026-09-05, Issue #77: Phase 7を限定付き完了とし、Phase 8を現在とする。代表ケースから既存経路の適用範囲と保持性の不足を区別し、Issue #80の限定差分検査・既存review昇格で対応した。専用schema / command / UIやparticipant scopeは追加しない。検出外の残余リスクを受け入れ、実利用で反復する領域だけ将来scope指定／固定rule化を検討する。生成安定性、全ケースのadoption成功、過去candidateの原因復元を追加追跡せず、完了範囲は[roadmap](development-roadmap.md)に保持する。
+
 - 2026-09-05, Issue #80: Working generationのpolicyを現在の採用方針とする。限定3 ruleを検出したauto候補だけ、同一generationのpolicy / candidate / candidate_readyを原子的に更新して既存reviewへ昇格する。開始時policy固定という以下のPhase 6時点の説明を更新し、auto→reviewのみを許す。新状態・履歴列・journal方式・retryは追加しない。
 
 ## Historical confirmed decisions
