@@ -196,10 +196,19 @@ def validate(path: Path, schema: dict[str, Any]) -> list[str]:
 
 
 def validate_value(value: Any, schema: dict[str, Any]) -> list[str]:
+    return validation_stage_errors(value, schema)[1]
+
+
+def validation_stage_errors(value: Any, schema: dict[str, Any]) -> tuple[str | None, list[str]]:
+    """Use the same ordered checks, with a fixed stage separate from private errors."""
     errors = schema_errors(value, schema, schema)
-    if not errors and isinstance(value, dict):
-        errors.extend(semantic_errors(value))
-    return errors
+    if errors:
+        return "schema", errors
+    if isinstance(value, dict):
+        errors = semantic_errors(value)
+        if errors:
+            return "semantic_reference", errors
+    return None, []
 
 
 def main() -> int:
