@@ -16,7 +16,7 @@ from typing import Any, Callable, Iterator
 
 from scripts.validate_trip import DEFAULT_SCHEMA, semantic_errors, validate_value, validation_stage_errors
 
-from .errors import ConflictError, NotFoundError, ValidationError
+from .errors import ConflictError, GenerationWriteError, NotFoundError, ValidationError
 from .models import UnifiedEvent
 from .trip_detail import build_trip_detail_view
 
@@ -948,6 +948,23 @@ class CalendarDomain:
         )
         return self.get_working_trip_generation(trip_id)
 
+    def promote_working_trip_generation_candidate(
+        self, trip_id: str, generation_id: str, candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Atomically raise the current auto policy to the existing review path."""
+        validated = self.validate_working_trip_generation_candidate(trip_id, generation_id, candidate)
+        try:
+            self._transition_working_trip_generation(
+                trip_id, generation_id, "candidate_ready",
+                candidate_json=self._canonical_json(validated).decode("utf-8"),
+                promotion_candidate=validated,
+            )
+        except ValidationError as error:
+            if isinstance(error.__cause__, sqlite3.Error):
+                raise GenerationWriteError("generation promotion could not be persisted") from None
+            raise
+        return self.get_working_trip_generation(trip_id)
+
     def fail_working_trip_generation(
         self, trip_id: str, generation_id: str, failure_code: str,
     ) -> dict[str, Any]:
@@ -968,10 +985,12 @@ class CalendarDomain:
         self, trip_id: str, generation_id: str, state: str, *,
         candidate_json: str | None = None, failure_code: str | None = None,
         require_matching_working: bool = True,
+        promotion_candidate: dict[str, Any] | None = None,
     ) -> None:
         self._registered_trip(trip_id)
         self._require_text(generation_id, "generation_id")
         with self._command() as connection:
+            connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
                 "SELECT generation_id, policy, state, base_trip_version, base_effective_hash, working_state_digest "
                 "FROM working_trip_generations WHERE trip_id = ?", (trip_id,),
@@ -982,7 +1001,10 @@ class CalendarDomain:
                 raise ConflictError("Working Trip generation identity does not match")
             if row["state"] != "generating":
                 raise ConflictError("Working Trip generation is not generating")
-            if state == "candidate_ready" and row["policy"] != "review":
+            promoting = promotion_candidate is not None
+            if promoting and (state != "candidate_ready" or row["policy"] != "auto"):
+                raise ConflictError("only a generating auto candidate can be promoted")
+            if state == "candidate_ready" and not promoting and row["policy"] != "review":
                 raise ConflictError("only review generation can keep a candidate")
             working = connection.execute(
                 "SELECT base_trip_version, base_effective_hash, state_json FROM working_trips WHERE trip_id = ?",
@@ -994,11 +1016,22 @@ class CalendarDomain:
                 self._canonical_json(json.loads(working["state_json"]))
             ) != row["working_state_digest"]):
                 raise ConflictError("Working Trip generation content does not match")
-            connection.execute(
-                "UPDATE working_trip_generations SET state = ?, candidate_json = ?, failure_code = ?, updated_at = ? "
-                "WHERE trip_id = ? AND generation_id = ?",
-                (state, candidate_json, failure_code, _now(), trip_id, generation_id),
+            if promoting:
+                if self._effective_revision(trip_id) != {
+                    "trip_version": row["base_trip_version"],
+                    "effective_hash": row["base_effective_hash"],
+                }:
+                    raise ConflictError("Working Trip is stale against the current effective Trip")
+                self._validate_adoption_constraints(connection, trip_id, promotion_candidate, ())
+            updated = connection.execute(
+                "UPDATE working_trip_generations SET policy = ?, state = ?, candidate_json = ?, "
+                "failure_code = ?, updated_at = ? "
+                "WHERE trip_id = ? AND generation_id = ? AND state = 'generating' AND policy = ?",
+                ("review" if promoting else row["policy"], state, candidate_json, failure_code,
+                 _now(), trip_id, generation_id, row["policy"]),
             )
+            if updated.rowcount != 1:
+                raise ConflictError("Working Trip generation changed before transition")
 
     def adopt_working_trip_candidate(
         self, trip_id: str, candidate: dict[str, Any],

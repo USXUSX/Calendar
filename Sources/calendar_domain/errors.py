@@ -15,3 +15,7 @@ class ValidationError(DomainError):
 
 class ConflictError(DomainError):
     """A command conflicts with current state or source authority."""
+
+
+class GenerationWriteError(DomainError):
+    """A generation promotion could not be persisted; no terminal result is implied."""

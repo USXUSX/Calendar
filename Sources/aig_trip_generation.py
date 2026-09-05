@@ -8,6 +8,7 @@ from collections.abc import Callable
 from typing import Any
 
 from Sources.calendar_domain import CalendarDomain, ConflictError, ValidationError
+from Sources.calendar_domain.candidate_diff import candidate_review_rules
 
 AIG_CONTRACT_VERSION = "cal.aig.complete-trip-generation.v1"
 _AIG_FAILURE_CODES = {"invalid_request", "generation_failed", "invalid_candidate"}
@@ -66,7 +67,7 @@ def request_for_started_generation(
 def receive_aig_result(
     domain: CalendarDomain, trip_id: str, generation_id: str, result: Any,
 ) -> dict[str, Any]:
-    """Accept one AIG result without deciding the Step 5 auto/review policy."""
+    """Validate a result and raise auto to review for limited preservation signals."""
     try:
         domain.require_current_working_trip_generation(trip_id, generation_id, "generating")
     except ConflictError:
@@ -99,7 +100,7 @@ def receive_aig_result(
         return _fail(domain, trip_id, generation_id, "invalid_candidate")
     except ConflictError:
         return _fail(domain, trip_id, generation_id, "obsolete_working")
-    generation = domain.get_working_trip_generation(trip_id)
+    generation = domain.require_current_working_trip_generation(trip_id, generation_id, "generating")
     if generation["policy"] == "review":
         ready = domain.store_working_trip_generation_candidate(
             trip_id, generation_id, candidate,
@@ -109,6 +110,24 @@ def receive_aig_result(
             "generation_id": generation_id,
             "trip_id": trip_id,
             "candidate": ready["candidate"],
+        }
+    try:
+        package = generation["request_package"]
+        rules = candidate_review_rules(package["effective_trip"], package["user_intent"], candidate)
+    except Exception:
+        # Partial evaluation and exceptions never mean no review signals.
+        return _fail(domain, trip_id, generation_id, "diff_check_failed")
+    if rules:
+        try:
+            ready = domain.promote_working_trip_generation_candidate(trip_id, generation_id, candidate)
+        except ValidationError:
+            return _fail(domain, trip_id, generation_id, "invalid_candidate")
+        except ConflictError:
+            return _fail(domain, trip_id, generation_id, "obsolete_working")
+        # Never fall through to auto adoption after promotion.
+        return {
+            "status": "candidate_ready", "generation_id": generation_id,
+            "trip_id": trip_id, "candidate": ready["candidate"],
         }
     try:
         return domain.adopt_working_trip_generation_candidate(

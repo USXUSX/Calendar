@@ -269,9 +269,15 @@ CALはWorking Tripごとに最新generation 1件だけを所有する。Working�
 終端stateに対するusの再実行だけが新しいidentityで最新1件を置き換える。履歴、queue、retry count、
 provider実行情報は保存しない。
 
+Issue #80ではpolicyを「現在の採用方針」とする。formal Validation後のauto候補について、凍結effective Trip / Workingに対する限定3 rule（構造化item_changesの明示値不一致／pending_delete未反映、Trip summary変更、pending_deleteにない既存ScheduleItem / Transport削除）を評価する。field対応はstatus→status、start/end/time_mode→time.start/end/mode、ScheduleItemのtitle→action、normal_comment→summary。型・null・欠落を区別し、既存要素は(source_type, stable ID)で対応付ける。配列indexずれやDay移動を削除と誤認しない。未知の構造化field等で評価不能なら`diff_check_failed`として停止する。
+
+rule検出時だけ、同じgenerationのpolicy=review、candidate保存、candidate_ready化を1 SQLite transactionで行う。最新generation / Working digest / current effective revision / constraintを再確認し、条件付き更新0件はConflict。DB書込み失敗は`GenerationWriteError`としてrollbackし、failedへの遷移成功と報告しない。昇格後は既存review確認へ合流し、自動採用へ継続しない。未検出autoと元reviewは既存経路を維持する。policyの自動降格、開始時policyや理由の履歴列、検査版証跡は追加しない。
+
+本検査は全変更の意図・保持保証ではない。自由文の意図未達、未指定fieldやPlace/Day情報の変更等は検出外となり得る。正当なsummary変更もreview対象になる。既存reviewのstale候補保持・手動回復・journal recoveryは再実装しない。
+
 最小stateは`generating / candidate_ready / failed / adopted`とする。`review`でidentityが一致する正常な
-candidateを受けた場合だけcomplete candidateを`candidate_ready`に保持する。`auto`ではcandidateを
-永続的な確認待ちにせず、直ちに既存`adopt_working_trip_candidate()`相当のPhase 5 Validation、captured
+candidateを受けた場合だけcomplete candidateを`candidate_ready`に保持する。`auto`で上記rule未検出ならcandidateを
+永続的な確認待ちにせず、既存`adopt_working_trip_candidate()`相当のPhase 5 Validation、captured
 revision stale gate、atomic adoptionへ渡す。`review`の確定操作も保持candidateを同じPhase 5境界へ渡す。
 成功時は`adopted`とadoption結果のversion / digestだけを残し、candidateをclearする。
 
