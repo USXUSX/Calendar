@@ -63,6 +63,14 @@ do not retain failed candidates or enable retries. Keep live request/response an
 candidate bodies in memory, report only the fixed stage, and do not invoke the
 normal review candidate-storage path merely to diagnose a failure.
 
+For FRM's unapplied candidate timeline, call
+`get_working_trip_generation_candidate_preview(trip_id, generation_id)`.
+Only the latest current `review / candidate_ready` generation can return a
+read-only `view` using the existing Trip-detail timeline shape. Raw candidate
+and generation internals are excluded; entry edit/AI targets are disabled.
+See [`docs/trip-detail-model.md`](docs/trip-detail-model.md) for the preview and
+confirmation contract.
+
 ## Three layers
 
 | Role | Location | Authority |

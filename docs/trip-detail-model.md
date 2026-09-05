@@ -304,6 +304,32 @@ candidateは未信頼JSON objectとして1件だけ保持する。この段階�
 review確定を接続する際も、`require_current_working_trip_generation()`で同じdigestを採用直前に再確認し、不一致なら
 candidateをPhase 5境界へ渡さずConflictとする。Working編集を自動rebaseしない。
 
+### 保持candidateのread-only preview（Phase 8）
+
+FRMは`get_working_trip_generation_candidate_preview(trip_id, generation_id)`を呼び、
+`{trip_id, generation_id, state: "candidate_ready", policy: "review", view}`を取得する。
+`view`は保持candidateから既存`build_trip_detail_view()`で導出した旅程詳細モデルで、
+Trip名・日付範囲・各dayのtitle / route_summaryと、順序、時刻、予定／移動、場所、候補場所、
+status、コメント等の主要timeline情報を同じ形で表現する。Working overlayは重ねない。
+候補previewの各entryは`direct_edit_paths={}`、`ai_local_update_target=null`とする。
+weatherと一時candidate judgmentsは付加せず、既存モデルの空の既定値を使う。
+
+最新generationが`review / candidate_ready`で、要求identity、Working content digest、
+captured revisionが一致し、Workingがcurrentな場合だけ返す。保持candidateも既存の
+formal Validation / constraint確認を通す。idle（generationなし）は`NotFoundError`、
+状態・identity・policy・Working変更・staleの不一致は`ConflictError`、Working欠落は
+既存gateの`NotFoundError`または`ConflictError`となり、いずれもpreviewを返さない。
+不正candidateは既存Validationのエラーとし、failedへの遷移や修復は行わない。
+
+previewは時点のread modelであり、raw candidate、request package、provider / AIG内部情報を
+含まない。Trip / Working / candidate / generationを保存・変更せず、開始時reviewと
+auto→review昇格で形状を変えない。FRMは「未反映の候補」として表示し、独自のcandidate解釈や
+採用経路を持たない。preview成功はadoption成功・意図充足・保持保証ではなく、確定には
+同じidentityで既存`adopt_working_trip_generation_candidate(trip_id, generation_id)`を使う。
+確定時は改めて既存Validation / stale / Working gateとatomic adoptionを通る。
+
+### 既存の生成結果接続
+
 Step 4では`run_started_generation()`がcurrentな`generating`行から、開始時に固定した`generation_id`と
 `request_package`をそのままprovider-neutral AIG requestへ組み立て、replaceable transportを1回だけ呼ぶ。
 返却identityの不一致は最新stateを変更せずConflictとし、AIG safe failure、transport failure、malformed resultは

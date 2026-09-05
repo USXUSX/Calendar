@@ -1382,6 +1382,47 @@ class CalendarDomain:
             weather_by_day=weather_by_day,
         )
 
+    def get_working_trip_generation_candidate_preview(
+        self, trip_id: str, generation_id: str,
+    ) -> dict[str, Any]:
+        """Read an unapplied review candidate through the existing timeline model.
+
+        This is a point-in-time preview, never an adoption authorization. The
+        confirmation command must still recheck all existing adoption gates.
+        """
+        generation = self.require_current_working_trip_generation(
+            trip_id, generation_id, "candidate_ready",
+        )
+        if (generation.get("generation_id"), generation.get("state"), generation.get("policy")) != (
+            generation_id, "candidate_ready", "review",
+        ):
+            raise ConflictError("Working Trip generation is not the requested review candidate")
+        working = self.require_current_working_trip(trip_id)
+        if working["base_effective_revision"] != {
+            "trip_version": generation["base_trip_version"],
+            "effective_hash": generation["base_effective_hash"],
+        }:
+            raise ConflictError("Working Trip generation revision does not match")
+        candidate = self._validate_working_trip_candidate(trip_id, generation["candidate"])
+        view = build_trip_detail_view(candidate)
+        for day in view["days"]:
+            for entry in day["entries"]:
+                entry["direct_edit_paths"] = {}
+                entry["ai_local_update_target"] = None
+        # Reject replacement or Working edits during display conversion as well.
+        current = self.require_current_working_trip_generation(
+            trip_id, generation_id, "candidate_ready",
+        )
+        current_working = self.require_current_working_trip(trip_id)
+        if current != generation or (
+            current_working["base_effective_revision"] != working["base_effective_revision"]
+        ):
+            raise ConflictError("Working Trip generation changed during preview")
+        return {
+            "trip_id": trip_id, "generation_id": generation_id,
+            "state": "candidate_ready", "policy": "review", "view": view,
+        }
+
     @staticmethod
     def _working_time_label(time: dict[str, Any]) -> str:
         if time.get("mode") == "undecided":
