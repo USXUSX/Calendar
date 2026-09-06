@@ -10,6 +10,9 @@ from uuid import NAMESPACE_URL, uuid5
 from .errors import ValidationError
 
 
+_CATEGORIES = {"観光": "sightseeing", "食事": "food", "宿泊": "accommodation"}
+
+
 def _value(text):
     text = text.strip()
     return None if text in ("", "未定") else text
@@ -140,6 +143,11 @@ def parse_chat_paste(text: str) -> dict:
                     if valid_time and len(parts) == expected and valid_route:
                         continue
                     reason = "時刻・項目の区切り・移動経路／手段を確認してください（日跨ぎは推測しません）"
+            elif label == "カテゴリ" and item is not None and item["kind"] == "schedule":
+                if item["category"] is None and value in _CATEGORIES:
+                    item["category"] = _CATEGORIES[value]
+                    continue
+                reason = "カテゴリは予定ごとに観光・食事・宿泊のいずれか1つを指定してください"
             elif label in ("場所", "候補") and item is not None and item["kind"] == "schedule":
                 if label == "候補" or item["place"] is None:
                     place = _place(value)
@@ -211,7 +219,7 @@ def draft_requirements(draft: dict) -> list[dict]:
                 if not item.get("title"):
                     add(ip + ".title", "予定内容が必要です")
                 if item.get("category") not in ("sightseeing", "food", "accommodation"):
-                    add(ip + ".category", "現行カテゴリ（観光・食事・宿泊）を確認してください")
+                    add(ip + ".category", "カテゴリが不正または欠損しています（観光・食事・宿泊）")
                 places = ([item["place"]] if item.get("place") else []) + item["candidates"]
                 if not any(place.get("name") for place in places):
                     add(ip + ".place", "現行Schemaでは場所または候補が1件必要です")
