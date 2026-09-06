@@ -25,7 +25,7 @@
       "additionalProperties": false,
       "required": ["candidatePlaceIds", "selection", "minSelections", "maxSelections"],
       "properties": {
-        "candidatePlaceIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+        "candidatePlaceIds": { "type": "array", "minItems": 0, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
         "selection": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
         "minSelections": { "type": ["integer", "null"], "minimum": 0 },
         "maxSelections": { "type": ["integer", "null"], "minimum": 1 }
@@ -41,6 +41,7 @@
         "order": { "type": "integer", "minimum": 0 },
         "status": { "enum": ["confirmed", "tentative", "undecided"] },
         "action": { "type": "string", "minLength": 1 },
+        "searchQuery": { "type": "string", "minLength": 1, "maxLength": 500 },
         "category": { "enum": ["sightseeing", "food", "accommodation"] },
         "summary": { "$ref": "#/$defs/nullableString" },
         "details": { "type": "array", "items": { "type": "string", "minLength": 1 } },

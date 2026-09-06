@@ -115,6 +115,7 @@ def _entry(
         "has_candidates": len(candidates) > 1,
         "candidates": candidates,
         "normal_comment": normal_comment,
+        "search_query": item.get("searchQuery"),
         "important_comments": _important_comments(item, bookings),
         "supporting_details": supporting_details,
         "direct_edit_paths": copy.deepcopy(_DIRECT_EDIT_PATHS if source_type == "scheduleItem" else {

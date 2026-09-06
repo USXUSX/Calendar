@@ -247,7 +247,8 @@ class CalendarDomain:
         effective = copy.deepcopy(candidate)
         overrides = connection.execute(
             "SELECT source_item_id, field_path, value_json FROM direct_overrides "
-            "WHERE trip_id = ? AND active = 1 ORDER BY created_at, id",
+            "WHERE trip_id = ? AND active = 1 ORDER BY "
+            "CASE WHEN field_path LIKE '/places/@%' THEN 0 WHEN field_path LIKE '/scheduleItems/@%' THEN 1 ELSE 2 END, created_at, id",
             (trip_id,),
         ).fetchall()
         for row in overrides:
@@ -259,7 +260,7 @@ class CalendarDomain:
                 self._apply_value(effective, row["source_item_id"], row["field_path"], override_value)
             except (ValidationError, ConflictError) as error:
                 raise ConflictError("candidate conflicts with an active Direct Override") from error
-        effective_errors = validate_value(effective, self._trip_schema)
+        effective_errors = validate_value(effective, self._trip_schema) + semantic_errors(effective)
         if effective_errors:
             raise ValidationError(f"candidate effective Trip is invalid: {effective_errors[0]}")
 
@@ -777,6 +778,24 @@ class CalendarDomain:
             raise ConflictError(f"source_item_id is not unique in Trip JSON: {source_item_id}")
         target: Any = matches[0]
         parts = cls._path_parts(field_path)
+        # CAL-owned structural Direct Overrides address one member by stable ID.
+        # Materialize them before ordinary field Overrides; never snapshot a collection.
+        if len(parts) == 2 and parts[0] in {"places", "scheduleItems"} and parts[1].startswith("@"):
+            identity = parts[1][1:]
+            collection = target.get(parts[0])
+            proper_target = (parts[0] == "places" and target is trip) or (
+                parts[0] == "scheduleItems" and any(target is d for d in trip["days"]))
+            if (not proper_target or not isinstance(collection, list) or not _TRIP_ID.fullmatch(identity)
+                    or not isinstance(value, dict) or value.get("id") != identity):
+                raise ValidationError("invalid structural Direct Override")
+            existing = cls._item_matches(trip, identity)
+            if existing and (len(existing) != 1 or not any(existing[0] is v for v in collection)):
+                raise ConflictError("addition identity conflicts with another Trip object")
+            if existing:
+                collection[next(i for i, v in enumerate(collection) if v is existing[0])] = copy.deepcopy(value)
+            else:
+                collection.append(copy.deepcopy(value))
+            return
         for part in parts[:-1]:
             if isinstance(target, dict) and part in target:
                 target = target[part]
@@ -800,7 +819,8 @@ class CalendarDomain:
         with self._read() as connection:
             rows = connection.execute(
                 "SELECT source_item_id, field_path, value_json FROM direct_overrides "
-                "WHERE trip_id = ? AND active = 1 ORDER BY created_at, id",
+                "WHERE trip_id = ? AND active = 1 ORDER BY "
+                "CASE WHEN field_path LIKE '/places/@%' THEN 0 WHEN field_path LIKE '/scheduleItems/@%' THEN 1 ELSE 2 END, created_at, id",
                 (trip_id,),
             ).fetchall()
         effective = copy.deepcopy(trip)
@@ -810,7 +830,7 @@ class CalendarDomain:
             except json.JSONDecodeError as error:
                 raise ValidationError("stored Direct Override value is invalid") from error
             self._apply_value(effective, row["source_item_id"], row["field_path"], value)
-        errors = validate_value(effective, self._trip_schema)
+        errors = validate_value(effective, self._trip_schema) + semantic_errors(effective)
         if errors:
             raise ValidationError(f"effective Trip is invalid: {errors[0]}")
         return effective
@@ -1626,6 +1646,22 @@ class CalendarDomain:
         view["working"] = {"present": True, "stale": working["stale"]}
         return view
 
+    def search_schedule_candidates(self, trip_id, day_id, query, adapter, transport, *, search_queries=None):
+        """Return transient, advisory AFM recommendations; never writes."""
+        from .conditioned_schedule import search
+        return search(self, trip_id, day_id, query, adapter, transport, search_queries)
+
+    def add_conditioned_schedule(self, command_id, trip_id, day_id, values, result,
+                                 selected_ids, *, confirmed=False):
+        """Add one confirmed schedule, keeping only persistable selected Places."""
+        from .conditioned_schedule import add
+        return add(self, command_id, trip_id, day_id, values, result, selected_ids, confirmed)
+
+    def list_unresolved_schedule_queries(self, trip_id):
+        """Read original conditions for future explicitly triggered AI processing."""
+        from .conditioned_schedule import unresolved
+        return unresolved(self, trip_id)
+
     def get_place_enrichment(self, trip_id, target, adapter, *, area=""):
         """Read-only facility acquisition; only explicit place hints leave CAL."""
         from .place_enrichment import acquire
@@ -2271,7 +2307,8 @@ class CalendarDomain:
         self._registered_trip(trip_id)
         with self._read() as connection:
             rows = connection.execute(
-                "SELECT id FROM direct_overrides WHERE trip_id = ? AND active = 1 ORDER BY created_at, id",
+                "SELECT id FROM direct_overrides WHERE trip_id = ? AND active = 1 ORDER BY "
+                "CASE WHEN field_path LIKE '/places/@%' THEN 0 WHEN field_path LIKE '/scheduleItems/@%' THEN 1 ELSE 2 END, created_at, id",
                 (trip_id,),
             ).fetchall()
         return [self._get_override(row["id"]) for row in rows]

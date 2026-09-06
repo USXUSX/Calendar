@@ -42,7 +42,7 @@ FRM等の画面はこの意味境界を呼び、SQLiteやTrip JSONを直接変�
 | 予定・移動の状態 | 初期値は`undecided`として確認に出す。時刻や場所の有無からconfirmed等を推測しない |
 | 場所 | 名前がある場所をselectionへ設定。`未定`は架空のPlaceにしない |
 | 候補 | candidatePlaceIdsだけに追加。訪問確定のselectionへ入れない。選択数はnull |
-| 場所と候補が両方ない予定 | 現行Schemaの候補1件以上を満たさないため補正対象 |
+| 場所と候補が両方ない予定 | この取込経路では従来どおり場所または候補を補正対象とする（#91の条件指定追加は別経路で候補なしを許可） |
 | 住所・座標・URL | 直前の場所／候補に付ける。地点カテゴリは未分類の`other`、rating等はnull。https以外のURLや不正座標は未解釈へ返す |
 | 名前のない地点の補足情報 | 名前を補正してから登録し、補足だけを捨てない |
 | 予定のコメント | `ScheduleItem.summary`。複数行は改行で連結。候補の後でも予定のコメント |
@@ -50,7 +50,7 @@ FRM等の画面はこの意味境界を呼び、SQLiteやTrip JSONを直接変�
 | 移動の補足地点情報 | 端点への帰属を推測せず未解釈へ返す。補正draftではfrom_place / to_placeを明示できる |
 
 貼付外の準備・予約は空、Rio機能は未使用の`applicable=false / not_applicable`で初期化する。
-Trip summary・補足・取得情報は生成しない。Schemaは変更しない。
+Trip summary・補足・取得情報は生成しない。この取込実装ではSchemaを変更しない。
 
 ## 確認と採用
 
