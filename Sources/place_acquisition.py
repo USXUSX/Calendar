@@ -49,6 +49,8 @@ class FacilityCandidate:
     # Only adapter-reviewed fields enter this mapping; default deny elsewhere.
     persistable: dict = field(default_factory=dict)
     temporary: dict = field(default_factory=dict)
+    # Explicit permission for short comment extraction, never inferred from temporary.
+    comment_evidence: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -70,9 +72,10 @@ class WikidataAdapter:
     endpoint = "https://www.wikidata.org/w/api.php"
     user_agent = "Calendar/0.1 (https://github.com/USXUSX/Calendar)"
 
-    def __init__(self, *, transport=None, timeout=10):
+    def __init__(self, *, transport=None, timeout=10, include_comment_evidence=False):
         if not 0 < timeout <= 30:
             raise ValueError("timeout must be between 0 and 30 seconds")
+        self.include_comment_evidence = include_comment_evidence
         self.timeout = timeout
         self.transport = transport or self._http
         self._next_request = 0.0
@@ -180,7 +183,53 @@ class WikidataAdapter:
                     "area_hint_matches": bool(query.area and query.area in description),
                     "address_hint_matches": bool(query.address and query.address == fields.get("address")),
                 }))
+            if self.include_comment_evidence:
+                self._add_comment_evidence(candidates, entities)
             return Acquisition("candidates" if candidates else "no_candidates", candidates)
         except Exception:
             # Provider error text/body/query is never surfaced or persisted.
             return Acquisition("unavailable")
+
+
+    def _add_comment_evidence(self, candidates, entities):
+        # Whole qualified property is omitted: do not strip seasonal/holiday exceptions.
+        facts, ids = {}, []
+        for candidate in candidates:
+            entity = entities[candidate.temporary["provider_id"]]
+            rows = []
+            for prop, label in (("P3025", "営業曜日（営業期間内）"), ("P3026", "休業日")):
+                statements = [s for s in entity.get("claims", {}).get(prop, [])
+                              if s.get("rank") != "deprecated"]
+                if any(s.get("qualifiers") or s.get("mainsnak", {}).get("snaktype") != "value"
+                       for s in statements):
+                    continue
+                values = self._values(entity, prop)
+                refs = [v.get("id") for v in values if isinstance(v, dict)]
+                if len(refs) != len(values) or any(not isinstance(v, str) or not re.fullmatch(r"Q[1-9][0-9]*", v) for v in refs):
+                    continue
+                if refs:
+                    rows.append((label, refs))
+                    ids.extend(refs)
+            facts[candidate.temporary["provider_id"]] = rows
+        ids = list(dict.fromkeys(ids))
+        # Bound the extra label lookup as one request; no truncation of a property's facts.
+        labels = self._get(action="wbgetentities", ids="|".join(ids), props="labels", languages="ja|en").get("entities", {}) if 0 < len(ids) <= 50 else {}
+        for candidate in candidates:
+            context = candidate.temporary
+            texts = []
+            description = context.get("description")
+            if isinstance(description, str) and description.strip() and len(description) <= 1000:
+                texts.append(description)
+            for label, refs in facts[context["provider_id"]]:
+                names = []
+                for ref in refs:
+                    data = labels.get(ref, {})
+                    choices = data.get("labels", {}) if data.get("id") == ref else {}
+                    names.append((choices.get("ja") or choices.get("en") or {}).get("value"))
+                if all(isinstance(n, str) and n.strip() for n in names):
+                    text = label + ": " + "、".join(names)
+                    if len(text) <= 1000:
+                        texts.append(text)
+            candidate.comment_evidence = [dict(text=t, source=context["source"],
+                retrieved_at=context["retrieved_at"], license="CC0", attribution="Wikidata",
+                storage_allowed=True) for t in texts]

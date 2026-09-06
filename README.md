@@ -20,6 +20,12 @@ AFMの最大3推薦から1件決定・2〜3候補保存・候補なしの未定�
 `list_schedule_queries`から正式な場所のある予定の条件も読み出せる。
 [追加契約](docs/conditioned-schedule.md)を参照する。Frameの画面接続は未実施。
 
+指定情報のコメント追記は`get_comment_enrichment` → `prepare_comment_enrichment` →
+`append_comment_enrichment`で、施設確認後に保存可能な根拠だけをAFMへ渡し、確認済み短文と
+出典・取得日時を対象予定の通常コメントへ追記する。既存コメント・他予定を保持する。
+[コメント追記契約](docs/comment-enrichment.md)を参照する。AIG #15の新しい抽出CLIに依存し、
+Frame接続・実AFM品質・実機確認は未実施。
+
 共通施設取得と⑥Place補完は`get_place_enrichment`で取得し、stable Placeは
 `adopt_place_enrichment`で明示確認済みの不足値だけをDirect Overrideへ正式採用する。
 Workingは作成・変更せず、temporary itemは`prepare_place_enrichment`による候補準備までとする。
