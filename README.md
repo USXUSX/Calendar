@@ -12,6 +12,11 @@ Chat貼付のCAL commandは`parse_chat_paste` → `review_chat_paste` →
 [取込契約](docs/chat-paste-import.md)に現行Schema上の必須補正と初回書込み境界を定める。
 FRM画面への接続と実機操作は未実施。
 
+条件指定の新規予定追加は`search_schedule_candidates` → `add_conditioned_schedule`で、
+AFMの最大3推薦から1件決定・2〜3候補保存・候補なしの未定保存を扱う。
+元条件は予定の`searchQuery`に保持し、`list_unresolved_schedule_queries`から後続処理へ読み出せる。
+[追加契約](docs/conditioned-schedule.md)を参照する。Frameの画面接続は未実施。
+
 共通施設取得と⑥Place補完は`get_place_enrichment`で取得し、stable Placeは
 `adopt_place_enrichment`で明示確認済みの不足値だけをDirect Overrideへ正式採用する。
 Workingは作成・変更せず、temporary itemは`prepare_place_enrichment`による候補準備までとする。

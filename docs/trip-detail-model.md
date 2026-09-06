@@ -369,3 +369,9 @@ Step 4では`run_started_generation()`がcurrentな`generating`行から、開�
 `failed`へ終端する。旧generationのcandidateは拒否し、変更後Workingから新しいgenerationを手動開始できるが、
 自動rebaseや自動retryは行わない。Step 4はcandidateを採用も永続保持もせず、`auto`の直結adoptionと
 `review`の`candidate_ready`保持への分岐はStep 5に残す。
+
+## 条件指定の新規予定追加（Issue #91）
+
+[追加契約](conditioned-schedule.md)の意味境界から最大3候補を取得・明示選択し、
+Direct Overrideで予定を1件追加する。通常詳細entryの`search_query`は元条件（既存項目はnull）。
+正式場所は`places`、未決定候補は既存`candidates`で区別する。Frame画面への接続は後続。
