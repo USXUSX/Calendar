@@ -12,6 +12,12 @@ Chat貼付のCAL commandは`parse_chat_paste` → `review_chat_paste` →
 [取込契約](docs/chat-paste-import.md)に現行Schema上の必須補正と初回書込み境界を定める。
 FRM画面への接続と実機操作は未実施。
 
+共通施設取得と⑥Place補完は`get_place_enrichment`で取得し、stable Placeは
+`adopt_place_enrichment`で明示確認済みの不足値だけをDirect Overrideへ正式採用する。
+Workingは作成・変更せず、temporary itemは`prepare_place_enrichment`による候補準備までとする。
+Wikidataの保存可能fieldと一時根拠を分け、明示選択後も既存の非空値は保持する。
+[取得adapterと採用接続](docs/place-acquisition.md)を参照する。
+
 通常手動編集は予定の`edit_trip_item`と日別代表エリアの`edit_trip_day`を使い、
 Direct Overrideへ保存して`get_trip_detail_view`から再表示する。
 `edit_trip_day(command_id, trip_id, day_id, {"route_summary": value})`は既存の
