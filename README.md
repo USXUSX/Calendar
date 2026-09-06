@@ -4,6 +4,9 @@ Calendar is the first standard project in `/Users/us/Tools`, built with a three-
 
 ## Current baseline
 
+Goal 1の現行範囲は、Chatで作成した旅程の新規Trip貼付取込と、CALでの表示・手動編集・細部仕上げである。
+[初期リリース仕様](docs/initial-release.md)を参照する。以下の既存AI生成・再生成経路は保持するが、Goal 1の完成条件には含めない。
+
 CAL is the domain foundation for personal time and plans, centered on
 `Trip / Event / Todo`. It uses a hybrid data model under private
 `Calendar_Local` storage: SQLite manages structured CAL-wide state, while a
@@ -86,6 +89,7 @@ confirmation contract.
 - `docs/workflow.md`: future Issue-to-PR workflow
 - `docs/decisions.md`: confirmed architectural decisions
 - `docs/calendar-baseline.md`: current confirmed CAL responsibilities and data baseline
+- `docs/initial-release.md`: Goal 1 scope, Chat paste format, and external data acquisition / retention policy
 - `docs/development-roadmap.md`: CAL's final usage vision and current Goal / Phase / Step roadmap
 - `docs/calendar-specification.md`: retained Trip JSON specification subject to scoped reuse
 - `docs/trip-detail-ui.md`: confirmed iPad mini / iPad itinerary-detail UI requirements

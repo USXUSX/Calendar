@@ -1,5 +1,7 @@
 # 旅程詳細表示・更新契約
 
+> Issue #86の現行Goal 1と貼付・外部取得方針は[初期リリース仕様](initial-release.md)に従う。本書の既存AI再生成契約は保持するが、初期リリースの完成条件ではない。
+
 > **Status:** Issue #64 Goal 1 / Phase 2で確定。Phase 1の
 > [`trip-detail-ui.md`](trip-detail-ui.md) を構成するCAL側の意味境界である。
 
@@ -12,7 +14,7 @@
 
 | UI情報 | 取得元・導出 |
 | --- | --- |
-| 日付、主題、移動概要 | `Day.date / title / routeSummary` |
+| 日付、主題、移動概要 | `Day.date / title / routeSummary`。Issue #86では日別代表エリアに`routeSummary`を再利用する方針。予定単位のエリア属性は追加しない |
 | 時刻 | `TimeSpec`。`undecided`は「未定」、`range`は開始–終了 |
 | カテゴリー | `ScheduleItem.category`。移動は`transport`として派生 |
 | 本文、場所link | `action`と`Place`参照。移動は出発地・到着地から派生 |
@@ -188,6 +190,8 @@ CAL側で自動rebase、自動merge、正式Tripへの適用・Validation・採�
 生成せずNot Foundとする。
 
 ### Step 8: Place enrichment
+
+Issue #86では、以下の採用候補を保存可能な値に限定する。検索結果・取得本文・天気等の一時情報とcacheは[取得・保持方針](initial-release.md)に従い、formal Placeへ収束する値と分ける。既存の非空値を暗黙に上書きしない契約は維持する。
 
 Place enrichmentは、usまたはAIが入力した場所名を置き換える生成処理ではなく、CALが既存の
 場所入力を手掛かりに機械的な補完候補を得て、Tripで再利用できる形へ検証する責務とする。

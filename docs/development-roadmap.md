@@ -22,14 +22,18 @@ CALは、次の3領域を内部機能としては十分に分離しつつ、表�
 
 | Goal | 目的 | 完了イメージ | 主要境界 |
 | --- | --- | --- | --- |
-| 1. 旅程詳細画面を実用完成 | 旅行中に必要な旅程情報を把握し、計画と修正を一つの流れで扱えるようにする | iPad mini / iPadで旅程を実用的に閲覧でき、直接編集、AI指示、候補追加・判断の最低限の操作まで行える | 旅程詳細を対象とし、地図、CAL全体のTodo、旅行記録の完成は後続Goalに分ける。画面からSQLiteやTrip JSONを直接操作しない |
+| 1. まず使えるCALを初期リリース | Chatで完成に近い旅程を作り、CALで取込・表示・細部仕上げを行う | 新規Trip貼付、基本表示・手動編集、日別代表エリア、限定時刻矛盾表示、1件ずつの予定・候補追加、コメント・地点補完、予報期間内の天気を使える | 操作中の予定以外を自動変更しない。移動時間込み整合性、固定予約保護、OpenAI旅程生成・再生成は対象外。詳細は[初期リリース仕様](initial-release.md) |
 | 2. 地図機能を実用完成 | 旅程の場所と移動を空間的に把握し、詳細画面だけでは難しい旅行中の判断を支える | 旅程の場所・移動と地図が自然に対応し、計画時と旅行中に必要な確認ができる | 地図は旅程の別正本にせず、CALが保持する旅程から表示する。地図provider、navigation連携、公開方式は実装Phaseで必要な範囲だけ決める |
 | 3. 旅行TodoをCAL全体のTodoとの関係で整理・実装 | 旅行準備を旅程内だけに閉じず、us個人のTodo管理の中でも扱えるようにする | 旅行に属するTodoを旅程とCAL全体の双方から一貫して確認・更新できる | CALのドメイン用語は`Todo`とし、TSKの`Job`と混同しない。Todoの正本を旅程表示用に重複させず、participant共有は必要時に別途決める |
 | 4. 旅程記録・過去旅行閲覧を実装 | 計画した旅程を旅行後の記録として残し、過去の旅行を再び参照できるようにする | 予定と実際の記録を必要な範囲で区別し、過去旅行を探して閲覧できる | 記録項目、写真等のmedia、保存方式、共有範囲は先回りして固定しない。既存実データの移行は別の明示的な作業とする |
 
-## Goal 1: 旅程詳細画面を実用完成する
+## Goal 1: まず使えるCALを初期リリースする
 
-### Phase
+Issue #85のus採否判断とIssue #86の仕様承認により範囲を更新した。完成条件・貼付形式・外部取得方針は[初期リリース仕様](initial-release.md)を正本とする。現在はPhase 8でその仕様を整合し、後続の小さな実装Issueへ分ける段階である。本Issueで機能完成・リリースを宣言しない。
+
+### Phase（1〜7は従来方針での実施履歴）
+
+Phase 1〜7の完了記録と既存AI経路は保持する。Phase 6〜7のAI生成・再生成の完成や追加検証は、現行Goal 1の完成条件ではない。
 
 | Phase | 状態 | 目的 | 完了イメージ | 主要境界 |
 | --- | --- | --- | --- | --- |
@@ -40,7 +44,7 @@ CALは、次の3領域を内部機能としては十分に分離しつつ、表�
 | 5. Working Trip確定フロー | 完了 | Workingを反映したcomplete Trip candidateをCAL内で安全に正式Tripへ戻す | Working exportから作成したcomplete candidateをformal Validationし、staleでないことを確認してauthoritative Tripへatomic adoptionし、成功後だけWorkingをclearしてFRMへ結果を返せる | CALはcandidate受入れ、Schema・semantic Validation、captured revisionに対するstale確認、all-or-nothingのadoptionを所有する。candidate生成元を契約へ持ち込まず、失敗時はauthoritative TripとWorkingを変更しない |
 | 6. AI接続を実用化 | 完了 | Working exportからcomplete Trip candidateを生成・再構成する部分をAIGへ接続する | auto policyでは既存Phase 5 gateを通して自動採用し、review policyではcandidate確認後に同じgateから採用でき、結果をFRMで把握できる | CALが最新1件のgeneration stateとcandidateを所有し、AIGはstateless、FRMは表示・操作に限定する。provider、model、credentialはAIG側へ閉じ、stale解消・自動retry・CAL外正本更新は行わない |
 | 7. 候補・特殊ケースを実利用で検証 | 完了（限定付き） | 現行Working指示とAIG再生成で候補や複数予定変更等をどこまで自然に扱えるか実利用で確認する | 候補追加・判断・選定、複数予定変更、別行動等について、既存経路で足りる範囲と実際に不足する範囲が明確になる | 候補・特殊ケースの専用機能を先回りして追加しない。不足が実利用で確認されたものだけを後続Issueで追加する |
-| 8. 実利用でUI・運用を仕上げる | 現在 | 対象端末、Chat往復、自動確定の使い勝手を実利用で仕上げる | iPad mini / iPad、Safari / Chromeで主要経路を継続利用でき、Working状態表示や確認導線の支障が取り除かれている | font、余白、icon等は実利用から調整し、Review Handoffを含む確認導線を確認する。全ケース対応を完了条件にしない |
+| 8. 初期リリースを仕上げる | 現在（Issue #86で仕様化） | Chat貼付からCALの細部仕上げまでを実用化する | 初期リリース仕様の採用機能を実装し、対象端末で実用性を確認できる | 新規Trip貼付に限定し、他予定を自動変更しない。後続実装・実運用切替は各Issueで扱う |
 
 ### 完了したPhase 5: Working Trip確定フロー
 
@@ -82,9 +86,13 @@ Step 7では、AIGのsafe failure後もWorkingとraw user intentが既存export�
 
 自由文意図の未達、未指定field、Place / Day等の検出外は残余リスクとして受け入れる。一般的な生成安定性、全ケースでのadoption成功、過去の保存していないcandidateの原因復元を保証・完了条件とせず、追加liveで追跡しない。同種の不要変更が実利用で繰り返される領域だけ、将来のscope指定／固定rule化を局所的に検討する。
 
-### 現在のPhase 8: 実利用でUI・運用を仕上げる
+### 現在のPhase 8: 初期リリースを仕上げる
 
-対象端末でのUI、Working状態表示、candidate確認負担、Chat往復、Review Handoff等の運用を実利用から仕上げる。具体的な支障と必要最小限の調整を次のIssueで定め、全ケース対応や初期rule検出外の先回り実装は行わない。今回の現在地更新はPhase 8の製品変更、追加live、production activation / Calendar_Local操作の開始許可を含まない。
+1. Issue #86で初期リリース範囲、新規Trip貼付形式、外部取得・保持方針を仕様化し、正本を整合する。
+2. [後続実装の小さな単位](initial-release.md)に従い、表示・編集、貼付、共通取得と各採用機能をIssueへ分割する。
+3. 実装後、iPad mini / iPadで取込・表示・細部仕上げの実用性を確認する。
+
+従来の「Chat往復・自動確定を仕上げる」というPhase 8の必須範囲を上記へ置き換える。Working / Validation / candidate / atomic adoptionの既存基盤は保持し、既存OpenAI経路の削除・追加開発、production activation、Calendar_Local操作はこの仕様整理に含めない。
 
 完了したPhase 2・3の表示・入力・更新契約は[`trip-detail-model.md`](trip-detail-model.md)に保持する。
 

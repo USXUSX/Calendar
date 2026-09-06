@@ -1,5 +1,7 @@
 # Calendar Trip JSON仕様
 
+> Issue #86のChat貼付入力は[初期リリース仕様](initial-release.md)に従う。寛容なテキスト入力と本書の内部formal Trip契約は別であり、採用前Validationは維持する。
+
 > **Status:** Issue #46以降もformal Trip JSON、stable ID、cross-reference validationは維持する。Issue #64以降、新規Tripは完全JSONの生成・検証・初回採用、既存Tripの初期化や大きな組み換えはJSON Patchとcomplete candidate採用、通常の予定単位AI更新は直接編集と同じ局所更新境界を使う。この文書の旧complete再生成記述は全体再生成または履歴説明に限る。
 
 ## 1. 目的と基本方針
@@ -16,7 +18,7 @@ Calendar は旅行計画の閲覧を主目的とする。AI指示は補助機能
 4. 新規Tripは完全Trip JSONを生成・Validationして初回採用し、baseを必要とするJSON Patch経路へ入れない。
 5. 既存Tripの初期化や旅行全体の大きな組み換えでは、AIが採用済みbaseと更新材料を解釈してJSON Patchを生成し、CALがcomplete candidateをValidationしてatomic adoptionする。通常の予定単位AI更新は[`trip-detail-model.md`](trip-detail-model.md)の局所更新境界を使う。
 
-差分パッチや部分 JSON を正本にはしない。候補選択も確定変更ではなく、AI への指示である。内部実装で更新材料を `ChangeSet` 等と呼ぶことはできるが、ChangeSet 自体を画面には表示しない。画面のメモ欄には、内部データや機械向け差分ではなく、AI に伝える指示だけを表示する。
+差分パッチや部分 JSON を正本にはしない。候補選択も確定変更ではなく、AI への指示である。内部実装で更新材料を `ChangeSet` 等と呼ぶことはできるが、ChangeSet 自体を画面には表示しない。通常コメントとAI指示を区別し、画面に内部データや機械向け差分を露出しない。Issue #86の貼付コメントと情報追記は通常コメントとして扱う。
 
 ## 2. データ全体像
 

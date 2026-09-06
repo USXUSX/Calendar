@@ -1,5 +1,7 @@
 # ChatGPT向けTrip JSON生成ガイド
 
+> Issue #86の初期リリース向け入力は[日本語定型テキストの新規Trip貼付](initial-release.md)とする。本書は既存formal JSON生成・手動往復の資料として保持し、JSONを直接貼ることを初期版の利用者へ要求しない。
+
 > **Status:** Issue #46以降も、AIがformalな完全Trip JSONを生成・再生成する基本方式として維持する。Issue #48では、current Trip JSONを最後にAI生成・Validationされたauthoritative baseとし、`effective Trip`はactive Direct Overridesを加えた派生read modelと定めた。再生成candidateは現在のTrip JSON、`AI Instructions`、active `Direct Overrides`から作り、Validation成功時だけcurrentへ採用する。入力の保存形式と詳細ライフサイクルは後続Issueで定める。
 
 ## 入力として渡すもの
