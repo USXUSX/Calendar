@@ -1681,6 +1681,22 @@ class CalendarDomain:
         from .conditioned_schedule import schedule_queries
         return schedule_queries(self, trip_id)
 
+    def get_comment_enrichment(self, trip_id, source_item_id, place_id, instruction, adapter):
+        """Acquire transient comment evidence for one explicitly chosen schedule Place."""
+        from .comment_enrichment import acquire
+        return acquire(self, trip_id, source_item_id, place_id, instruction, adapter)
+
+    def prepare_comment_enrichment(self, trip_id, source_item_id, acquisition, candidate_index,
+                                   transport, *, confirmed=False):
+        """Extract only after facility confirmation, returning a preview without writing."""
+        from .comment_enrichment import prepare
+        return prepare(self, trip_id, source_item_id, acquisition, candidate_index, transport, confirmed)
+
+    def append_comment_enrichment(self, command_id, trip_id, source_item_id, preview, *, confirmed=False):
+        """Append a confirmed preview with sources/date, preserving all other fields."""
+        from .comment_enrichment import append
+        return append(self, command_id, trip_id, source_item_id, preview, confirmed)
+
     def get_place_enrichment(self, trip_id, target, adapter, *, area=""):
         """Read-only facility acquisition; only explicit place hints leave CAL."""
         from .place_enrichment import acquire

@@ -21,7 +21,7 @@ maxlag=5、識別可能なUser-Agent、gzipを使用する。自動retryはな�
 `temporary`は出典、取得時刻、provider ID、説明、利用・表示条件と有効期限を含む操作中だけの情報。
 他providerの追加時は保存許諾が確認できるfieldだけを前者へ入れ、保存不明・禁止の値は後者に置く。
 候補選択でこの区別を解除しない。取得失敗は本文・例外・照会内容を含まない`unavailable`、
-候補なしは`no_candidates`になる。説明等の根拠は将来の⑤で同じadapterから使えるが、コメントへ自動転載しない。
+候補なしは`no_candidates`になる。⑤コメント追記は[専用契約](comment-enrichment.md)の明示許諾済み根拠だけを使い、temporaryから自動転載しない。
 
 Wikidata adapterのpersistableはCC0構造化値だけ。deprecated、qualifier付き、同順位で複数値の
 statementは採用しない。地球以外の座標、不正値、非HTTPS URLは未補完にする。
@@ -79,3 +79,5 @@ UI、実運用設定、②③⑤⑦の機能は本Issueに追加しない。
 - [User-Agent policy](https://foundation.wikimedia.org/wiki/Policy:Wikimedia_Foundation_User-Agent_Policy): アプリ名と連絡可能な識別子。
 
 通常Validationはmock transportと一時DBのみで、課金・Secret・Calendar_Localへのアクセスを必要としない。
+
+Issue #93の`include_comment_evidence=True`では追加の根拠取得を最大1回許可する。通常取得の既存上限・Place採用契約は変えない。詳細は[コメント追記](comment-enrichment.md)を参照する。
