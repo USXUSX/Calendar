@@ -7,6 +7,12 @@ Calendar is the first standard project in `/Users/us/Tools`, built with a three-
 Goal 1の現行範囲は、Chatで作成した旅程の新規Trip貼付取込と、CALでの表示・手動編集・細部仕上げである。
 [初期リリース仕様](docs/initial-release.md)を参照する。以下の既存AI生成・再生成経路は保持するが、Goal 1の完成条件には含めない。
 
+通常手動編集は予定の`edit_trip_item`と日別代表エリアの`edit_trip_day`を使い、
+Direct Overrideへ保存して`get_trip_detail_view`から再表示する。
+`edit_trip_day(command_id, trip_id, day_id, {"route_summary": value})`は既存の
+`Day.routeSummary`だけを更新し、Workingを作成・変更しない。
+日付行・編集sheetの接続はFrame Issue #39で扱う。
+
 CAL is the domain foundation for personal time and plans, centered on
 `Trip / Event / Todo`. It uses a hybrid data model under private
 `Calendar_Local` storage: SQLite manages structured CAL-wide state, while a

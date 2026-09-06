@@ -74,6 +74,29 @@ route生成、navigation連携はGoal 2で決め、地図用の別正本は作�
 
 ## Phase 3の直接編集契約
 
+### Goal 1の日別代表エリア（Issue #88）
+
+FRM #39の日付行は既存の`day_id`と`route_summary`を表示・編集に使い、
+`edit_trip_day(command_id, trip_id, day_id, {"route_summary": value})`を呼ぶ。
+受け付けるfieldは`route_summary`だけで、valueは現行Schemaの文字列または`null`
+（未設定）とする。空文字列もそのまま保存し、地域の推測・分解・正規化は行わない。
+CALは対象が当該TripのDayであることとcomplete effective TripのSchema / semantic
+Validationを確認し、既存のDirect Overrideへ`day_id + /routeSummary`として保存する。
+同じ対象の再編集は同じOverride行を更新し、不正値・不正対象は保存しない。
+
+戻り値は既存`edit_trip_item`と同じ`{trip, view, updated_fields}`で、
+`updated_fields`は`["route_summary"]`となる。保存後の画面は
+`get_trip_detail_view(trip_id)`でeffective Tripを再取得する。
+Day.titleや他の日・予定を変更せず、formal Trip JSONを直接書き換えない。
+Workingを作成・更新・消去せず、既存Workingがある場合は既存のrevision比較により
+staleになり得る。Working / candidate / OpenAIの契約は変更しない。
+
+Goal 1の通常の具体値手動編集は、予定には既存`edit_trip_item`、日別代表エリアには
+上記commandを使い、Workingを介在させない。日付行・編集sheet・保存後の再読込は
+FRM #39が担当し、UIはTrip JSON / SQLiteを直接操作しない。
+
+### 既存予定
+
 表示モデルの`direct_edit_paths`を使い、`scheduleItem`はstatus、時刻、予定本文、通常コメント、
 `transport`はstatusと時刻を一つの意味commandへ渡す。CALはcomplete effective Tripを
 Schema・semantic Validationしてから一transactionでDirect Overrideへ反映し、失敗時は

@@ -2071,6 +2071,25 @@ class CalendarDomain:
         matches = self._item_matches(effective, source_item_id)
         if len(matches) != 1 or (source_type == "transport") != (matches[0] in effective["transports"]):
             raise ValidationError("direct edit target type does not match the stable ID")
+        return self._edit_trip_fields(command_id, trip_id, source_item_id, changes, paths, effective)
+
+    def edit_trip_day(self, command_id: str, trip_id: str, day_id: str,
+                      changes: dict[str, Any]) -> dict[str, Any]:
+        """Update one day's representative area through Direct Override."""
+        self._require_text(command_id, "command_id")
+        self._require_text(day_id, "day_id")
+        if not isinstance(changes, dict) or set(changes) != {"route_summary"}:
+            raise ValidationError("day edit requires only route_summary")
+        effective = self.get_effective_trip(trip_id)
+        if not any(day["id"] == day_id for day in effective["days"]):
+            raise ValidationError("day edit target does not match a Day stable ID")
+        return self._edit_trip_fields(
+            command_id, trip_id, day_id, changes, {"route_summary": "/routeSummary"}, effective,
+        )
+
+    def _edit_trip_fields(self, command_id: str, trip_id: str, source_item_id: str,
+                          changes: dict[str, Any], paths: dict[str, str],
+                          effective: dict[str, Any]) -> dict[str, Any]:
         for field, value in changes.items():
             self._apply_value(effective, source_item_id, paths[field], value)
         errors = validate_value(effective, self._trip_schema) + semantic_errors(effective)
