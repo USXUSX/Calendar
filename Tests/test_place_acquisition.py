@@ -1,6 +1,7 @@
 import copy
 import json
 import tempfile
+import sqlite3
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
@@ -104,7 +105,7 @@ class EnrichmentTests(unittest.TestCase):
         self.db = root / "calendar.sqlite3"
         initialize(self.db)
         self.domain = CalendarDomain(self.db, root / "data")
-        draft = self.domain.parse_chat_paste("旅行名: 合成\n日付: 2027-06-12\n代表エリア: 東京\n予定: 未定 | 散歩\nカテゴリ: 観光\n場所: サンプルタワー")
+        draft = self.domain.parse_chat_paste("旅行名: 合成\n日付: 2027-06-12\n代表エリア: 東京\n予定: 未定 | 散歩\nカテゴリ: 観光\n場所: サンプルタワー\n予定: 12:00 | 昼食\nカテゴリ: 食事\n場所: 別施設\nURL: https://example.org/other")
         self.trip_id = self.domain.import_chat_paste("test", draft, confirmed=True)["trip_id"]
         self.trip = self.domain.get_effective_trip(self.trip_id)
         self.target = {"place_id": self.trip["places"][0]["id"]}
@@ -123,7 +124,16 @@ class EnrichmentTests(unittest.TestCase):
                     {"provider_id": "private-id", "restricted": "not adoptable"}) for _ in range(count)])
         return self.domain.get_place_enrichment(self.trip_id, self.target, Adapter(), area="東京")
 
-    def test_confirmation_payload_and_existing_complete_trip_adoption(self):
+    def adopt(self, result, *, confirmed=True):
+        return self.domain.adopt_place_enrichment(
+            "enrich", self.trip_id, self.target["place_id"], result, 0, confirmed=confirmed)
+
+    def working_rows(self):
+        with sqlite3.connect(self.db) as db:
+            return [db.execute("SELECT * FROM " + table).fetchall()
+                    for table in ("working_trips", "working_trip_generations")]
+
+    def test_confirmed_stable_adoption_without_working_preserves_other_places_and_items(self):
         result = self.acquire()
         self.assertEqual(result["status"], "confirmation_required")
         with self.assertRaises(ValidationError):
@@ -133,10 +143,14 @@ class EnrichmentTests(unittest.TestCase):
         self.assertEqual(self.query, FacilityQuery("サンプルタワー", "東京", ""))
         self.assertEqual(self.domain._trip_path(self.trip_id).read_bytes(), self.before)
         self.assertEqual(self.db.read_bytes(), self.db_before)
-        self.domain.start_working_trip(self.trip_id)
-        candidate = copy.deepcopy(self.trip)
-        candidate["places"][0].update(prepared["fields"])
-        self.domain.adopt_working_trip_candidate(self.trip_id, candidate)
+        with self.assertRaises(ValidationError):
+            self.adopt(result, confirmed=False)
+        adopted = self.adopt(result)
+        self.assertEqual(adopted["status"], "adopted")
+        self.assertEqual(adopted["updated_fields"], ["address", "location", "urls"])
+        with sqlite3.connect(self.db) as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM working_trips").fetchone()[0], 0)
+        self.assertEqual(self.domain._trip_path(self.trip_id).read_bytes(), self.before)
         expected = copy.deepcopy(self.trip)
         expected["places"][0].update(prepared["fields"])
         self.assertEqual(self.domain.get_effective_trip(self.trip_id), expected)
@@ -158,16 +172,90 @@ class EnrichmentTests(unittest.TestCase):
 
     def test_existing_nonempty_values_and_stale_input(self):
         result = self.acquire()
-        candidate = copy.deepcopy(self.trip)
-        candidate["places"][0].update(address="手入力", urls=["https://example.org"],
-                                      location={"latitude": 1, "longitude": 2})
-        self.domain.start_working_trip(self.trip_id)
-        self.domain.adopt_working_trip_candidate(self.trip_id, candidate)
+        for key, value in {"address": "手入力", "urls": ["https://example.org"],
+                           "location": {"latitude": 1, "longitude": 2}}.items():
+            self.domain.set_direct_override("manual-" + key, self.trip_id,
+                                            self.target["place_id"], "/" + key, value)
+        with self.assertRaises(ConflictError):
+            self.adopt(result)
         with self.assertRaises(ConflictError):
             self.domain.prepare_place_enrichment(self.trip_id, self.target, result, 0, confirmed=True)
         result = self.acquire()
         self.assertEqual(self.domain.prepare_place_enrichment(self.trip_id, self.target, result, 0,
                                                               confirmed=True)["fields"], {})
+
+    def test_partial_enrichment_keeps_existing_nonempty_address(self):
+        self.domain.set_direct_override("manual-address", self.trip_id,
+                                        self.target["place_id"], "/address", "手入力")
+        before = self.domain.list_active_direct_overrides(self.trip_id)
+        adopted = self.adopt(self.acquire())
+        self.assertEqual(adopted["updated_fields"], ["location", "urls"])
+        self.assertEqual(adopted["trip"]["places"][0]["address"], "手入力")
+        for override in before:
+            self.assertIn(override, self.domain.list_active_direct_overrides(self.trip_id))
+
+    def test_pending_adoption_is_not_recovered_or_allowed_to_clear_working(self):
+        self.domain.start_working_trip(self.trip_id)
+        before = self.working_rows()
+        journal = self.domain._journal_path(self.trip_id)
+        journal.parent.mkdir(parents=True, exist_ok=True)
+        journal.write_text("pending")
+        with self.assertRaises(ConflictError):
+            self.adopt(self.acquire())
+        self.assertEqual(self.working_rows(), before)
+        self.assertEqual(journal.read_text(), "pending")
+
+    def test_existing_working_and_generation_are_untouched_by_normal_adoption(self):
+        self.domain.start_working_trip(self.trip_id)
+        self.domain.start_working_trip_generation(self.trip_id, "gen", "review")
+        before = self.working_rows()
+        adopted = self.adopt(self.acquire())
+        self.assertEqual(adopted["status"], "adopted")
+        self.assertEqual(self.working_rows(), before)
+        self.assertTrue(self.domain.get_working_trip(self.trip_id)["stale"])
+
+    def test_other_manual_edits_and_other_trip_remain_unchanged(self):
+        other_draft = self.domain.parse_chat_paste("旅行名: 別旅行\n日付: 2027-06-13\n予定: 未定 | 散歩\nカテゴリ: 観光\n場所: 公園")
+        other_id = self.domain.import_chat_paste("other", other_draft, confirmed=True)["trip_id"]
+        other_before = self.domain.get_effective_trip(other_id)
+        day = self.trip["days"][0]
+        self.domain.edit_trip_item("manual", self.trip_id, "scheduleItem",
+                                   day["scheduleItems"][1]["id"], {"title": "手動の昼食"})
+        before = self.domain.get_effective_trip(self.trip_id)
+        original_overrides = self.domain.list_active_direct_overrides(self.trip_id)
+        result = self.acquire()
+        expected = copy.deepcopy(before)
+        expected["places"][0].update({k: v for k, v in self.fields.items() if k != "name"})
+        adopted = self.adopt(result)
+        self.assertEqual(adopted["trip"], expected)
+        self.assertEqual(self.domain.get_effective_trip(other_id), other_before)
+        self.assertEqual(adopted["view"], self.domain.get_trip_detail_view(self.trip_id))
+        after = self.domain.list_active_direct_overrides(self.trip_id)
+        for override in original_overrides:
+            self.assertIn(override, after)
+        with self.assertRaises(ConflictError):
+            self.adopt(result)  # A stale confirmation cannot overwrite the adopted values.
+
+    def test_unfilled_and_invalid_selection_do_not_write(self):
+        result = self.acquire({"name": "照合名"})
+        self.assertEqual(self.adopt(result)["status"], "unfilled")
+        self.assertEqual(self.db.read_bytes(), self.db_before)
+        result = self.acquire()
+        result["candidates"][0]["fields"]["location"] = {"latitude": 91, "longitude": 1}
+        with self.assertRaises(ValidationError):
+            self.adopt(result)
+        self.assertEqual(self.db.read_bytes(), self.db_before)
+
+    def test_multi_field_write_failure_rolls_back_all_fields(self):
+        with sqlite3.connect(self.db) as db:
+            db.execute("CREATE TRIGGER reject_enrichment BEFORE INSERT ON direct_overrides "
+                       "WHEN NEW.field_path = '/urls' BEGIN SELECT RAISE(ABORT, 'test failure'); END")
+        before = self.db.read_bytes()
+        with self.assertRaises(ValidationError):
+            self.adopt(self.acquire())
+        self.assertEqual(self.domain.get_effective_trip(self.trip_id), self.trip)
+        self.assertEqual(self.db.read_bytes(), before)
+        self.assertEqual(self.domain._trip_path(self.trip_id).read_bytes(), self.before)
 
     def test_target_mismatch_and_failure_do_not_change_trip(self):
         result = self.acquire()
@@ -193,6 +281,9 @@ class EnrichmentTests(unittest.TestCase):
         result = self.acquire()
         self.assertEqual(self.domain.prepare_place_enrichment(self.trip_id, self.target, result, 0,
                                                               confirmed=True)["status"], "ready")
+        self.assertEqual(self.domain.get_working_trip(self.trip_id), before)
+        with self.assertRaises(ValidationError):
+            self.domain.adopt_place_enrichment("no-temp", self.trip_id, "temp", result, 0, confirmed=True)
         self.assertEqual(self.domain.get_working_trip(self.trip_id), before)
 
 

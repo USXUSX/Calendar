@@ -231,9 +231,11 @@ credential、課金、rate limit、cache、外部Place IDはこのsemantic契約
 補完結果は候補であり、名前だけで同一Placeと断定したり、同名候補を自動採用したりしない。
 一意に扱えない結果は候補のままusまたは後続フローへ返す。採用時も新しい地図用正本は作らず、
 existing Placeならformal Placeの同じ`address / location / urls`へ、temporary itemならPhase 5のcomplete
-Trip生成時に作るstable Placeへ収束させる。既存の非空値を暗黙に上書きせず、authoritative Tripや
-Direct OverrideをこのStepで変更しない。Issue #90で[共通施設取得adapterと補完候補の準備](place-acquisition.md)を実装する。
-実行Job、UI、独立した正式採用commandは含めず、採用は既存の完全Trip経路を使う。
+Trip生成時に作るstable Placeへ収束させる。既存の非空値を暗黙に上書きしない。
+Issue #90で[共通施設取得adapterと⑥補完の通常採用](place-acquisition.md)を実装する。
+stable Placeは明示確認した不足address/location/urlsだけを`adopt_place_enrichment`で
+Direct Overrideへ正式採用し、effective Tripへ反映する。Workingの作成・変更・削除は行わない。
+temporary itemは候補準備までとし、実行Job・UIは含めない。
 
 ## Phase 5のcomplete candidate受入れ・確定境界
 

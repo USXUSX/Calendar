@@ -37,8 +37,8 @@ adapter = WikidataAdapter()  # callerが再利用
 result = calendar.get_place_enrichment(
     trip_id, {"place_id": place_id}, adapter, area="東京")
 # 一件でもconfirmation_required。複数件はambiguous。取得・確認は書き込まない。
-prepared = calendar.prepare_place_enrichment(
-    trip_id, {"place_id": place_id}, result, 0, confirmed=True)
+adopted = calendar.adopt_place_enrichment(
+    "enrich-command", trip_id, place_id, result, 0, confirmed=True)
 ```
 
 対象は`{"place_id": ...}`または`{"temporary_id": ...}`のいずれか。
@@ -47,17 +47,27 @@ CALがそのTripへの帰属、Working temporary itemの非空place_nameを確�
 provider固有IDはadapter内に留め、CAL結果へ返さない。
 結果の`candidates[].fields`と表示用の出典・取得時刻等の`context`は分離し、CALがfield名、型、有限の座標範囲、HTTPS URLを再検証する。
 
-一件でも施設identityの明示確認が必要。`prepare_place_enrichment`へは内部callerが保持した未変更の
+一件でも施設identityの明示確認が必要。採用・候補準備commandへは内部callerが保持した未変更の
 取得結果を渡し、UIからは候補indexと確認だけを受け取る。任意のUI JSONやprovider応答を直接この入力にしない。
 選択時にTrip・対象一致と現行入力を再確認し、入力が変わっていればConflictにする。
 返す`fields`は空のaddress/location/urlsだけで、既存の非空値は追記も置換もしない。
 補完がなければ`unfilled`となる。provider ID、根拠本文、保存制限値はこのpayloadに含まない。
 
-これは既存Step 8どおり**補完候補の準備まで**で、独立した正式採用commandやUIを新設しない。
-採用callerは明示確認済みの`fields`だけを同じstable Placeの完全Trip候補に適用し、既存の
-`adopt_working_trip_candidate`によるSchema・参照・Working stale検証とatomic adoptionを使う。
-temporary itemは完全Trip生成時のstable Placeへ収束させる。Workingへ地点fieldや別の正本を追加しない。
-他の予定への自動変更は行わない。関連testでsynthetic Tripの取得→選択→完全Trip採用と他field不変を確認する。
+stable PlaceのGoal 1通常経路は`adopt_place_enrichment(command_id, trip_id, place_id, result,
+candidate_index, confirmed=True)`とする。CAL内で候補準備・型・Schema・参照を再検証し、
+対象の不足address/location/urlsだけを同一transactionでDirect Overrideへ保存する。
+現在の正式な表示値はBaselineどおりeffective Tripから再表示する。Trip JSON本体へのコピーや
+callerによる完全Trip構築、Workingの新規作成・更新・削除は行わない。
+戻り値はstatus（adopted / unfilled）、trip_id、target、updated_fields、trip、view。
+未補完なら書込みはなく、既存の非空値、他Place・他予定・他Trip、他のDirect Overrideを維持する。
+確認と不足値検証の前にSQLiteの書込みlockを取り、途中失敗は全補完fieldをrollbackする。
+未完了のTrip採用journalがある場合はConflictとし、このcommandからrecoveryを呼ばない。
+
+既存Workingがあっても保存row・生成stateを一切変更しない。effective Tripが変わるため、
+既存Workingのstale表示は従来のrevision比較によってtrueになる。自動rebaseはしない。
+temporary itemは`prepare_place_enrichment`による候補準備までを維持し、stable Place用の
+正式採用commandへ渡せない。将来の完全Trip生成時にstable Placeへ収束する境界は維持する。
+UI、実運用設定、②③⑤⑦の機能は本Issueに追加しない。
 
 ## 公式資料の確認
 

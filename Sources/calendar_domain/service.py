@@ -1632,9 +1632,43 @@ class CalendarDomain:
         return acquire(self, trip_id, target, adapter, area)
 
     def prepare_place_enrichment(self, trip_id, target, result, candidate_index, *, confirmed=False):
-        """Validate selected missing fields for the existing complete-Trip adoption path."""
+        """Validate selected missing fields without adopting or changing Working."""
         from .place_enrichment import prepare
         return prepare(self, trip_id, target, result, candidate_index, confirmed)
+
+    def adopt_place_enrichment(
+        self, command_id: str, trip_id: str, place_id: str,
+        result: dict[str, Any], candidate_index: int, *, confirmed: bool = False,
+    ) -> dict[str, Any]:
+        """Adopt confirmed missing stable Place fields as ordinary Direct Overrides."""
+        self._require_text(command_id, "command_id")
+        self._require_text(place_id, "place_id")
+        target = {"place_id": place_id}
+        # Reserve the writer before rereading identity/input and missing fields.
+        # No Working command, whole-Trip adoption, or recovery is invoked here.
+        with self._command() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            if self._journal_path(trip_id).exists():
+                raise ConflictError("pending Trip adoption must be recovered before enrichment")
+            prepared = self.prepare_place_enrichment(
+                trip_id, target, result, candidate_index, confirmed=confirmed,
+            )
+            changes = prepared["fields"]
+            effective = self.get_effective_trip(trip_id)
+            paths = {field: "/" + field for field in changes}
+            for field, value in changes.items():
+                self._apply_value(effective, place_id, paths[field], value)
+            errors = validate_value(effective, self._trip_schema) + semantic_errors(effective)
+            if errors:
+                raise ValidationError("Place enrichment would create an invalid Trip")
+            self._store_trip_fields(connection, command_id, trip_id, place_id, changes, paths)
+        return {
+            "trip_id": trip_id, "target": target,
+            "status": "adopted" if changes else "unfilled",
+            "updated_fields": sorted(changes),
+            "trip": self.get_effective_trip(trip_id),
+            "view": self.get_trip_detail_view(trip_id),
+        }
 
     def export_working_trip_for_chat(self, trip_id: str) -> dict[str, Any]:
         """Return the minimal CAL semantic package for manual complete-Trip regeneration."""
@@ -2191,31 +2225,37 @@ class CalendarDomain:
         errors = validate_value(effective, self._trip_schema) + semantic_errors(effective)
         if errors:
             raise ValidationError(f"direct edit is invalid: {errors[0]}")
-        timestamp = _now()
         with self._command() as connection:
-            for field, value in changes.items():
-                field_path = paths[field]
-                value_json = json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
-                row = connection.execute(
-                    "SELECT id FROM direct_overrides WHERE trip_id = ? AND source_item_id = ? AND field_path = ?",
-                    (trip_id, source_item_id, field_path),
-                ).fetchone()
-                override_id = row["id"] if row else f"{command_id}-{source_item_id}-{field}"
-                if row:
-                    connection.execute(
-                        "UPDATE direct_overrides SET value_json = ?, active = 1, updated_at = ? WHERE id = ?",
-                        (value_json, timestamp, override_id),
-                    )
-                else:
-                    connection.execute(
-                        "INSERT INTO direct_overrides VALUES (?, ?, ?, ?, ?, 1, ?, ?)",
-                        (override_id, trip_id, source_item_id, field_path, value_json, timestamp, timestamp),
-                    )
+            self._store_trip_fields(connection, command_id, trip_id, source_item_id, changes, paths)
         return {
             "trip": self.get_effective_trip(trip_id),
             "view": self.get_trip_detail_view(trip_id),
             "updated_fields": sorted(changes),
         }
+
+    def _store_trip_fields(self, connection: sqlite3.Connection, command_id: str,
+                           trip_id: str, source_item_id: str, changes: dict[str, Any],
+                           paths: dict[str, str]) -> None:
+        """Persist prevalidated local fields within the caller's transaction."""
+        timestamp = _now()
+        for field, value in changes.items():
+            field_path = paths[field]
+            value_json = json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+            row = connection.execute(
+                "SELECT id FROM direct_overrides WHERE trip_id = ? AND source_item_id = ? AND field_path = ?",
+                (trip_id, source_item_id, field_path),
+            ).fetchone()
+            override_id = row["id"] if row else f"{command_id}-{source_item_id}-{field}"
+            if row:
+                connection.execute(
+                    "UPDATE direct_overrides SET value_json = ?, active = 1, updated_at = ? WHERE id = ?",
+                    (value_json, timestamp, override_id),
+                )
+            else:
+                connection.execute(
+                    "INSERT INTO direct_overrides VALUES (?, ?, ?, ?, ?, 1, ?, ?)",
+                    (override_id, trip_id, source_item_id, field_path, value_json, timestamp, timestamp),
+                )
 
     def _get_override(self, override_id: str) -> dict[str, Any]:
         with self._read() as connection:
