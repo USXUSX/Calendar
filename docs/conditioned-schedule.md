@@ -53,7 +53,8 @@ OpenAI、routing、retry、AFMによる検索を追加しない。
 - 0 ID：両配列を空にし、架空のPlaceを作らない。
 
 全ての場合で予定は1件だけ。その予定の任意field `searchQuery`が元条件の正本となる。
-Schemaは空の`candidatePlaceIds`を許可する。既存JSONに新fieldを必須追加せず、移行は不要。
+Schemaは空の`candidatePlaceIds`を許可するが、その場合はsemantic Validationで非空（空白のみも不可）の`searchQuery`を必須とする。
+候補がある既存JSONには新fieldを必須追加せず、移行は不要。
 予定状態は既存取込と同じ`undecided`で、場所確定は`selection`で区別する。
 カテゴリはcallerの明示した`sightseeing / food / accommodation`を必須とし推測しない。
 時刻は省略時に未定。終了だけ、逆転時刻、不正時刻は確認・補正へ返す。

@@ -10,6 +10,7 @@ from Sources.calendar_domain import CalendarDomain, ConflictError, ValidationErr
 from Sources.place_acquisition import Acquisition, FacilityCandidate, FacilityQuery
 from Sources.aig_candidate_recommendation import CONTRACT, failure, recommend, command_transport
 from scripts.init_calendar_db import initialize
+from scripts.validate_trip import semantic_errors
 
 
 def success(ids):
@@ -221,6 +222,42 @@ class ScheduleTests(unittest.TestCase):
         with self.domain._read() as connection:
             self.domain._validate_adoption_constraints(connection, self.trip_id, trip, ())
         self.assertEqual(self.domain._trip_path(self.trip_id).read_bytes(), self.before)
+
+    def test_empty_candidates_require_nonblank_query_in_formal_validation(self):
+        for fields in ({}, {"searchQuery": None}, {"searchQuery": ""},
+                       {"searchQuery": " \t\n\u3000"}, {"searchQuery": 123}):
+            with self.subTest(fields=fields):
+                candidate = copy.deepcopy(self.trip)
+                item = candidate["days"][0]["scheduleItems"][0]
+                item["placeSelection"].update(candidatePlaceIds=[], selection=[])
+                item.update(fields)
+                self.assertTrue(any("searchQuery" in error for error in semantic_errors(candidate)))
+                with self.assertRaises(ValidationError):
+                    self.domain._validated_candidate(self.trip_id, candidate)
+        self.assertEqual(self.domain._trip_path(self.trip_id).read_bytes(), self.before)
+
+    def test_empty_candidates_with_original_query_remain_valid(self):
+        candidate = copy.deepcopy(self.trip)
+        item = candidate["days"][0]["scheduleItems"][0]
+        item["placeSelection"].update(candidatePlaceIds=[], selection=[])
+        item["searchQuery"] = self.query
+        self.assertEqual(semantic_errors(candidate), [])
+        validated, _ = self.domain._validated_candidate(self.trip_id, candidate)
+        self.assertEqual(validated, candidate)
+        self.assertEqual(validated["days"][0]["scheduleItems"][0]["searchQuery"], self.query)
+
+    def test_existing_candidates_do_not_require_query(self):
+        for selected in (True, False):
+            with self.subTest(selected=selected):
+                candidate = copy.deepcopy(self.trip)
+                item = candidate["days"][0]["scheduleItems"][0]
+                self.assertNotIn("searchQuery", item)
+                self.assertTrue(item["placeSelection"]["candidatePlaceIds"])
+                if not selected:
+                    item["placeSelection"]["selection"] = []
+                self.assertEqual(semantic_errors(candidate), [])
+                validated, _ = self.domain._validated_candidate(self.trip_id, candidate)
+                self.assertEqual(validated, candidate)
 
     def test_addition_semantics_rechecked_against_future_base(self):
         result = self.search()

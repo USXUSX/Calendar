@@ -144,6 +144,9 @@ def semantic_errors(trip: dict[str, Any]) -> list[str]:
             selection = item["placeSelection"]
             candidates = set(selection["candidatePlaceIds"])
             selected = set(selection["selection"])
+            query = item.get("searchQuery")
+            if not candidates and (not isinstance(query, str) or not query.strip()):
+                errors.append(f"{base}.searchQuery: empty candidatePlaceIds requires a nonblank searchQuery")
             if not candidates <= places:
                 errors.append(f"{base}.placeSelection: unknown candidate Place id")
             if not selected <= candidates:
