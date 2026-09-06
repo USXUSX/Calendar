@@ -1626,6 +1626,16 @@ class CalendarDomain:
         view["working"] = {"present": True, "stale": working["stale"]}
         return view
 
+    def get_place_enrichment(self, trip_id, target, adapter, *, area=""):
+        """Read-only facility acquisition; only explicit place hints leave CAL."""
+        from .place_enrichment import acquire
+        return acquire(self, trip_id, target, adapter, area)
+
+    def prepare_place_enrichment(self, trip_id, target, result, candidate_index, *, confirmed=False):
+        """Validate selected missing fields for the existing complete-Trip adoption path."""
+        from .place_enrichment import prepare
+        return prepare(self, trip_id, target, result, candidate_index, confirmed)
+
     def export_working_trip_for_chat(self, trip_id: str) -> dict[str, Any]:
         """Return the minimal CAL semantic package for manual complete-Trip regeneration."""
         authoritative = self._load_trip(trip_id)
