@@ -293,5 +293,201 @@ class ScheduleTests(unittest.TestCase):
         self.add(result)
 
 
+
+class ExistingScheduleTests(unittest.TestCase):
+    setUp = ScheduleTests.setUp
+    transport = ScheduleTests.transport
+    rows = ScheduleTests.rows
+
+    @property
+    def item_id(self):
+        return self.trip["days"][0]["scheduleItems"][0]["id"]
+
+    def search(self):
+        return self.domain.search_existing_schedule_candidates(
+            self.trip_id, self.item_id, self.query, self.adapter, self.transport)
+
+    def save(self, result, ids=None, command="candidates"):
+        return self.domain.add_schedule_candidates(command, self.trip_id, self.item_id,
+            result, [] if ids is None else ids, confirmed=True)
+
+    def test_zero_to_three_preserve_every_other_field_and_persist(self):
+        for count in range(4):
+            with self.subTest(count=count):
+                # A fresh database per case, including a formal selection and another schedule.
+                if count:
+                    self.setUp()
+                ScheduleTests.add(self, ScheduleTests.search(self), command="other")
+                original = self.domain.get_effective_trip(self.trip_id)
+                result = self.search()
+                self.assertEqual(self.requests[-1]["query"], self.query)
+                self.assertEqual([c["id"] for c in result["candidates"]], self.reply["recommended_ids"])
+                saved = self.save(result, [c["id"] for c in result["candidates"]][:count])["trip"]
+                item = saved["days"][0]["scheduleItems"][0]
+                self.assertEqual(len(item["placeSelection"]["candidatePlaceIds"]), 1 + count)
+                expected = copy.deepcopy(original)
+                expected["places"] = saved["places"]
+                target = expected["days"][0]["scheduleItems"][0]
+                target["searchQuery"] = self.query
+                target["placeSelection"]["candidatePlaceIds"] = item["placeSelection"]["candidatePlaceIds"]
+                self.assertEqual(saved, expected)
+                self.assertEqual(saved["places"][:len(original["places"])], original["places"])
+                self.assertEqual(self.domain.list_schedule_queries(self.trip_id)[0]["query"], self.query)
+                self.assertNotIn(self.item_id, [q["source_item_id"] for q in
+                    self.domain.list_unresolved_schedule_queries(self.trip_id)])
+                reopened = CalendarDomain(self.db, self.root / "data")
+                self.assertEqual(reopened.get_effective_trip(self.trip_id), saved)
+                self.assertEqual(self.domain._trip_path(self.trip_id).read_bytes(), self.before)
+                for raw in ("一時snippet", "private-", "restricted", "静かな席の有無"):
+                    self.assertNotIn(raw, json.dumps(self.rows(), ensure_ascii=False))
+                paths = [r["field_path"] for r in self.domain.list_active_direct_overrides(self.trip_id)
+                         if r["source_item_id"] == self.item_id]
+                self.assertEqual(set(paths), {"/searchQuery"} | (
+                    {"/placeSelection/candidatePlaceIds"} if count else set()))
+
+    def test_failures_all_ng_replace_query_only(self):
+        acquisition = self.acquisition
+        cases = [(acquisition, self.reply, "recommendations"),
+                 (Acquisition("no_candidates"), self.reply, "no_candidates"),
+                 (Acquisition("unavailable"), self.reply, "search_failed"),
+                 (acquisition, failure("afm_unavailable"), "recommendation_failed"),
+                 (acquisition, failure("generation_failed"), "recommendation_failed"),
+                 (acquisition, success([]), "no_candidates")]
+        for n, (self.acquisition, self.reply, status) in enumerate(cases):
+            self.query = f" 今回の条件{n} "
+            result = self.search()
+            self.assertEqual(result["status"], status)
+            saved = self.save(result, command=str(n))["trip"]
+            expected = copy.deepcopy(self.trip)
+            expected["days"][0]["scheduleItems"][0]["searchQuery"] = self.query
+            self.assertEqual(saved, expected)
+            self.assertEqual(self.domain.list_schedule_queries(self.trip_id)[0]["query"], self.query)
+
+    def test_repeated_and_equivalent_candidates_are_not_duplicated(self):
+        result = self.search()
+        first = self.save(result, ["candidate-1"])["trip"]
+        self.assertEqual(self.save(result, ["candidate-1"])["trip"], first)
+        # Different command and evidence ID, same known URL: reuse without changing Place.
+        fields = copy.deepcopy(self.acquisition.candidates[0].persistable)
+        fields["name"] = "別表記"
+        self.acquisition.candidates[1] = FacilityCandidate(fields, dict(description="other evidence"))
+        result = self.search()
+        second = self.save(result, ["candidate-1", "candidate-2"], "again")["trip"]
+        self.assertEqual(second, first)
+        # Same name alone does not establish identity; different address/URL/coordinates survive.
+        self.acquisition.candidates[2].persistable["name"] = fields["name"]
+        result = self.search()
+        third = self.save(result, ["candidate-3"], "different")["trip"]
+        self.assertEqual(len(third["places"]), len(first["places"]) + 1)
+
+    def test_duplicate_inside_one_selection_and_existing_place_reuse(self):
+        existing_id = self.trip["places"][0]["id"]
+        self.domain.set_direct_override("place-url", self.trip_id, existing_id,
+            "/urls", ["https://example.com/0"])
+        result = self.search()
+        saved = self.save(result, ["candidate-1"])["trip"]
+        self.assertEqual(len(saved["places"]), 1)
+        self.assertEqual(saved["days"][0]["scheduleItems"][0]["placeSelection"]["candidatePlaceIds"], [existing_id])
+        self.acquisition.candidates[2].persistable = copy.deepcopy(self.acquisition.candidates[1].persistable)
+        result = self.search()
+        saved = self.save(result, ["candidate-2", "candidate-3"], "pair")["trip"]
+        self.assertEqual(len(saved["places"]), 2)
+
+    def test_invalid_input_target_and_restricted_fields_write_nothing(self):
+        result = self.search()
+        before = self.rows()
+        for ids in [["foreign"], ["candidate-1"] * 2, ["candidate-1"] * 4, [True]]:
+            with self.assertRaises(ValidationError):
+                self.save(result, ids)
+        for key in ("trip_id", "source_item_id"):
+            with self.assertRaises(ValidationError):
+                self.save(dict(result, **{key: "wrong"}))
+        with self.assertRaises(ValidationError):
+            self.domain.add_schedule_candidates("unconfirmed", self.trip_id, self.item_id, result, [])
+        self.acquisition.candidates[0] = FacilityCandidate({}, dict(name="restricted name"))
+        self.reply = success(["candidate-1"])
+        with self.assertRaises(ValidationError):
+            self.save(self.search(), ["candidate-1"])
+        self.assertEqual(self.rows(), before)
+
+    def test_candidates_can_be_added_to_an_unresolved_schedule_from_issue_91(self):
+        added = ScheduleTests.add(self, ScheduleTests.search(self), command="undecided")
+        target_id = added["source_item_id"]
+        self.query = " 新しい検索条件 "
+        result = self.domain.search_existing_schedule_candidates(
+            self.trip_id, target_id, self.query, self.adapter, self.transport)
+        saved = self.domain.add_schedule_candidates("resolve-candidates", self.trip_id,
+            target_id, result, ["candidate-1"], confirmed=True)["trip"]
+        item = saved["days"][0]["scheduleItems"][-1]
+        self.assertEqual(item["placeSelection"]["selection"], [])
+        self.assertEqual(item["status"], "undecided")
+        self.assertEqual(len(item["placeSelection"]["candidatePlaceIds"]), 1)
+        self.assertEqual(self.domain.list_unresolved_schedule_queries(self.trip_id)[0]["query"], self.query)
+        # The existing optional-field extension is limited to ScheduleItems.
+        before = self.rows()
+        with self.assertRaises(ValidationError):
+            self.domain.set_direct_override("bad-query", self.trip_id, self.day_id,
+                                            "/searchQuery", self.query)
+        self.assertEqual(self.rows(), before)
+
+    def test_missing_or_non_schedule_target_never_searches(self):
+        from Sources.calendar_domain import NotFoundError
+        for target in ("missing", self.day_id, self.trip["places"][0]["id"]):
+            with self.assertRaises(NotFoundError):
+                self.domain.search_existing_schedule_candidates(
+                    self.trip_id, target, self.query, self.adapter, self.transport)
+        self.assertEqual(self.calls, [])
+
+    def test_latest_fields_and_working_are_retained(self):
+        self.domain.start_working_trip(self.trip_id)
+        result = self.search()
+        self.domain.edit_trip_item("edit", self.trip_id, "scheduleItem", self.item_id,
+                                   {"title": "編集中の内容"})
+        working = self.rows()[1:3]
+        saved = self.save(result, ["candidate-1"])["trip"]
+        self.assertEqual(saved["days"][0]["scheduleItems"][0]["action"], "編集中の内容")
+        self.assertEqual(self.rows()[1:3], working)
+        self.assertTrue(self.domain.get_working_trip(self.trip_id)["stale"])
+        # Future base changes to unrelated fields must not be pinned by a snapshot.
+        future = copy.deepcopy(self.trip)
+        future_item = future["days"][0]["scheduleItems"][0]
+        future_item["summary"] = "future base summary"
+        future_item["placeSelection"]["selection"] = []
+        with self.domain._read() as connection:
+            self.domain._validate_adoption_constraints(connection, self.trip_id, future, ())
+        for row in self.domain.list_active_direct_overrides(self.trip_id):
+            self.domain._apply_value(future, row["source_item_id"], row["field_path"], row["value"])
+        self.assertEqual(future_item["summary"], "future base summary")
+        self.assertEqual(future_item["placeSelection"]["selection"], [])
+        self.assertEqual(self.domain._trip_path(self.trip_id).read_bytes(), self.before)
+
+    def test_rollback_and_stale_area_or_journal(self):
+        result = self.search()
+        before = self.rows()
+        store = self.domain._store_trip_fields
+        count = 0
+        def broken(*args):
+            nonlocal count
+            count += 1
+            store(*args)
+            if count == 2:
+                raise sqlite3.OperationalError("simulated failure")
+        with patch.object(self.domain, "_store_trip_fields", side_effect=broken):
+            with self.assertRaises(ValidationError):
+                self.save(result, ["candidate-1", "candidate-2"])
+        self.assertEqual(self.rows(), before)
+        self.domain.edit_trip_day("area", self.trip_id, self.day_id, {"route_summary": "別の町"})
+        with self.assertRaises(ConflictError):
+            self.save(result)
+        result = self.search()
+        journal = self.domain._journal_path(self.trip_id)
+        journal.parent.mkdir(parents=True, exist_ok=True)
+        journal.write_text("pending")
+        before = self.rows()
+        with self.assertRaises(ConflictError):
+            self.save(result)
+        self.assertEqual(self.rows(), before)
+
+
 if __name__ == "__main__":
     unittest.main()
