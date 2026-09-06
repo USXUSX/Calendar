@@ -1,5 +1,7 @@
 # CAL再構築Baseline
 
+> Issue #86の現行Goal 1は[初期リリース仕様](initial-release.md)に従う。以下の正本・責務境界は維持し、既存AI生成・再生成経路の記述は初期リリースの必須機能を意味しない。
+
 ## 1. 位置付け
 
 この文書はIssue #46で確定した、CALの責務、主要Entity、データの役割分担、他ツールとの境界を定める現行Baselineである。後続のschema、interface、UI、移行はこのBaselineを前提に個別Issueで決定する。
