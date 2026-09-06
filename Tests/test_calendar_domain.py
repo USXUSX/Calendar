@@ -165,6 +165,72 @@ class CalendarDomainTests(unittest.TestCase):
         transport = next(item for item in result["trip"]["transports"] if item["id"] == "transport-hotel-walk")
         self.assertEqual((transport["status"], transport["time"]["mode"]), ("confirmed", "undecided"))
 
+    def test_day_area_edit_changes_only_selected_day_and_persists_on_reload(self):
+        trip_id = "trip-setouchi-2027"
+        original = self.trip_path.read_bytes()
+        expected = self.domain.get_effective_trip(trip_id)
+        day_id = expected["days"][0]["id"]
+        expected["days"][0]["routeSummary"] = "小樽→札幌"
+        result = self.domain.edit_trip_day("day-edit", trip_id, day_id, {"route_summary": "小樽→札幌"})
+        self.assertEqual(result["trip"], expected)
+        self.assertEqual(result["updated_fields"], ["route_summary"])
+        reloaded = CalendarDomain(self.db_path, self.trip_root)
+        self.assertEqual(reloaded.get_effective_trip(trip_id), expected)
+        self.assertEqual(result["view"], reloaded.get_trip_detail_view(trip_id))
+        self.assertEqual(result["view"]["days"][0]["route_summary"], "小樽→札幌")
+        self.assertEqual(self.trip_path.read_bytes(), original)
+        with sqlite3.connect(self.db_path) as connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM working_trips").fetchone()[0], 0)
+
+    def test_day_area_reedit_reuses_override_and_accepts_unset_values(self):
+        trip_id, day_id = "trip-setouchi-2027", "day-2027-05-14"
+        override_id = None
+        for index, value in enumerate(["小樽→札幌", "札幌", "", None]):
+            result = self.domain.edit_trip_day(f"edit-{index}", trip_id, day_id, {"route_summary": value})
+            self.assertEqual(result["view"]["days"][0]["route_summary"], value)
+            rows = self.domain.list_active_direct_overrides(trip_id)
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["field_path"], "/routeSummary")
+            if override_id is not None:
+                self.assertEqual(rows[0]["id"], override_id)
+            override_id = rows[0]["id"]
+            if index == 1:
+                self.domain.clear_direct_override(override_id)
+
+    def test_day_area_rejects_invalid_target_fields_and_values_without_writes(self):
+        trip_id, day_id = "trip-setouchi-2027", "day-2027-05-14"
+        self.domain.edit_trip_day("initial", trip_id, day_id, {"route_summary": "札幌"})
+        before = self.db_path.read_bytes()
+        cases = [(day_id, {"route_summary": value}) for value in [1, False, [], {}]]
+        cases += [(target, {"route_summary": "小樽"}) for target in
+                  ["missing", "schedule-dinner", "transport-ferry", trip_id]]
+        cases += [(day_id, changes) for changes in
+                  [{}, None, {"title": "小樽"}, {"route_summary": "小樽", "title": "主題"}]]
+        for target, changes in cases:
+            with self.subTest(target=target, changes=changes):
+                with self.assertRaises(ValidationError):
+                    self.domain.edit_trip_day("bad", trip_id, target, changes)
+                self.assertEqual(self.db_path.read_bytes(), before)
+
+    def test_day_and_item_direct_edits_preserve_working_and_generation(self):
+        trip_id = "trip-setouchi-2027"
+        self.domain.start_working_trip(trip_id)
+        self.domain.start_working_trip_generation(trip_id, "generation-1", "review")
+        with sqlite3.connect(self.db_path) as connection:
+            working = connection.execute("SELECT * FROM working_trips").fetchall()
+            generation = connection.execute("SELECT * FROM working_trip_generations").fetchall()
+        self.domain.edit_trip_day("day-edit", trip_id, "day-2027-05-14", {"route_summary": "小樽"})
+        expected = self.domain.get_effective_trip(trip_id)
+        expected["days"][0]["scheduleItems"][0]["action"] = "朝食を変更"
+        result = self.domain.edit_trip_item(
+            "item-edit", trip_id, "scheduleItem", "schedule-port-breakfast", {"title": "朝食を変更"},
+        )
+        self.assertEqual(result["trip"], expected)
+        with sqlite3.connect(self.db_path) as connection:
+            self.assertEqual(connection.execute("SELECT * FROM working_trips").fetchall(), working)
+            self.assertEqual(connection.execute("SELECT * FROM working_trip_generations").fetchall(), generation)
+        self.assertTrue(self.domain.get_working_trip(trip_id)["stale"])
+
     def test_working_trip_keeps_one_latest_state_and_does_not_change_authority(self):
         original = self.trip_path.read_bytes()
         first = self.domain.save_working_trip("trip-setouchi-2027", {
