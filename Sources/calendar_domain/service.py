@@ -19,6 +19,7 @@ from scripts.validate_trip import DEFAULT_SCHEMA, semantic_errors, validate_valu
 from .errors import ConflictError, GenerationWriteError, NotFoundError, ValidationError
 from .models import UnifiedEvent
 from .trip_detail import build_trip_detail_view
+from .chat_paste import parse_chat_paste, draft_requirements, build_import_trip, check_draft_shape
 
 
 _TRIP_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$")
@@ -636,6 +637,91 @@ class CalendarDomain:
                 (trip_id, visibility, timestamp, timestamp),
             )
         return {"id": trip_id, "visibility": visibility}
+
+    @staticmethod
+    def parse_chat_paste(text: str) -> dict[str, Any]:
+        """Read-only interpretation for a consumer's ephemeral confirmation form."""
+        return parse_chat_paste(text)
+
+    def review_chat_paste(self, command_id: str, review: dict[str, Any]) -> dict[str, Any]:
+        """Recheck corrected input and build a display preview without writing state."""
+        self._require_text(command_id, "command_id")
+        try:
+            # Only this semantic envelope is accepted, never a caller-built Trip.
+            if not isinstance(review, dict) or set(review) - {"draft", "unresolved", "requirements"}:
+                raise ValidationError("invalid paste review")
+            check_draft_shape(review["draft"])
+            requirements = draft_requirements(review["draft"])
+            unresolved = review["unresolved"]
+            if not isinstance(unresolved, list):
+                raise ValidationError("invalid unresolved lines")
+            for line in unresolved:
+                if (not isinstance(line, dict) or set(line) - {"line", "text", "reason", "resolution"}
+                        or not {"line", "text", "reason"} <= set(line)
+                        or type(line["line"]) is not int
+                        or not isinstance(line["text"], str) or not isinstance(line["reason"], str)
+                        or line.get("resolution") not in (None, "corrected", "excluded")):
+                    raise ValidationError("invalid unresolved line")
+            if any(r["required"] for r in requirements) or any(not line.get("resolution") for line in unresolved):
+                return {"ready": False, "requirements": requirements,
+                        "unresolved": copy.deepcopy(unresolved), "view": None}
+            candidate = build_import_trip(review["draft"], command_id)
+            candidate, _ = self._validated_candidate(candidate["id"], candidate)
+            view = build_trip_detail_view(candidate)
+            for day in view["days"]:
+                for entry in day["entries"]:
+                    entry["direct_edit_paths"] = {}
+                    entry["ai_local_update_target"] = None
+            return {"ready": True, "requirements": requirements,
+                    "unresolved": copy.deepcopy(unresolved), "view": view}
+        except (KeyError, TypeError, ValueError, AttributeError) as error:
+            raise ValidationError("invalid paste review") from error
+
+    def import_chat_paste(self, command_id: str, review: dict[str, Any], *, confirmed: bool = False) -> dict[str, Any]:
+        """Adopt one confirmed new Trip; never update or replace an existing file."""
+        review = copy.deepcopy(review)
+        if confirmed is not True:
+            raise ValidationError("paste import requires explicit confirmation")
+        if not self.review_chat_paste(command_id, review)["ready"]:
+            raise ValidationError("paste draft requires correction or line resolution")
+        candidate = build_import_trip(review["draft"], command_id)
+        trip_id = candidate["id"]
+        _, payload = self._validated_candidate(trip_id, candidate)
+        path = self._trip_path(trip_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        staging = None
+        created = False
+        try:
+            with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".paste-", delete=False) as handle:
+                staging = Path(handle.name)
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            with self._command() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                if connection.execute("SELECT 1 FROM trips WHERE id = ?", (trip_id,)).fetchone():
+                    raise ConflictError("paste import command has already registered a Trip")
+                try:
+                    # Atomic create-if-absent: even unregistered Trip files survive.
+                    os.link(staging, path)
+                except FileExistsError as error:
+                    raise ConflictError("paste import target already exists") from error
+                created = True
+                staging.unlink()
+                staging = None
+                timestamp = _now()
+                connection.execute(
+                    "INSERT INTO trips (id, visibility, created_at, updated_at) VALUES (?, 'owner', ?, ?)",
+                    (trip_id, timestamp, timestamp),
+                )
+        except BaseException:
+            if created:
+                path.unlink()
+            raise
+        finally:
+            if staging is not None:
+                staging.unlink(missing_ok=True)
+        return {"trip_id": trip_id, "status": "adopted", "visibility": "owner", "version": 1}
 
     def _registered_trip(self, trip_id: str) -> sqlite3.Row:
         with self._read() as connection:

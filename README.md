@@ -7,6 +7,11 @@ Calendar is the first standard project in `/Users/us/Tools`, built with a three-
 Goal 1の現行範囲は、Chatで作成した旅程の新規Trip貼付取込と、CALでの表示・手動編集・細部仕上げである。
 [初期リリース仕様](docs/initial-release.md)を参照する。以下の既存AI生成・再生成経路は保持するが、Goal 1の完成条件には含めない。
 
+Chat貼付のCAL commandは`parse_chat_paste` → `review_chat_paste` →
+`import_chat_paste`で一時解釈・補正確認・新規Trip採用を行う。
+[取込契約](docs/chat-paste-import.md)に現行Schema上の必須補正と初回書込み境界を定める。
+FRM画面への接続と実機操作は未実施。
+
 通常手動編集は予定の`edit_trip_item`と日別代表エリアの`edit_trip_day`を使い、
 Direct Overrideへ保存して`get_trip_detail_view`から再表示する。
 `edit_trip_day(command_id, trip_id, day_id, {"route_summary": value})`は既存の
