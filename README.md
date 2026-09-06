@@ -15,6 +15,9 @@ FRM画面への接続と実機操作は未実施。
 条件指定の新規予定追加は`search_schedule_candidates` → `add_conditioned_schedule`で、
 AFMの最大3推薦から1件決定・2〜3候補保存・候補なしの未定保存を扱う。
 元条件は予定の`searchQuery`に保持し、`list_unresolved_schedule_queries`から後続処理へ読み出せる。
+既存予定への候補追加は`search_existing_schedule_candidates` → `add_schedule_candidates`で、
+0〜3件の選択を候補・元条件として保存し、1件でも既存の`selection`と他属性を保つ。
+`list_schedule_queries`から正式な場所のある予定の条件も読み出せる。
 [追加契約](docs/conditioned-schedule.md)を参照する。Frameの画面接続は未実施。
 
 共通施設取得と⑥Place補完は`get_place_enrichment`で取得し、stable Placeは

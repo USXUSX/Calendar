@@ -1,4 +1,4 @@
-"""Transient facility recommendations and one explicitly chosen schedule addition."""
+"""Shared facility recommendations and explicit schedule/candidate additions."""
 import copy
 import json
 import unicodedata
@@ -92,13 +92,7 @@ def _normalize(value):
     return " ".join(unicodedata.normalize("NFKC", value).casefold().split())
 
 
-def add(domain, command_id, trip_id, day_id, values, result, selected_ids, confirmed):
-    """Internal caller holds the unmodified search result; UI supplies IDs only."""
-    domain._require_text(command_id, "command_id")
-    if confirmed is not True:
-        raise ValidationError("explicit schedule confirmation is required")
-    if (not isinstance(result, dict) or result.get("trip_id") != trip_id or result.get("day_id") != day_id):
-        raise ValidationError("recommendation target mismatch")
+def _selected_recommendations(result, selected_ids):
     query = _query(result.get("query"))
     if (not isinstance(selected_ids, list) or len(selected_ids) > 3
             or any(not isinstance(i, str) for i in selected_ids) or len(set(selected_ids)) != len(selected_ids)):
@@ -109,6 +103,33 @@ def add(domain, command_id, trip_id, day_id, values, result, selected_ids, confi
     by_id = {c["id"]: c for c in candidates}
     if not set(selected_ids) <= set(by_id) or (selected_ids and result.get("status") != "recommendations"):
         raise ValidationError("selection must belong to the displayed recommendations")
+    return query, by_id
+
+
+def _place(identity, fields):
+    if (not isinstance(fields, dict) or "name" not in fields
+            or any(not valid_field(k, v) for k, v in fields.items())):
+        raise ValidationError("candidate has no persistable Place or invalid fields")
+    place = dict(id=identity, name=fields["name"], summary=None, category="other",
+                 address=None, location=None, urls=[], rating=None)
+    place.update(copy.deepcopy(fields))
+    return place
+
+
+def _same_place(left, right):
+    return bool(set(left["urls"]) & set(right["urls"])) or (
+        _normalize(left["name"]) == _normalize(right["name"])
+        and any(left.get(k) and left[k] == right.get(k) for k in ("address", "location")))
+
+
+def add(domain, command_id, trip_id, day_id, values, result, selected_ids, confirmed):
+    """Internal caller holds the unmodified search result; UI supplies IDs only."""
+    domain._require_text(command_id, "command_id")
+    if confirmed is not True:
+        raise ValidationError("explicit schedule confirmation is required")
+    if (not isinstance(result, dict) or result.get("trip_id") != trip_id or result.get("day_id") != day_id):
+        raise ValidationError("recommendation target mismatch")
+    query, by_id = _selected_recommendations(result, selected_ids)
     if (not isinstance(values, dict) or set(values) - {"title", "category", "start", "end", "normal_comment"}
             or not isinstance(values.get("title"), str) or not values["title"].strip()
             or not isinstance(values.get("category"), str)
@@ -129,13 +150,7 @@ def add(domain, command_id, trip_id, day_id, values, result, selected_ids, confi
         selected = []
         places = []
         for candidate_id in selected_ids:
-            fields = by_id[candidate_id]["fields"]
-            if (not isinstance(fields, dict) or "name" not in fields
-                    or any(not valid_field(k, v) for k, v in fields.items())):
-                raise ValidationError("candidate has no persistable Place or invalid fields")
-            place = dict(id=identity("place", candidate_id), name=fields["name"], summary=None,
-                         category="other", address=None, location=None, urls=[], rating=None)
-            place.update(copy.deepcopy(fields))
+            place = _place(identity("place", candidate_id), by_id[candidate_id]["fields"])
             places.append(place)
             selected.append(place["id"])
         start, end = values.get("start"), values.get("end")
@@ -155,11 +170,7 @@ def add(domain, command_id, trip_id, day_id, values, result, selected_ids, confi
             same_slot = existing["time"]["start"] == start and existing["time"]["end"] == end
             same_title = _normalize(existing["action"]) == _normalize(item["action"])
             existing_places = [p for p in effective["places"] if p["id"] in existing["placeSelection"]["selection"]]
-            same_place = len(places) == 1 and any(
-                bool(set(places[0]["urls"]) & set(p["urls"]))
-                or (_normalize(places[0]["name"]) == _normalize(p["name"])
-                    and any(places[0].get(k) and places[0][k] == p.get(k)
-                            for k in ("address", "location"))) for p in existing_places)
+            same_place = len(places) == 1 and any(_same_place(places[0], p) for p in existing_places)
             if same_slot and (same_title or same_place):
                 raise ConflictError("an obvious duplicate schedule exists in this day")
         additions = [(trip_id, "/places/@" + p["id"], p) for p in places]
@@ -175,10 +186,75 @@ def add(domain, command_id, trip_id, day_id, values, result, selected_ids, confi
                 trip=domain.get_effective_trip(trip_id), view=domain.get_trip_detail_view(trip_id))
 
 
-def unresolved(domain, trip_id):
+def schedule_queries(domain, trip_id, *, unresolved_only=False):
     trip = domain.get_effective_trip(trip_id)
     return [dict(trip_id=trip_id, day_id=day["id"], source_item_id=item["id"], query=item["searchQuery"],
                  title=item["action"], category=item["category"],
                  candidate_place_ids=copy.deepcopy(item["placeSelection"]["candidatePlaceIds"]))
             for day in trip["days"] for item in day["scheduleItems"]
-            if item.get("searchQuery") and not item["placeSelection"]["selection"]]
+            if item.get("searchQuery") and (not unresolved_only or not item["placeSelection"]["selection"])]
+
+
+def _schedule(trip, source_item_id):
+    for day in trip["days"]:
+        for item in day["scheduleItems"]:
+            if item["id"] == source_item_id:
+                return day, item
+    raise NotFoundError("existing schedule not found")
+
+
+def search_existing(domain, trip_id, source_item_id, query, adapter, transport, search_queries=None):
+    day, _ = _schedule(domain.get_effective_trip(trip_id), source_item_id)
+    result = search(domain, trip_id, day["id"], query, adapter, transport, search_queries)
+    result["source_item_id"] = source_item_id
+    return result
+
+
+def add_candidates(domain, command_id, trip_id, source_item_id, result, selected_ids, confirmed):
+    """Append candidates and replace conditions without adopting a selection."""
+    domain._require_text(command_id, "command_id")
+    if confirmed is not True:
+        raise ValidationError("explicit candidate confirmation is required")
+    if (not isinstance(result, dict) or result.get("trip_id") != trip_id
+            or result.get("source_item_id") != source_item_id):
+        raise ValidationError("recommendation target mismatch")
+    query, by_id = _selected_recommendations(result, selected_ids)
+    with domain._command() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        if domain._journal_path(trip_id).exists():
+            raise ConflictError("pending Trip adoption must be recovered before adding candidates")
+        effective = domain.get_effective_trip(trip_id)
+        day, item = _schedule(effective, source_item_id)
+        if day["id"] != result.get("day_id") or day["routeSummary"] != result.get("area"):
+            raise ConflictError("search day or area has changed; search again")
+        candidate_ids = list(item["placeSelection"]["candidatePlaceIds"])
+        additions = []
+        for candidate_id in selected_ids:
+            identity = "place-" + uuid5(NAMESPACE_URL,
+                f"calendar:candidates:{trip_id}:{source_item_id}:{command_id}:{candidate_id}").hex
+            place = _place(identity, by_id[candidate_id]["fields"])
+            # Prefer this schedule's existing candidates, then reuse any known Place.
+            known = sorted(effective["places"], key=lambda p: p["id"] not in candidate_ids)
+            existing = next((p for p in known if _same_place(place, p) or p == place), None)
+            if existing is not None:
+                identity = existing["id"]
+            else:
+                if domain._item_matches(effective, identity):
+                    raise ConflictError("candidate addition identity already exists")
+                additions.append((trip_id, "/places/@" + identity, place))
+                domain._apply_value(effective, trip_id, "/places/@" + identity, place)
+            if identity not in candidate_ids:
+                candidate_ids.append(identity)
+        # Store leaf fields only: never snapshot the schedule or its selection.
+        if candidate_ids != item["placeSelection"]["candidatePlaceIds"]:
+            additions.append((source_item_id, "/placeSelection/candidatePlaceIds", candidate_ids))
+        additions.append((source_item_id, "/searchQuery", query))
+        for target, path, value in additions:
+            domain._apply_value(effective, target, path, value)
+        if validate_value(effective, domain._trip_schema) + semantic_errors(effective):
+            raise ValidationError("candidate addition would create an invalid Trip")
+        for target, path, value in additions:
+            domain._store_trip_fields(connection, command_id, trip_id, target,
+                                      {path: value}, {path: path})
+    return dict(trip_id=trip_id, source_item_id=source_item_id, status="saved",
+                trip=domain.get_effective_trip(trip_id), view=domain.get_trip_detail_view(trip_id))

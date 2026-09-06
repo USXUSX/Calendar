@@ -805,7 +805,9 @@ class CalendarDomain:
                 raise ValidationError(f"field_path does not exist: {field_path}")
         leaf = parts[-1]
         if isinstance(target, dict):
-            if leaf not in target:
+            optional_query = field_path == "/searchQuery" and any(
+                target is item for day in trip["days"] for item in day["scheduleItems"])
+            if leaf not in target and not optional_query:
                 raise ValidationError(f"field_path does not exist: {field_path}")
             target[leaf] = copy.deepcopy(value)
         elif isinstance(target, list) and leaf.isdigit() and int(leaf) < len(target):
@@ -1659,8 +1661,25 @@ class CalendarDomain:
 
     def list_unresolved_schedule_queries(self, trip_id):
         """Read original conditions for future explicitly triggered AI processing."""
-        from .conditioned_schedule import unresolved
-        return unresolved(self, trip_id)
+        from .conditioned_schedule import schedule_queries
+        return schedule_queries(self, trip_id, unresolved_only=True)
+
+    def search_existing_schedule_candidates(self, trip_id, source_item_id, query, adapter,
+                                            transport, *, search_queries=None):
+        """Reuse the shared search with a stable existing ScheduleItem target."""
+        from .conditioned_schedule import search_existing
+        return search_existing(self, trip_id, source_item_id, query, adapter, transport, search_queries)
+
+    def add_schedule_candidates(self, command_id, trip_id, source_item_id, result,
+                                selected_ids, *, confirmed=False):
+        """Save zero to three candidates and original conditions, preserving selection."""
+        from .conditioned_schedule import add_candidates
+        return add_candidates(self, command_id, trip_id, source_item_id, result, selected_ids, confirmed)
+
+    def list_schedule_queries(self, trip_id):
+        """Read conditions even for schedules that already have a formal selection."""
+        from .conditioned_schedule import schedule_queries
+        return schedule_queries(self, trip_id)
 
     def get_place_enrichment(self, trip_id, target, adapter, *, area=""):
         """Read-only facility acquisition; only explicit place hints leave CAL."""

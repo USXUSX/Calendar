@@ -1,6 +1,6 @@
-# 条件指定による新規予定追加（Calendar #91）
+# 条件検索と予定・候補追加（Calendar #91 / #92）
 
-CALの意味境界で検索、AFMの最大3推薦、明示選択による予定1件追加までを扱う。
+CALの意味境界で検索、AFMの最大3推薦、新規予定1件追加（#91）と既存予定への候補追加（#92）を扱う。
 owner画面はBaselineどおりFrameの責務。Frame画面への接続・実機操作は未実施。
 Calendarのlegacy read-only Webは変更しない。
 
@@ -84,7 +84,52 @@ formal Trip JSON、Working行、generation stateを変更しない。Workingは�
 
 `list_unresolved_schedule_queries`はselectionが空の予定の元条件、stable target、内容、カテゴリ、候補IDを返す。
 通常詳細viewも`search_query`を返し、既存Working exportのeffective Tripからも参照できる。
-後続AIを起動するworkflow・定期再検索・既存予定への候補追加（#92）は追加しない。
+後続AIを起動するworkflow・定期再検索は追加しない。
 
 通常Validationは合成候補、mock AIG、temporary DBで実施する。
 AFM実行品質・live検索品質・Frame表示・実機・productionはこのValidationでは確認しない。
+
+
+## 既存予定への候補追加（#92）
+
+```python
+result = calendar.search_existing_schedule_candidates(
+    trip_id, source_item_id, "青町で静かな席のあるカフェ", adapter, transport)
+saved = calendar.add_schedule_candidates(
+    command_id, trip_id, source_item_id, result,
+    [c["id"] for c in result["candidates"] if c["selectable"]], confirmed=True)
+queries = calendar.list_schedule_queries(trip_id)
+```
+
+対象は現行effective Tripの既存ScheduleItemのstable IDだけ。CALが所属Dayを解決し、
+#91と同じ検索・候補集約・AFM推薦処理を使う。検索戦略をFrameへ複製しない。
+結果には対象の`source_item_id`も付け、別予定・別Tripへ転用する保存を拒否する。
+#91同様に、内部callerが未変更の結果を操作中だけ保持し、UIからは候補IDと確認操作だけを受ける。
+
+- 1〜3 ID：既存`candidatePlaceIds`の末尾へ、確認できる重複を除いて追加する。
+  **1件でも正式な場所`selection`へ自動採用しない。**
+- 0 ID・全てNG・候補なし・検索失敗・AFM unavailable / 評価失敗：既存候補を保持する。
+- 全ての場合で今回入力した元条件を`searchQuery`へ保存し、以前の条件があれば置換する。
+
+保存時に最新effective Tripをwriter lock下で読み、候補と条件だけを更新する。
+予定の内容・時刻・カテゴリ・状態・selection・選択数制約・他属性と他予定は保持する。
+検索中に通常編集された属性も保持するが、対象が消えた場合や所属Day・代表エリアが変わった場合は保存せず再検索へ返す。
+
+施設の同一性は#91の明白な同一施設判定を共有する。URLの完全一致、または正規化した名称と
+非空の住所・座標の一致を使い、名前だけでは別施設を統合しない。
+対象の既存候補を優先し、Trip内に同一と確認できるPlaceがあれば既存IDを再利用する。
+既存Placeの値は上書きしない。今回選んだ候補同士も同じ方法で重複を除く。
+同一commandと同一結果の再送で作成Placeを重複追加しない。
+
+保存可能なfieldの検証・Place構築も#91と共有し、raw本文・snippet・provider metadata・
+AFM理由・未確認条件は保存しない。新しいPlaceのmember Overrideと対象予定の
+`/placeSelection/candidatePlaceIds`、`/searchQuery`だけを1 transactionで保存する。
+候補が増えなければ候補IDのOverrideも書かない。未設定の任意`searchQuery`は
+ScheduleItemに限ってfield Overrideで作成できる。予定全体や`placeSelection`全体は保存しない。
+formal Trip JSON・Working・generation stateは保持し、Schema/semantic検証失敗や途中失敗は全てrollbackする。
+
+`list_schedule_queries`はselectionの有無にかかわらず条件がある全予定を返す。
+返却形は既存`list_unresolved_schedule_queries`と同じで、後者は従来どおりselectionが空の予定だけを返す。
+正式な場所を保持する予定への候補追加や全てNGの場合も、前者から後続AIが今回の条件を読み出せる。
+通常詳細viewの`search_query`とWorking exportのeffective Tripからも参照できる。
+Frameの候補追加画面は別Issueで接続する。
