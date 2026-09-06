@@ -92,7 +92,7 @@ Step 7では、AIGのsafe failure後もWorkingとraw user intentが既存export�
 2. [後続実装の小さな単位](initial-release.md)に従い、表示・編集、貼付、共通取得と各採用機能をIssueへ分割する。
 3. 実装後、iPad mini / iPadで取込・表示・細部仕上げの実用性を確認する。
 
-従来の「Chat往復・自動確定を仕上げる」というPhase 8の必須範囲を上記へ置き換える。Working / Validation / candidate / atomic adoptionの既存基盤は保持し、既存OpenAI経路の削除・追加開発、production activation、Calendar_Local操作はこの仕様整理に含めない。
+従来の「Chat往復・自動確定を仕上げる」というPhase 8の必須範囲を上記へ置き換える。Working / Validation / candidate / atomic adoptionの既存基盤は保持し、既存OpenAI経路の削除・追加開発、production activation、Calendar_Local操作はこの仕様整理に含めない。全ケース対応や初期rule検出外の先回り実装は行わない。
 
 完了したPhase 2・3の表示・入力・更新契約は[`trip-detail-model.md`](trip-detail-model.md)に保持する。
 
