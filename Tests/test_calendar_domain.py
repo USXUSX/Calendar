@@ -82,6 +82,38 @@ class CalendarDomainTests(unittest.TestCase):
         self.assertEqual(breakfast["direct_edit_paths"]["title"], "/action")
         self.assertEqual(self.trip_path.read_bytes(), original)
 
+    def test_working_time_conflicts_follow_edits_and_clear_without_changing_trip(self):
+        trip_id = "trip-setouchi-2027"
+        original = self.domain.get_effective_trip(trip_id)
+        formal = self.trip_path.read_bytes()
+        entries = self.domain.get_trip_detail_view(trip_id)["days"][0]["entries"]
+        first, second = entries[:2]
+        self.assertFalse(first["time_conflict"])
+        self.domain.save_working_trip_item_change(
+            trip_id, first["source_type"], first["source_item_id"], "changed",
+            {"end": "10:30"},
+        )
+        working = self.domain.get_working_trip(trip_id)
+        with sqlite3.connect(self.db_path) as db:
+            before_read = list(db.iterdump())
+        changed = self.domain.get_working_trip_detail_view(trip_id)["days"][0]["entries"]
+        self.assertTrue(changed[0]["time_conflict"])
+        self.assertTrue(changed[1]["time_conflict"])
+        self.assertEqual(changed[1]["time"], second["time"])
+        with sqlite3.connect(self.db_path) as db:
+            self.assertEqual(list(db.iterdump()), before_read)
+        self.assertEqual(self.domain.get_working_trip(trip_id), working)
+        self.domain.save_working_trip_item_change(
+            trip_id, first["source_type"], first["source_item_id"], "changed",
+            {"end": second["time"]["start"]},
+        )
+        corrected = self.domain.get_working_trip_detail_view(trip_id)["days"][0]["entries"]
+        self.assertFalse(corrected[0]["time_conflict"])
+        self.assertFalse(corrected[1]["time_conflict"])
+        self.domain.clear_working_trip_item_change(trip_id, first["source_type"], first["source_item_id"])
+        self.assertEqual(self.domain.get_effective_trip(trip_id), original)
+        self.assertEqual(self.trip_path.read_bytes(), formal)
+
     def test_trip_detail_temporary_judgment_is_not_adopted_selection(self):
         view = self.domain.get_trip_detail_view(
             "trip-setouchi-2027",
