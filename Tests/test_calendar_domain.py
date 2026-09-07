@@ -25,7 +25,7 @@ class CalendarDomainTests(unittest.TestCase):
         self.trip_path = self.trip_root / "trips" / "trip-setouchi-2027.json"
         shutil.copyfile(ROOT / "Samples" / "synthetic-trip.json", self.trip_path)
         initialize(self.db_path)
-        self.domain = CalendarDomain(self.db_path, self.trip_root)
+        self.domain = CalendarDomain(self.db_path, self.trip_root, chat_root=self.trip_root.parent / "chat")
         self.domain.register_trip("trip-setouchi-2027", "participants")
 
     def tearDown(self):
@@ -206,7 +206,7 @@ class CalendarDomainTests(unittest.TestCase):
         result = self.domain.edit_trip_day("day-edit", trip_id, day_id, {"route_summary": "小樽→札幌"})
         self.assertEqual(result["trip"], expected)
         self.assertEqual(result["updated_fields"], ["route_summary"])
-        reloaded = CalendarDomain(self.db_path, self.trip_root)
+        reloaded = CalendarDomain(self.db_path, self.trip_root, chat_root=self.trip_root.parent / "chat")
         self.assertEqual(reloaded.get_effective_trip(trip_id), expected)
         self.assertEqual(result["view"], reloaded.get_trip_detail_view(trip_id))
         self.assertEqual(result["view"]["days"][0]["route_summary"], "小樽→札幌")
@@ -618,7 +618,7 @@ class CalendarDomainTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             self.domain.adopt_working_trip_candidate("trip-setouchi-2027", candidate)
 
-        recovered = CalendarDomain(self.db_path, self.trip_root).recover_trip_adoption(
+        recovered = CalendarDomain(self.db_path, self.trip_root, chat_root=self.trip_root.parent / "chat").recover_trip_adoption(
             "trip-setouchi-2027"
         )
         self.assertEqual((recovered["status"], recovered["version"], recovered["recovered"]),
@@ -1143,7 +1143,7 @@ class CalendarDomainTests(unittest.TestCase):
 
     def test_requires_explicit_paths_and_uses_only_temporary_storage(self):
         with self.assertRaises(ValidationError):
-            CalendarDomain(None, self.trip_root)
+            CalendarDomain(None, self.trip_root, chat_root=self.trip_root.parent / "chat")
         self.assertTrue(str(self.db_path).startswith(self.temp.name))
         self.assertTrue(str(self.trip_root).startswith(self.temp.name))
 

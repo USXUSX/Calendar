@@ -24,7 +24,7 @@ class CalendarWorkerTests(unittest.TestCase):
         self.current_path = self.trip_root / "trips" / f"{TRIP_ID}.json"
         shutil.copyfile(ROOT / "Samples" / "synthetic-trip.json", self.current_path)
         initialize(self.db_path)
-        self.domain = CalendarDomain(self.db_path, self.trip_root)
+        self.domain = CalendarDomain(self.db_path, self.trip_root, chat_root=self.trip_root.parent / "chat")
         self.domain.register_trip(TRIP_ID)
         self.original = self.current_path.read_bytes()
 
@@ -118,7 +118,7 @@ class CalendarWorkerTests(unittest.TestCase):
                 [{"op": "replace", "path": ACTION_PATH, "value": "recovered"}],
                 claim["base_version"], claim["base_hash"],
             )
-        result = run_once(CalendarDomain(self.db_path, self.trip_root), lambda payload: [])
+        result = run_once(CalendarDomain(self.db_path, self.trip_root, chat_root=self.trip_root.parent / "chat"), lambda payload: [])
         self.assertEqual(result["status"], "no-op")
         self.assertEqual(result["recovered"][0]["status"], "adopted")
         self.assertEqual(self.states("recover"), ("applied", "completed", 2))

@@ -10,8 +10,8 @@ from .weather import OpenMeteoAdapter, build_weather_by_day
 class CalendarDomain(_CalendarDomain):
     """Calendar domain with transient Goal 1 weather context on ordinary detail views."""
 
-    def __init__(self, db_path, trip_root, *, weather_adapter=None, weather_today=None):
-        super().__init__(db_path, trip_root)
+    def __init__(self, db_path, trip_root, *, chat_root=None, weather_adapter=None, weather_today=None):
+        super().__init__(db_path, trip_root, chat_root=chat_root)
         self._weather_adapter = weather_adapter or OpenMeteoAdapter()
         self._weather_today = weather_today
 

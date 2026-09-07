@@ -10,10 +10,13 @@ from .trip_detail import build_trip_detail_view
 from scripts.validate_trip import validation_stage_errors
 
 
+DEFAULT_CHAT_ROOT = Path("/Users/us/Tools/GoogleDrive/Calendar_Chat")
+
+
 class ChatExchangeMixin:
     def _chat_path(self, trip_id, filename):
         self._trip_path(trip_id)  # Same stable ID and traversal gate as formal Trip.
-        directory = self.trip_root / "chat" / trip_id
+        directory = self.chat_root / trip_id
         path = directory / filename
         if any(p.is_symlink() for p in (directory.parent, directory, path)):
             raise ValidationError("Chat共有ファイルのsymlinkは使えません。")

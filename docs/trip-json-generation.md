@@ -53,7 +53,8 @@ IDはSchemaに従う英数字・ハイフン・アンダースコアを使い、
 | --- | --- |
 | Calendar Git / Calendar_GD | Schema・guideの正本 / 公式参照コピー |
 | `/Users/us/マイドライブ/ChatGPT共有/CAL/<trip-id>.json` | 未採用candidateの作業ファイル。再生成で同じファイルを更新してよく、履歴管理を追加しない |
-| Calendar_Local | CALで採用後の正式Tripと通常状態。正式データはChatから直接書き換えない。継続往復の `chat/<trip-id>/candidate.json` だけは下記のChat所有 |
+| Calendar_Local | CALで採用後の正式TripとSQLite等の通常状態。Chatから直接書き換えない |
+| `/Users/us/Tools/GoogleDrive/Calendar_Chat/<trip-id>/` | 既存Tripの継続往復用。contextはCAL所有、candidateはChat所有。Calendar_GDとは分ける |
 
 受渡しフォルダへアクセスできないChatは、同名JSONを添付してusに配置を依頼する。保存できたと主張したり、Calendar_GDやCalendar_Localを代わりに使ったりしない。受渡し場所は自動監視・自動取込の入口ではない。
 
@@ -84,9 +85,10 @@ Schemaで今回必要な情報を表現できるため変更は不要。Validati
 既存Tripの調査・候補比較・大きな編集はChatを主に使い、CALは旅程正本、Validation、
 Place同定・URL/住所/座標補完、天気、直接編集、時刻矛盾の確認を引き続き担当する。
 
-授受先は `/Users/us/Tools/LocalData/Calendar_Local/chat/<trip-id>/`。
-既存Google Drive同期を使い、cloud ChatはDrive側、local Chatは同じLocalファイルへアクセスする。
-経路によってEnvelopeを変えず、新しい共有フォルダや履歴ファイルを増やさない。
+授受先は `/Users/us/Tools/GoogleDrive/Calendar_Chat/<trip-id>/`（#114）。
+GoogleDrive配下の既存同期を使い、cloud ChatはDrive上のCalendar_Chat、local Chatは同じローカル同期フォルダへアクセスする。
+Calendar_LocalはDrive同期対象ではないため、旧 `Calendar_Local/chat` は以後の授受に使わない。
+経路によってEnvelopeを変えず、履歴ファイルは増やさない。Calendar_GDは公式同期の削除対象を含む参照コピーなので、運用授受を混在させない。
 既存の新規Trip取込用 `<trip-id>.json` は初回登録専用として維持する。
 
 - `context.json` はCAL所有。`trip_id / current_revision / effective_revision / trip / instructions`。
@@ -129,9 +131,12 @@ context書込み失敗では保存済みCAL状態を巻き戻さず、共有先�
 `review_chat_candidate(trip_id)`、`adopt_chat_candidate(trip_id, candidate, confirmed=True)`。
 reviewは `status=absent / stale / invalid / ready`、`ready`、未処理`instructions`を返し、
 合格時だけ確認用`candidate / view / changes / handled_instructions`を返す。
+`CalendarDomain(db_path, trip_root, chat_root=...)`でテスト・隔離実行用の共有先を明示できる。
+未指定時は上記Calendar_Chatを使い、正式Tripのrootとは独立する。テストでは必ず一時共有先を指定する。
 採用は確認snapshotと共有candidateが一致しない場合も拒否する。任意の共有rootはHTTPから指定できない。
 
 合成北海道4日間を使う `sh Tests/chat-exchange.test.sh` で、CAL編集→context→Chat相当candidate→
 確認・保留・採用、stale/invalid/確認後変更の拒否、指示・Override処理、中断後の収束を確認する。
-Frame #57でHTTPとiPad mini相当幅の代表操作を確認する。実データ、Drive実同期遅延、物理端末での実用性、
-production反映はこの検査に含めず、Phase 8の#96で区別して扱う。
+FrameのHTTPとiPad mini相当幅の代表操作でも同じ契約を確認する。
+#114のproduction切替では正式Trip/SQLiteを変更せずcontextを再生成し、Drive側の同じ内容の読取りまで確認する。
+物理端末での実用性・Phase 8の判断は#96で扱う。

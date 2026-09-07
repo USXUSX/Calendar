@@ -16,7 +16,7 @@ class TripJsonImportTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.db = self.root / 'calendar.sqlite3'
         initialize(self.db)
-        self.domain = CalendarDomain(self.db, self.root / 'data')
+        self.domain = CalendarDomain(self.db, self.root / 'data', chat_root=self.root / "chat")
         self.handoff = self.root / 'handoff'
         self.handoff.mkdir()
         self.candidate = json.loads((ROOT / 'Samples/hokkaido-4days-candidate.json').read_text())

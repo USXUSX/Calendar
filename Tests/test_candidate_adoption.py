@@ -25,7 +25,7 @@ class CandidateAdoptionTests(unittest.TestCase):
         self.current_path = self.trip_root / "trips" / f"{TRIP_ID}.json"
         shutil.copyfile(ROOT / "Samples" / "synthetic-trip.json", self.current_path)
         initialize(self.db_path)
-        self.domain = CalendarDomain(self.db_path, self.trip_root)
+        self.domain = CalendarDomain(self.db_path, self.trip_root, chat_root=self.trip_root.parent / "chat")
         self.domain.register_trip(TRIP_ID)
         self.original = self.current_path.read_bytes()
 
@@ -181,7 +181,7 @@ class CandidateAdoptionTests(unittest.TestCase):
         self.domain._after_candidate_replace = stop_after_replace
         with self.assertRaises(SystemExit):
             self.submit(claim, [{"op": "replace", "path": ACTION_PATH, "value": "復旧"}])
-        recovered = CalendarDomain(self.db_path, self.trip_root).recover_trip_adoption(TRIP_ID)
+        recovered = CalendarDomain(self.db_path, self.trip_root, chat_root=self.trip_root.parent / "chat").recover_trip_adoption(TRIP_ID)
         self.assertEqual((recovered["status"], recovered["version"]), ("adopted", 2))
         self.assertEqual((self.rows("recover")[0], self.rows("recover")[3]), ("applied", "completed"))
 
