@@ -8,7 +8,7 @@ validator="$repo_root/scripts/validate_trip.py"
 invalid_file=$(mktemp "${TMPDIR:-/tmp}/calendar-invalid-trip.XXXXXX")
 trap 'rm -f "$invalid_file"' EXIT HUP INT TERM
 
-python3 "$validator" "$sample_file" >/dev/null
+python3 "$validator" "$sample_file" "$repo_root/Samples/hokkaido-4days-candidate.json" >/dev/null
 
 python3 - "$sample_file" "$invalid_file" <<'PY'
 import json

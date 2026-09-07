@@ -24,9 +24,9 @@ grep -F '生成JSONを`trips/`以外の一時作業場所へ保存' "$operation"
 grep -F '既存TripはAI InstructionからJSON Patchを生成' "$operation" >/dev/null
 grep -F 'Instruction登録は同じtransactionでrequestをqueued' "$operation" >/dev/null
 grep -F '予定・移動・Placeの重複、候補Placeの欠落' "$operation" >/dev/null
-grep -F '移動はTransportだけにすること' "$root/docs/trip-json-generation.md" >/dev/null
-grep -F '候補Placeを先に残す項目へ統合' "$root/docs/trip-json-generation.md" >/dev/null
-grep -F '生成 → 検証 → 配置 → 表示確認' "$root/docs/trip-json-generation.md" >/dev/null
+grep -F '移動はTransportだけにする' "$root/docs/trip-json-generation.md" >/dev/null
+grep -F 'selectionはcandidatePlaceIdsの部分集合' "$root/docs/trip-json-generation.md" >/dev/null
+grep -F '受渡しとCAL採用の境界' "$root/docs/trip-json-generation.md" >/dev/null
 grep -F '[`docs/operation.md`](docs/operation.md)' "$root/README.md" >/dev/null
 
 if git -C "$root" ls-files | grep -E '(^|/)trips/.*\.json$|(^|/)current\.json$|(^|/)candidate\.json$|(^|/)history/' >/dev/null; then
