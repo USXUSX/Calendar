@@ -21,7 +21,7 @@ Frame `/calendar/import` は共有candidateの選択→Validation→内容確認
 
 JSONのID・候補・selection・予約・準備等をそのまま保持し、値を推測・再生成しない。
 previewの編集・AI targetは無効。修正はChatでcandidateを更新して再確認する。
-登録後のCAL編集を微修正に限定しない。
+登録後のCAL編集を微修正に限定しない。既存TripのChat継続編集は[共有Envelope](trip-json-generation.md#継続するchat往復112)で扱い、本commandの新規ID制約を緩めない。
 
 採用結果は`trip_id / status=adopted / visibility=owner / version=1`。
 [既存初回採用](chat-paste-import.md#確認と採用)と同じcreate-if-absentとSQLite transactionを使う。

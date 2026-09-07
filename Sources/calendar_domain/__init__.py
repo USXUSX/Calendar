@@ -16,7 +16,7 @@ class CalendarDomain(_CalendarDomain):
         self._weather_today = weather_today
 
     def get_trip_detail_view(self, trip_id, *, candidate_judgments=None, weather_by_day=None):
-        effective = self.get_effective_trip(trip_id)
+        effective = self.get_chat_context(trip_id)["trip"]
         if weather_by_day is None:
             weather_by_day = build_weather_by_day(
                 effective, self._weather_adapter, today=self._weather_today,
