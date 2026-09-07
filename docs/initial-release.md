@@ -1,3 +1,5 @@
+> 現行方針（#116）: 候補探索・比較・大きな旅程編集はChatで行う。CAL内候補検索/AFM推薦・コメントAI・旧Working UIは廃止。直接操作は[直接操作契約](direct-schedule.md)、Place補完は[取得契約](place-acquisition.md)を参照。以下の旧AI機能記述は過去の採用範囲の記録。
+
 # Goal 1 初期リリース仕様
 
 Issue #86と[us承認判断](https://github.com/USXUSX/Calendar/issues/86#issuecomment-5555665017)に基づく仕様。機能実装済みという意味ではない。現在地は[ロードマップ](development-roadmap.md)、既存の正本・更新境界は[Baseline](calendar-baseline.md)と[表示・更新契約](trip-detail-model.md)を参照する。

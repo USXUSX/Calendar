@@ -16,19 +16,10 @@ Calendar_GDはGit参照コピー、Calendar_Localは正式Trip/SQLiteのまま�
 正式Trip/SQLiteはCALだけが更新する。
 物理iPad miniの実用性・Phase 8振り返り・初期リリース判断は#96に残る。
 
-条件指定の新規予定追加は`search_schedule_candidates` → `add_conditioned_schedule`で、
-AFMの最大3推薦から1件決定・2〜3候補保存・候補なしの未定保存を扱う。
-元条件は予定の`searchQuery`に保持し、`list_unresolved_schedule_queries`から後続処理へ読み出せる。
-既存予定への候補追加は`search_existing_schedule_candidates` → `add_schedule_candidates`で、
-0〜3件の選択を候補・元条件として保存し、1件でも既存の`selection`と他属性を保つ。
-`list_schedule_queries`から正式な場所のある予定の条件も読み出せる。
-[追加契約](docs/conditioned-schedule.md)を参照する。Frameの画面接続は#43 / PR #44と#45 / PR #46でmerge済み。物理端末受入・実運用切替は#96で扱う。
-
-指定情報のコメント追記は`get_comment_enrichment` → `prepare_comment_enrichment` →
-`append_comment_enrichment`で、施設確認後に保存可能な根拠だけをAFMへ渡し、確認済み短文と
-出典・取得日時を対象予定の通常コメントへ追記する。既存コメント・他予定を保持する。
-[コメント追記契約](docs/comment-enrichment.md)を参照する。AIG #15の新しい抽出CLIに依存し、
-Frame接続は#47 / PR #48でmerge済み。実AFM品質・物理端末受入・実運用切替は未確認。
+Issue #116でChat往復を主要経路とし、CAL内の候補検索・AFM推薦・コメントAIとFrameのWorking/AI編集UIを撤去した。
+通常画面の予定追加（直接/1予定コピペ）、削除、並び替え、候補Placeの選択は
+[直接操作契約](docs/direct-schedule.md)を使う。正式Place補完は選択状態に依存しない。
+Mac確認までを今回の到達点とし、物理iPad mini受入・Phase振り返り・初期リリース判断は#96に残る。
 
 共通施設取得と⑥Place補完は`get_place_enrichment`で取得し、stable Placeは
 `adopt_place_enrichment`で明示確認済みの不足値だけをDirect Overrideへ正式採用する。
