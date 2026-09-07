@@ -88,7 +88,7 @@ Step 7では、AIGのsafe failure後もWorkingとraw user intentが既存export�
 
 ### 現在のPhase 8: 実利用でUI・運用を仕上げる
 
-Issue #108で新規Tripのcomplete JSON生成・Validation・受渡しを整備した。現行主要方針は[生成ガイド](trip-json-generation.md)。次は新規Trip取込UI / commandをJSONへ接続し、日本語ラベル経路の存廃を判断する。その後#96のiPad mini実用確認へ戻る。既存Tripへの1予定追加はコピペと分け、CALの取込後編集を微修正に限定しない。#108の完了はPhase 8完了・初期リリース判断を意味しない。
+Issue #108で新規Tripのcomplete JSON生成・Validation・受渡しを整備した。現行主要方針は[生成ガイド](trip-json-generation.md)。Issue #110で[新規JSON取込](trip-json-import.md)へ接続し、日本語全Trip貼付UIを置き換えた。次は#96のiPad mini実用確認へ戻る。既存Tripへの1予定追加はコピペと分け、CALの取込後編集を微修正に限定しない。#108の完了はPhase 8完了・初期リリース判断を意味しない。
 
 1. Issue #86で初期リリース範囲、新規Trip貼付形式、外部取得・保持方針を仕様化し、正本を整合する。
 2. [後続実装の小さな単位](initial-release.md)に従い、表示・編集、貼付、共通取得と各採用機能をIssueへ分割する。

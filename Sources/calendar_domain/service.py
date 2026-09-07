@@ -640,6 +640,65 @@ class CalendarDomain:
         return {"id": trip_id, "visibility": visibility}
 
     @staticmethod
+    def _candidate_root(candidate_root: str | Path | None = None) -> Path:
+        return Path(candidate_root) if candidate_root is not None else Path("/Users/us/マイドライブ/ChatGPT共有/CAL")
+
+    def list_trip_json_candidates(self, *, candidate_root: str | Path | None = None) -> dict[str, Any]:
+        """List handoff filenames only; never auto-import or inspect formal storage."""
+        root = self._candidate_root(candidate_root)
+        try:
+            files = sorted(p.name for p in root.iterdir()
+                           if p.suffix == ".json" and p.is_file() and not p.is_symlink())
+        except OSError as error:
+            raise ValidationError("JSON受渡しフォルダを読み込めません。配置を確認してください。") from error
+        return {"files": files}
+
+    def read_trip_json_candidate(self, filename: str, *, candidate_root: str | Path | None = None) -> dict[str, Any]:
+        """Read one handoff file and return the exact validated confirmation snapshot."""
+        if (not isinstance(filename, str) or Path(filename).name != filename
+                or not filename.endswith(".json")):
+            raise ValidationError("JSONファイル名を確認してください。")
+        root = self._candidate_root(candidate_root).resolve()
+        path = root / filename
+        if path.is_symlink() or path.resolve().parent != root:
+            raise ValidationError("受渡しフォルダ内のJSONを選択してください。")
+        try:
+            candidate = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ValueError) as error:
+            raise ValidationError("JSONを読み込めません。UTF-8の完全JSONを確認してください。") from error
+        result = self.review_trip_json(candidate)
+        if result["ready"] and filename != candidate["id"] + ".json":
+            return {"ready": False, "errors": ["ファイル名をTrip ID + .jsonに合わせてください。"], "view": None}
+        return result
+
+    def review_trip_json(self, candidate: dict[str, Any]) -> dict[str, Any]:
+        """Validate complete JSON without writing; preserve IDs, fields and selections."""
+        candidate = copy.deepcopy(candidate)
+        stage, errors = validation_stage_errors(candidate, self._trip_schema)
+        if errors:
+            return {"ready": False, "stage": stage, "errors": errors, "view": None}
+        candidate, _ = self._validated_candidate(candidate["id"], candidate)
+        with self._read() as connection:
+            exists = connection.execute("SELECT 1 FROM trips WHERE id = ?", (candidate["id"],)).fetchone()
+        if exists or self._trip_path(candidate["id"]).exists():
+            raise ConflictError("同じTrip IDの登録先が既に存在します。上書きはできません。")
+        view = build_trip_detail_view(candidate)
+        for day in view["days"]:
+            for entry in day["entries"]:
+                entry["direct_edit_paths"] = {}
+                entry["ai_local_update_target"] = None
+        return {"ready": True, "errors": [], "view": view, "candidate": candidate}
+
+    def import_trip_json(self, candidate: dict[str, Any], *, confirmed: bool = False) -> dict[str, Any]:
+        """Adopt the confirmed snapshot, even if the handoff file has since changed."""
+        if confirmed is not True:
+            raise ValidationError("JSON取込には内容確認が必要です。")
+        result = self.review_trip_json(candidate)
+        if not result["ready"]:
+            raise ValidationError("candidate Trip JSON is invalid: " + result["errors"][0])
+        return self._import_new_trip(result["candidate"])
+
+    @staticmethod
     def parse_chat_paste(text: str) -> dict[str, Any]:
         """Read-only interpretation for a consumer's ephemeral confirmation form."""
         return parse_chat_paste(text)
@@ -686,6 +745,9 @@ class CalendarDomain:
         if not self.review_chat_paste(command_id, review)["ready"]:
             raise ValidationError("paste draft requires correction or line resolution")
         candidate = build_import_trip(review["draft"], command_id)
+        return self._import_new_trip(candidate)
+
+    def _import_new_trip(self, candidate: dict[str, Any]) -> dict[str, Any]:
         trip_id = candidate["id"]
         _, payload = self._validated_candidate(trip_id, candidate)
         path = self._trip_path(trip_id)
@@ -693,7 +755,7 @@ class CalendarDomain:
         staging = None
         created = False
         try:
-            with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".paste-", delete=False) as handle:
+            with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".import-", delete=False) as handle:
                 staging = Path(handle.name)
                 handle.write(payload)
                 handle.flush()
@@ -701,12 +763,12 @@ class CalendarDomain:
             with self._command() as connection:
                 connection.execute("BEGIN IMMEDIATE")
                 if connection.execute("SELECT 1 FROM trips WHERE id = ?", (trip_id,)).fetchone():
-                    raise ConflictError("paste import command has already registered a Trip")
+                    raise ConflictError("Trip ID is already registered")
                 try:
                     # Atomic create-if-absent: even unregistered Trip files survive.
                     os.link(staging, path)
                 except FileExistsError as error:
-                    raise ConflictError("paste import target already exists") from error
+                    raise ConflictError("Trip import target already exists") from error
                 created = True
                 staging.unlink()
                 staging = None

@@ -65,7 +65,7 @@ python3 scripts/validate_trip.py '/Users/us/マイドライブ/ChatGPT共有/CAL
 
 エラーがあれば該当パスとエラーだけをChatへ返し、部分パッチではなく同じcomplete JSONを直す。CALの取込操作がValidation・内容確認・正式採用を担当する。Chatが検証済みファイルをCalendar_Localへコピーする運用にはしない。
 
-Issue #108時点では新規complete JSON向け取込UI / commandの整備は次Stepである。現行`parse_chat_paste`等は日本語ラベル入力用であり、JSON対応済みと扱わない。次Stepはcandidateを読み、CAL所有のSchema / semantic Validation、新規Trip確認、通常の初回採用境界へ接続する。既存Tripを同じIDで置換しない。日本語ラベル経路の存廃はそこで利用価値から判断し、1予定追加コピペの廃止と混同しない。
+Issue #110で[新規JSON取込](trip-json-import.md)へ接続した。Frameで共有candidateを選び、Validation結果と内容を確認して新規登録する。既存Tripは同じIDで置換しない。日本語ラベルの全Trip補正UIは置き換え、1予定追加コピペは維持する。
 
 ## 北海道4日間の代表例と内容確認
 
