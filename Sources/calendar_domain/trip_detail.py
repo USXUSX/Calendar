@@ -125,6 +125,27 @@ def _entry(
     }
 
 
+def _mark_time_conflicts(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Mark only explicit adjacent overlaps in displayed order."""
+    for entry in entries:
+        entry["time_conflict"] = False
+    for previous, current in zip(entries, entries[1:]):
+        previous_time = previous["time"]
+        current_time = current["time"]
+        previous_start = previous_time.get("start")
+        previous_end = previous_time.get("end")
+        current_start = current_time.get("start")
+        if not all(isinstance(value, str) for value in (previous_start, previous_end, current_start)):
+            continue
+        # An end earlier than its own start can be an overnight entry; do not infer across midnight.
+        if previous_end < previous_start:
+            continue
+        if previous_end > current_start:
+            previous["time_conflict"] = True
+            current["time_conflict"] = True
+    return entries
+
+
 def build_trip_detail_view(
     effective_trip: dict[str, Any], *, candidate_judgments: dict[str, Any] | None = None,
     weather_by_day: dict[str, Any] | None = None,
@@ -144,10 +165,12 @@ def build_trip_detail_view(
             _entry(transports[item_id], "transport", places, effective_trip["bookings"], judgments)
             for item_id in day["transportIds"]
         )
+        entries = sorted(entries, key=lambda value: (value["order"], value["source_item_id"]))
+        _mark_time_conflicts(entries)
         days.append({
             "day_id": day["id"], "date": day["date"], "title": day["title"],
             "route_summary": day["routeSummary"], "weather": copy.deepcopy(weather.get(day["id"])),
-            "entries": sorted(entries, key=lambda value: (value["order"], value["source_item_id"])),
+            "entries": entries,
         })
     return {
         "trip_id": effective_trip["id"], "title": effective_trip["title"],
