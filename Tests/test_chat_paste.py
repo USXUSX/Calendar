@@ -19,7 +19,7 @@ class ChatPasteTests(unittest.TestCase):
         root = Path(self.temp.name)
         self.db = root / "calendar.sqlite3"
         initialize(self.db)
-        self.domain = CalendarDomain(self.db, root / "data")
+        self.domain = CalendarDomain(self.db, root / "data", chat_root=root / "chat")
         self.example = re.search(r"```text\n(.*?)```", (ROOT / "docs/initial-release.md").read_text(), re.S)[1]
 
     def assert_empty(self):

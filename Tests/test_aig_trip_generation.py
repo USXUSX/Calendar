@@ -22,7 +22,7 @@ class AIGTripGenerationTests(unittest.TestCase):
         self.trip_path = self.trip_root / "trips" / f"{TRIP_ID}.json"
         shutil.copy(REPO_ROOT / "Samples/synthetic-trip.json", self.trip_path)
         initialize(self.db_path)
-        self.domain = CalendarDomain(self.db_path, self.trip_root)
+        self.domain = CalendarDomain(self.db_path, self.trip_root, chat_root=self.trip_root.parent / "chat")
         self.domain.register_trip(TRIP_ID, "participants")
         self.domain.save_working_trip(TRIP_ID, {
             "item_changes": [], "temporary_items": [], "day_instructions": [],

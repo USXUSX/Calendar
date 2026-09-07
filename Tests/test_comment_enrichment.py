@@ -18,7 +18,7 @@ class CommentTests(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory(); self.addCleanup(tmp.cleanup)
         root = Path(tmp.name)
         self.db = root / 'db'; initialize(self.db)
-        self.domain = CalendarDomain(self.db, root / 'data')
+        self.domain = CalendarDomain(self.db, root / 'data', chat_root=root / "chat")
         parsed = self.domain.parse_chat_paste('旅行名: 合成\n日付: 2027-06-12\n代表エリア: 東京\n予定: 未定 | 散歩\nカテゴリ: 観光\n場所: サンプル塔\nコメント: 元コメント\n予定: 未定 | 昼食\nカテゴリ: 食事\n場所: 別施設')
         self.tid = self.domain.import_chat_paste('import', parsed, confirmed=True)['trip_id']
         self.trip = self.domain.get_effective_trip(self.tid)

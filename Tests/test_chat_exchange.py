@@ -17,11 +17,11 @@ class ChatExchangeTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.db = self.root / 'calendar.sqlite3'
         initialize(self.db)
-        self.domain = CalendarDomain(self.db, self.root / 'data')
+        self.domain = CalendarDomain(self.db, self.root / 'data', chat_root=self.root / "chat")
         self.trip = json.loads((ROOT / 'Samples/hokkaido-4days-candidate.json').read_text())
         self.id = self.trip['id']
         self.domain.import_trip_json(self.trip, confirmed=True)
-        self.directory = self.root / 'data/chat' / self.id
+        self.directory = self.root / 'chat' / self.id
         self.file = self.directory / 'candidate.json'
 
     def context(self):
@@ -34,6 +34,13 @@ class ChatExchangeTests(unittest.TestCase):
         value['trip']['title'] = 'Chatで変更した旅程'
         self.file.write_text(json.dumps(value))
         return value
+
+    def test_default_and_explicit_shared_root(self):
+        default = CalendarDomain(self.db, self.root / 'data')
+        self.assertEqual(default.chat_root, Path('/Users/us/Tools/GoogleDrive/Calendar_Chat'))
+        self.assertEqual(default._chat_path(self.id, 'context.json'), default.chat_root / self.id / 'context.json')
+        self.assertFalse((self.domain.trip_root / 'chat').exists())
+        self.assertEqual(self.domain._chat_path(self.id, 'context.json'), self.directory / 'context.json')
 
     def test_roundtrip_edit_instruction_hold_adopt(self):
         day = self.trip['days'][0]

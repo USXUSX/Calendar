@@ -104,7 +104,7 @@ class EnrichmentTests(unittest.TestCase):
         root = Path(temp.name)
         self.db = root / "calendar.sqlite3"
         initialize(self.db)
-        self.domain = CalendarDomain(self.db, root / "data")
+        self.domain = CalendarDomain(self.db, root / "data", chat_root=root / "chat")
         draft = self.domain.parse_chat_paste("旅行名: 合成\n日付: 2027-06-12\n代表エリア: 東京\n予定: 未定 | 散歩\nカテゴリ: 観光\n場所: サンプルタワー\n予定: 12:00 | 昼食\nカテゴリ: 食事\n場所: 別施設\nURL: https://example.org/other")
         self.trip_id = self.domain.import_chat_paste("test", draft, confirmed=True)["trip_id"]
         self.trip = self.domain.get_effective_trip(self.trip_id)

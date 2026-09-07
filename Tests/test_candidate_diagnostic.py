@@ -24,7 +24,7 @@ class CandidateDiagnosticTests(unittest.TestCase):
         self.candidate = json.loads(self.original)
         db = root / 'calendar.sqlite3'
         initialize(db)
-        self.domain = CalendarDomain(db, trip_root)
+        self.domain = CalendarDomain(db, trip_root, chat_root=trip_root.parent / "chat")
         self.domain.register_trip(self.trip_id, 'participants')
         self.domain.start_working_trip(self.trip_id)
         self.domain.start_working_trip_generation(self.trip_id, 'diagnostic-1', 'auto')

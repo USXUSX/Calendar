@@ -18,7 +18,7 @@ from scripts.validate_trip import DEFAULT_SCHEMA, semantic_errors, validate_valu
 
 from .errors import ConflictError, GenerationWriteError, NotFoundError, ValidationError
 from .models import UnifiedEvent
-from .chat_exchange import ChatExchangeMixin
+from .chat_exchange import ChatExchangeMixin, DEFAULT_CHAT_ROOT
 from .trip_detail import _mark_time_conflicts, build_trip_detail_view
 from .chat_paste import parse_chat_paste, draft_requirements, build_import_trip, check_draft_shape
 
@@ -50,13 +50,14 @@ def _now() -> str:
 
 
 class CalendarDomain(ChatExchangeMixin):
-    """Semantic CAL interface; both storage roots must be explicitly supplied."""
+    """Semantic CAL interface; formal storage paths are explicit, Chat root is separate."""
 
-    def __init__(self, db_path: str | Path, trip_root: str | Path):
+    def __init__(self, db_path: str | Path, trip_root: str | Path, *, chat_root: str | Path | None = None):
         if db_path is None or trip_root is None:
             raise ValidationError("db_path and trip_root are required")
         self.db_path = Path(db_path)
         self.trip_root = Path(trip_root)
+        self.chat_root = Path(chat_root) if chat_root is not None else DEFAULT_CHAT_ROOT
         try:
             with DEFAULT_SCHEMA.open(encoding="utf-8") as handle:
                 self._trip_schema = json.load(handle)

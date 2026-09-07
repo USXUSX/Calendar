@@ -149,7 +149,7 @@ class OpenAIPatchGeneratorTests(unittest.TestCase):
             (trip_root / "trips").mkdir(parents=True)
             shutil.copyfile(ROOT / "Samples" / "synthetic-trip.json", trip_root / "trips" / f"{TRIP_ID}.json")
             initialize(db_path)
-            domain = CalendarDomain(db_path, trip_root)
+            domain = CalendarDomain(db_path, trip_root, chat_root=trip_root.parent / "chat")
             domain.register_trip(TRIP_ID)
             domain.add_ai_instruction("instruction-1", TRIP_ID, "Change breakfast")
             patch = [{"op": "replace", "path": ACTION_PATH, "value": "OpenAI fake"}]

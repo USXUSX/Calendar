@@ -64,7 +64,7 @@ class ScheduleTests(unittest.TestCase):
         self.root = Path(tmp.name)
         self.db = self.root / "calendar.sqlite3"
         initialize(self.db)
-        self.domain = CalendarDomain(self.db, self.root / "data")
+        self.domain = CalendarDomain(self.db, self.root / "data", chat_root=self.root / "chat")
         draft = self.domain.parse_chat_paste("旅行名: 合成\n日付: 2027-06-12\n代表エリア: 青町\n予定: 09:00 | 散歩\nカテゴリ: 観光\n場所: 既存公園")
         self.trip_id = self.domain.import_chat_paste("fixture", draft, confirmed=True)["trip_id"]
         self.trip = self.domain.get_effective_trip(self.trip_id)
@@ -134,7 +134,7 @@ class ScheduleTests(unittest.TestCase):
                 self.assertNotIn("private-", json.dumps(self.rows()))
         self.assertEqual(len(self.domain.list_unresolved_schedule_queries(self.trip_id)), 3)
         self.assertEqual(self.domain._trip_path(self.trip_id).read_bytes(), self.before)
-        reopened = CalendarDomain(self.db, self.root / "data")
+        reopened = CalendarDomain(self.db, self.root / "data", chat_root=self.root / "chat")
         self.assertEqual(reopened.get_effective_trip(self.trip_id), saved["trip"])
 
     def test_failures_and_all_ng_can_save_undecided(self):
@@ -335,7 +335,7 @@ class ExistingScheduleTests(unittest.TestCase):
                 self.assertEqual(self.domain.list_schedule_queries(self.trip_id)[0]["query"], self.query)
                 self.assertNotIn(self.item_id, [q["source_item_id"] for q in
                     self.domain.list_unresolved_schedule_queries(self.trip_id)])
-                reopened = CalendarDomain(self.db, self.root / "data")
+                reopened = CalendarDomain(self.db, self.root / "data", chat_root=self.root / "chat")
                 self.assertEqual(reopened.get_effective_trip(self.trip_id), saved)
                 self.assertEqual(self.domain._trip_path(self.trip_id).read_bytes(), self.before)
                 for raw in ("一時snippet", "private-", "restricted", "静かな席の有無"):

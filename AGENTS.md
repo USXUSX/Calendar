@@ -8,6 +8,7 @@ This repository is the canonical home for Calendar source code, confirmed specif
 
 - Repository: `/Users/us/Tools/Development/Calendar_Dev`
 - Shared references: `/Users/us/Tools/GoogleDrive/Calendar_GD`
+- Chat exchange (separate from reference sync): `/Users/us/Tools/GoogleDrive/Calendar_Chat`
 - Private local data: `/Users/us/Tools/LocalData/Calendar_Local`
 
 Never copy private local data into this repository or the shared-reference folder.
