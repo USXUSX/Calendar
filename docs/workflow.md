@@ -1,13 +1,7 @@
 # Development workflow
 
-共通手順は `/Users/us/Tools/Development/ToolDevelopmentStandard/CODEX_START.md` と、そこから参照する現行標準に従う。
+着手・Issue整備・許可・Validation・Review・完了は、GitHub `USXUSX/ToolDevelopmentStandard` の現行mainにある `CODEX_START.md` と参照先に従う。Calendar固有のデータ・運用境界は `../AGENTS.md` を参照する。
 
-Calendarでは、画面レビュー用スクリーンショットを次へ保存する。
+画面Reviewが必要な場合だけ、画像等をGit管理外の一時場所（例: `/tmp`）へ用意し、usが確認できるリンクを示す。画像をGitへコミットせず、`Calendar_GD` や `Calendar_Local` へ受け渡し目的で追加しない。共有が必要ならTDSの共有コピーとは別の許可された場所を使う。
 
-`/Users/us/Tools/GoogleDrive/Calendar_GD/Review/PR-<番号>/`
-
-画像はGitへコミットせず、`Calendar_Local` も受け渡しには使わない。レビュー指摘はGitHub PRへ直接記録し、Codexは同じPRを更新する。
-
-Validation、Chat Review、Screenshot、us確認は変更強度と判断需要に応じて現行標準から最小限だけ選ぶ。画像Reviewが必要な場合だけPR単位のGoogle Driveフォルダを使う。
-
-The repository remote is `USXUSX/Calendar`. Do not create Issues, branches, or Pull Requests without user authorization.
+Git正本のremoteは `USXUSX/Calendar`。公式同期はmerge済みのコミットを `git archive` で一時展開し、`Calendar_GD` へ一方向複製して一致を確認する。共有READMEもGit正本のREADMEを使う。同期以外の独自ファイルを共有コピーへ置かない。

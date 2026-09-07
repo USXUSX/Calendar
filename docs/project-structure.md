@@ -12,7 +12,7 @@ Calendar uses one project name across three locations so Codex can resolve sourc
 
 ### Google Drive
 
-`/Users/us/Tools/GoogleDrive/Calendar_GD` holds reference documents, screenshots, and handoff material. Files here are inputs for review, not confirmed specifications. Promote an accepted requirement into `docs/` through a reviewed Git change.
+`/Users/us/Tools/GoogleDrive/Calendar_GD` is a one-way reference copy of committed Git source. Git remains authoritative. Official synchronization and temporary review material follow `workflow.md`; do not add independent handoff files here.
 
 ### Local data
 
@@ -20,7 +20,7 @@ Calendar uses one project name across three locations so Codex can resolve sourc
 
 Issues #46 through #54 establish a hybrid data foundation in this folder. Issue #71 extends the current schema to SQLite v3: v2 state remains unchanged and `working_trips` adds one latest-only Working state per Trip with its captured effective revision. Issue #75 adds `working_trip_generations` as a separate latest-only state/candidate row per Trip; an absent row is `idle`, and it does not add history, queueing, retries, or provider metadata. A formal complete Trip JSON is each trip's last CAL-validated and adopted authoritative itinerary base; AI returns JSON Patch and CAL constructs the complete candidate. The current `effective Trip` applies active Direct Overrides from SQLite. Ordinary Events remain authoritative in SQLite, while Trip-derived Events are projected from Trip JSON. Existing real data remains untouched.
 
-The role READMEs in `Calendar_GD` and `Calendar_Local` are generated from `templates/folder-readmes/` by `scripts/sync_folder_readmes.sh`. Edit the Git templates, then synchronize outward; do not maintain independent copies in those external folders.
+`Calendar_GD/README.md` is the committed repository README, copied by official synchronization. `scripts/sync_folder_readmes.sh` only updates the private `Calendar_Local/README.md` from its Git template when that local maintenance is authorized; it does not update the shared copy.
 
 ## Discovery rule
 

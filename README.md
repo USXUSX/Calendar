@@ -110,14 +110,14 @@ confirmation contract.
 | Role | Location | Authority |
 | --- | --- | --- |
 | Development | `/Users/us/Tools/Development/Calendar_Dev` | Git-managed source, confirmed specifications, tests, Issues, and PRs |
-| Shared references | `/Users/us/Tools/GoogleDrive/Calendar_GD` | Reference documents, screenshots, and Chat/Work handoffs |
+| Shared references | `/Users/us/Tools/GoogleDrive/Calendar_GD` | One-way reference copy of committed Git source |
 | Private local data | `/Users/us/Tools/LocalData/Calendar_Local` | Non-shared inputs, runtime data, caches, and temporary data |
 
 ## Repository map
 
 - `AGENTS.md`: durable Codex rules and discovery order
 - `docs/project-structure.md`: boundaries and information flow
-- `docs/workflow.md`: future Issue-to-PR workflow
+- `docs/workflow.md`: current TDS entry and Calendar reference-copy handling
 - `docs/decisions.md`: confirmed architectural decisions
 - `docs/calendar-baseline.md`: current confirmed CAL responsibilities and data baseline
 - `docs/initial-release.md`: Goal 1 scope, Chat paste format, and external data acquisition / retention policy
