@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import math
+import time
 from datetime import date, datetime, timedelta, timezone
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -87,15 +88,20 @@ def _day_places(trip, day):
 
 
 class OpenMeteoAdapter:
-    """One-shot forecast adapter. No retry or persistent cache."""
+    """Forecast adapter with only a short in-memory cache; no retry or persistence."""
 
     endpoint = "https://api.open-meteo.com/v1/forecast"
 
-    def __init__(self, *, transport=None, timeout=10):
+    def __init__(self, *, transport=None, timeout=10, cache_seconds=900, clock=None):
         if not 0 < timeout <= 30:
             raise ValueError("timeout must be between 0 and 30 seconds")
+        if type(cache_seconds) not in (int, float) or not 0 <= cache_seconds <= 3600:
+            raise ValueError("cache_seconds must be between 0 and 3600")
         self.transport = transport or self._http
         self.timeout = timeout
+        self.cache_seconds = cache_seconds
+        self.clock = clock or time.monotonic
+        self._cache = {}
 
     def _http(self, params):
         request = Request(
@@ -108,9 +114,13 @@ class OpenMeteoAdapter:
             raise ValueError("weather response too large")
         return json.loads(payload)
 
-    def forecast(self, location, target_date):
-        if not _valid_location(location) or not isinstance(target_date, date):
-            raise ValueError("invalid weather request")
+    def _payload(self, location):
+        key = (float(location["latitude"]), float(location["longitude"]))
+        now = self.clock()
+        held = self._cache.get(key)
+        if held is not None and held["expires"] > now:
+            return held["payload"], held["retrieved_at"], True
+        self._cache.pop(key, None)
         params = {
             "latitude": location["latitude"],
             "longitude": location["longitude"],
@@ -118,8 +128,21 @@ class OpenMeteoAdapter:
             "timezone": "auto",
             "forecast_days": 16,
         }
+        payload = self.transport(params)
+        retrieved_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        if self.cache_seconds:
+            self._cache[key] = {
+                "expires": now + self.cache_seconds,
+                "payload": payload,
+                "retrieved_at": retrieved_at,
+            }
+        return payload, retrieved_at, False
+
+    def forecast(self, location, target_date):
+        if not _valid_location(location) or not isinstance(target_date, date):
+            raise ValueError("invalid weather request")
         try:
-            payload = self.transport(params)
+            payload, retrieved_at, cached = self._payload(location)
             daily = payload["daily"]
             units = payload["daily_units"]
             dates = daily["time"]
@@ -132,7 +155,8 @@ class OpenMeteoAdapter:
                 raise ValueError("invalid weather code")
             return {
                 "status": "available",
-                "retrieved_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+                "retrieved_at": retrieved_at,
+                "cached": cached,
                 "weather_code": int(code),
                 "weather_label": _WEATHER_LABELS.get(int(code), "不明"),
                 "temperature_max": values["temperature_2m_max"],
