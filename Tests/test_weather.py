@@ -24,6 +24,26 @@ def trip(days, places):
     return {"days": days, "places": places, "transports": []}
 
 
+def open_meteo_payload():
+    return {
+        "daily": {
+            "time": ["2026-09-08"],
+            "weather_code": [1],
+            "temperature_2m_max": [29.5],
+            "temperature_2m_min": [21.0],
+            "precipitation_probability_max": [20],
+            "precipitation_sum": [0.4],
+        },
+        "daily_units": {
+            "weather_code": "wmo code",
+            "temperature_2m_max": "°C",
+            "temperature_2m_min": "°C",
+            "precipitation_probability_max": "%",
+            "precipitation_sum": "mm",
+        },
+    }
+
+
 class FakeAdapter:
     def __init__(self, value=None):
         self.value = value or {"status": "available", "weather_label": "晴れ"}
@@ -88,32 +108,45 @@ class WeatherContextTests(unittest.TestCase):
         def transport(params):
             self.assertEqual(params["forecast_days"], 16)
             self.assertEqual(params["timezone"], "auto")
-            return {
-                "daily": {
-                    "time": ["2026-09-08"],
-                    "weather_code": [1],
-                    "temperature_2m_max": [29.5],
-                    "temperature_2m_min": [21.0],
-                    "precipitation_probability_max": [20],
-                    "precipitation_sum": [0.4],
-                },
-                "daily_units": {
-                    "weather_code": "wmo code",
-                    "temperature_2m_max": "°C",
-                    "temperature_2m_min": "°C",
-                    "precipitation_probability_max": "%",
-                    "precipitation_sum": "mm",
-                },
-            }
+            return open_meteo_payload()
         adapter = OpenMeteoAdapter(transport=transport)
         result = adapter.forecast({"latitude": 35.0, "longitude": 139.0}, date(2026, 9, 8))
         self.assertEqual(result["status"], "available")
+        self.assertFalse(result["cached"])
         self.assertEqual(result["weather_label"], "晴れ")
         self.assertEqual(result["temperature_max"], 29.5)
         self.assertEqual(result["temperature_min"], 21.0)
         self.assertEqual(result["precipitation_probability_max"], 20)
         self.assertEqual(result["precipitation_sum"], 0.4)
         self.assertEqual(result["units"]["temperature_max"], "°C")
+
+    def test_expired_cache_is_never_returned_as_current(self):
+        now = [0.0]
+        calls = []
+
+        def transport(_params):
+            calls.append(now[0])
+            if len(calls) == 1:
+                return open_meteo_payload()
+            raise OSError("provider unavailable")
+
+        adapter = OpenMeteoAdapter(
+            transport=transport, cache_seconds=10, clock=lambda: now[0],
+        )
+        location = {"latitude": 35.0, "longitude": 139.0}
+        target = date(2026, 9, 8)
+        first = adapter.forecast(location, target)
+        now[0] = 5.0
+        cached = adapter.forecast(location, target)
+        now[0] = 11.0
+        expired = adapter.forecast(location, target)
+
+        self.assertEqual(first["status"], "available")
+        self.assertFalse(first["cached"])
+        self.assertEqual(cached["status"], "available")
+        self.assertTrue(cached["cached"])
+        self.assertEqual(expired, {"status": "unavailable"})
+        self.assertEqual(calls, [0.0, 11.0])
 
 
 if __name__ == "__main__":
