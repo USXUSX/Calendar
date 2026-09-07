@@ -10,7 +10,7 @@ Goal 1の現行範囲は、Chatで作成した旅程の新規Trip貼付取込と
 Chat貼付のCAL commandは`parse_chat_paste` → `review_chat_paste` →
 `import_chat_paste`で一時解釈・補正確認・新規Trip採用を行う。
 [取込契約](docs/chat-paste-import.md)に現行Schema上の必須補正と初回書込み境界を定める。
-FRM画面への接続と実機操作は未実施。
+FRM画面への接続はFrame #41 / PR #42でmerge済み。物理端末の最終受入・実運用切替はCalendar #96で扱う。
 
 条件指定の新規予定追加は`search_schedule_candidates` → `add_conditioned_schedule`で、
 AFMの最大3推薦から1件決定・2〜3候補保存・候補なしの未定保存を扱う。
@@ -18,13 +18,13 @@ AFMの最大3推薦から1件決定・2〜3候補保存・候補なしの未定�
 既存予定への候補追加は`search_existing_schedule_candidates` → `add_schedule_candidates`で、
 0〜3件の選択を候補・元条件として保存し、1件でも既存の`selection`と他属性を保つ。
 `list_schedule_queries`から正式な場所のある予定の条件も読み出せる。
-[追加契約](docs/conditioned-schedule.md)を参照する。Frameの画面接続は未実施。
+[追加契約](docs/conditioned-schedule.md)を参照する。Frameの画面接続は#43 / PR #44と#45 / PR #46でmerge済み。物理端末受入・実運用切替は#96で扱う。
 
 指定情報のコメント追記は`get_comment_enrichment` → `prepare_comment_enrichment` →
 `append_comment_enrichment`で、施設確認後に保存可能な根拠だけをAFMへ渡し、確認済み短文と
 出典・取得日時を対象予定の通常コメントへ追記する。既存コメント・他予定を保持する。
 [コメント追記契約](docs/comment-enrichment.md)を参照する。AIG #15の新しい抽出CLIに依存し、
-Frame接続・実AFM品質・実機確認は未実施。
+Frame接続は#47 / PR #48でmerge済み。実AFM品質・物理端末受入・実運用切替は未確認。
 
 共通施設取得と⑥Place補完は`get_place_enrichment`で取得し、stable Placeは
 `adopt_place_enrichment`で明示確認済みの不足値だけをDirect Overrideへ正式採用する。

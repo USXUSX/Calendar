@@ -18,7 +18,7 @@ from scripts.validate_trip import DEFAULT_SCHEMA, semantic_errors, validate_valu
 
 from .errors import ConflictError, GenerationWriteError, NotFoundError, ValidationError
 from .models import UnifiedEvent
-from .trip_detail import build_trip_detail_view
+from .trip_detail import _mark_time_conflicts, build_trip_detail_view
 from .chat_paste import parse_chat_paste, draft_requirements, build_import_trip, check_draft_shape
 
 
@@ -1639,7 +1639,7 @@ class CalendarDomain:
                     entry = self._working_temporary_entry(record)
                     entry["working_position_unresolved"] = True
                     unresolved.append(entry)
-            day["entries"] = ordered + unresolved
+            day["entries"] = _mark_time_conflicts(ordered + unresolved)
 
         for record in state["day_instructions"]:
             if isinstance(record, dict) and record.get("day_id") in days \

@@ -29,7 +29,7 @@ CALは、次の3領域を内部機能としては十分に分離しつつ、表�
 
 ## Goal 1: まず使えるCALを初期リリースする
 
-Issue #85のus採否判断とIssue #86の仕様承認により範囲を更新した。完成条件・貼付形式・外部取得方針は[初期リリース仕様](initial-release.md)を正本とする。現在はPhase 8でその仕様を整合し、後続の小さな実装Issueへ分ける段階である。本Issueで機能完成・リリースを宣言しない。
+Issue #85のus採否判断とIssue #86の仕様承認により範囲を更新した。完成条件・貼付形式・外部取得方針は[初期リリース仕様](initial-release.md)を正本とする。現在はPhase 8のIssue #96で、採用機能の代表Trip実用確認と実利用を妨げる局所修正を進める段階である。本Issueで機能完成・リリースを宣言しない。
 
 ### Phase（1〜7は従来方針での実施履歴）
 
@@ -44,7 +44,7 @@ Phase 1〜7の完了記録と既存AI経路は保持する。Phase 6〜7のAI生
 | 5. Working Trip確定フロー | 完了 | Workingを反映したcomplete Trip candidateをCAL内で安全に正式Tripへ戻す | Working exportから作成したcomplete candidateをformal Validationし、staleでないことを確認してauthoritative Tripへatomic adoptionし、成功後だけWorkingをclearしてFRMへ結果を返せる | CALはcandidate受入れ、Schema・semantic Validation、captured revisionに対するstale確認、all-or-nothingのadoptionを所有する。candidate生成元を契約へ持ち込まず、失敗時はauthoritative TripとWorkingを変更しない |
 | 6. AI接続を実用化 | 完了 | Working exportからcomplete Trip candidateを生成・再構成する部分をAIGへ接続する | auto policyでは既存Phase 5 gateを通して自動採用し、review policyではcandidate確認後に同じgateから採用でき、結果をFRMで把握できる | CALが最新1件のgeneration stateとcandidateを所有し、AIGはstateless、FRMは表示・操作に限定する。provider、model、credentialはAIG側へ閉じ、stale解消・自動retry・CAL外正本更新は行わない |
 | 7. 候補・特殊ケースを実利用で検証 | 完了（限定付き） | 現行Working指示とAIG再生成で候補や複数予定変更等をどこまで自然に扱えるか実利用で確認する | 候補追加・判断・選定、複数予定変更、別行動等について、既存経路で足りる範囲と実際に不足する範囲が明確になる | 候補・特殊ケースの専用機能を先回りして追加しない。不足が実利用で確認されたものだけを後続Issueで追加する |
-| 8. 実利用でUI・運用を仕上げる | 現在（Issue #86で仕様化） | Chat貼付からCALの細部仕上げまでを実用化する | 初期リリース仕様の採用機能を実装し、対象端末で実用性を確認できる | 新規Trip貼付に限定し、他予定を自動変更しない。後続実装・実運用切替は各Issueで扱う |
+| 8. 実利用でUI・運用を仕上げる | 現在（Issue #96で実用確認） | Chat貼付からCALの細部仕上げまでを実用化する | 初期リリース仕様の採用機能を実装し、対象端末で実用性を確認できる | 新規Trip貼付に限定し、他予定を自動変更しない。後続実装・実運用切替は各Issueで扱う |
 
 ### 完了したPhase 5: Working Trip確定フロー
 
