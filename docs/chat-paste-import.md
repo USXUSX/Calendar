@@ -1,5 +1,7 @@
 # Chat貼付の新規Trip取込契約
 
+旧日本語Trip全体commandの互換契約。主要UIは#110の[JSON取込](trip-json-import.md)へ置き換え済み。1予定追加コピペの契約ではない。
+
 Issue #89。[初期リリース仕様](initial-release.md)の貼付を、CALが一時解釈・確認・初回採用する。
 FRM等の画面はこの意味境界を呼び、SQLiteやTrip JSONを直接変更しない。
 この実装はCALのcommandと確認モデルまでで、FRMの画面・HTTP接続は含まない。

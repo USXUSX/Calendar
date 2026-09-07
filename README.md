@@ -5,13 +5,11 @@ Calendar is the first standard project in `/Users/us/Tools`, built with a three-
 ## Current baseline
 
 Goal 1の新規Trip主要経路は、Chatで完全Trip JSONを生成し、CALでValidation・取込・表示・編集する方式である。取込後の編集は微修正に限定しない。
-[生成・受渡しガイド](docs/trip-json-generation.md)はIssue #108で整備。JSON取込UI / commandへの接続は次Stepで、既存Tripへの1予定追加コピペとは分ける。
-[初期リリース仕様](docs/initial-release.md)を参照する。以下の既存AI生成・再生成経路は保持するが、Goal 1の完成条件には含めない。
-
-現行の日本語ラベル貼付のCAL commandは`parse_chat_paste` → `review_chat_paste` →
-`import_chat_paste`で一時解釈・補正確認・新規Trip採用を行う。
-[取込契約](docs/chat-paste-import.md)に現行Schema上の必須補正と初回書込み境界を定める。
-FRM画面への接続はFrame #41 / PR #42でmerge済み。物理端末の最終受入・実運用切替はCalendar #96で扱う。
+[生成・受渡しガイド](docs/trip-json-generation.md)と[JSON取込契約](docs/trip-json-import.md)を参照する。
+共有candidateの一覧・読込・Validation・確認から`import_trip_json`で新規採用する（#110）。
+Frameの`/calendar/import`はこのJSON経路を主要入口とし、1予定追加コピペは別経路として維持する。
+旧日本語ラベルの全Trip commandは互換用に保持するが、主要UIからは外した。
+物理iPad miniの実用性・Phase 8振り返り・初期リリース判断は#96に残る。
 
 条件指定の新規予定追加は`search_schedule_candidates` → `add_conditioned_schedule`で、
 AFMの最大3推薦から1件決定・2〜3候補保存・候補なしの未定保存を扱う。
