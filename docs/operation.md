@@ -1,4 +1,6 @@
-# Calendar Trip JSON現行運用手順
+# Calendar Trip JSON運用手順
+
+新規TripはIssue #108の[完全JSON生成・受渡しガイド](trip-json-generation.md)に従う。以下のread-only prototypeの配置説明は既存資料であり、ChatがCalendar_Localへcandidateを直接保存する許可ではない。
 
 > **Status:** この手順は現行read-only旅程Webと既存Trip JSONに適用する。CAL側Patch pipeline、one-shot worker、OpenAI provider adapterはGit管理下で実装されているが、実運用DB、FRM、TSK接続、credential配置、model選択は未実施である。
 
@@ -62,7 +64,7 @@ AIはcurrent Trip JSONを直接変更せず、complete Trip JSONを標準更新i
 2. 生成JSONを`trips/`以外の一時作業場所へ保存し、`python3 scripts/validate_trip.py <生成JSON>`を実行する。
 3. エラーがあればエラーパスだけをChatへ返し、修正済みの完全JSONを再生成して再検証する。部分JSONやCalendar側の補正では直さない。
 4. 検証成功後、JSONの内容、安定ID、参照関係を確認する。
-5. ファイル名を`id`と一致させて`Calendar_Local/trips/<trip-id>.json`へ配置し、Calendarの一覧と5画面を確認する。
+5. ファイル名を`id`と一致させ、生成ガイドの共有受渡し場所からCALの通常取込操作へ渡す。正式保存はCALが担当し、ChatはCalendar_Localへ配置しない。新規JSON取込UI / commandは#108の次Stepで整備する。
 
 この新規旅行作成手順は既存Tripの標準更新経路には使わない。既存TripはAI InstructionからJSON Patchを生成し、CALがcomplete candidateを構築する。
 

@@ -4,10 +4,11 @@ Calendar is the first standard project in `/Users/us/Tools`, built with a three-
 
 ## Current baseline
 
-Goal 1の現行範囲は、Chatで作成した旅程の新規Trip貼付取込と、CALでの表示・手動編集・細部仕上げである。
+Goal 1の新規Trip主要経路は、Chatで完全Trip JSONを生成し、CALでValidation・取込・表示・編集する方式である。取込後の編集は微修正に限定しない。
+[生成・受渡しガイド](docs/trip-json-generation.md)はIssue #108で整備。JSON取込UI / commandへの接続は次Stepで、既存Tripへの1予定追加コピペとは分ける。
 [初期リリース仕様](docs/initial-release.md)を参照する。以下の既存AI生成・再生成経路は保持するが、Goal 1の完成条件には含めない。
 
-Chat貼付のCAL commandは`parse_chat_paste` → `review_chat_paste` →
+現行の日本語ラベル貼付のCAL commandは`parse_chat_paste` → `review_chat_paste` →
 `import_chat_paste`で一時解釈・補正確認・新規Trip採用を行う。
 [取込契約](docs/chat-paste-import.md)に現行Schema上の必須補正と初回書込み境界を定める。
 FRM画面への接続はFrame #41 / PR #42でmerge済み。物理端末の最終受入・実運用切替はCalendar #96で扱う。
@@ -129,7 +130,7 @@ confirmation contract.
 - `Schemas/calendar-v3.sql`: current reproducible SQLite schema, including Working Trip state
 - `Schemas/calendar-v2.sql`: retained schema revision for Trip versions and generation requests
 - `Schemas/calendar-v1.sql`: retained initial SQLite schema revision
-- `docs/trip-json-generation.md`: retained complete-Trip-JSON generation workflow
+- `docs/trip-json-generation.md`: current new-Trip complete-JSON generation and candidate handoff
 - `docs/operation.md`: current Trip JSON operation until the hybrid flow is implemented
 - `Sources/`: application source code when implementation starts
 - `Tests/`: automated tests and test guidance

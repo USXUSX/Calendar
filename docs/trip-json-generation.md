@@ -1,74 +1,80 @@
-# ChatGPT向けTrip JSON生成ガイド
+# Chat向け完全Trip JSON生成ガイド
 
-> Issue #86の初期リリース向け入力は[日本語定型テキストの新規Trip貼付](initial-release.md)とする。本書は既存formal JSON生成・手動往復の資料として保持し、JSONを直接貼ることを初期版の利用者へ要求しない。
+新規Tripの主要経路は **Chatで完成度の高いcomplete Trip JSONを生成 → CALでValidation・内容確認・取込** とする（Issue #108）。既存Tripへの1予定追加のコピペとは別経路である。取込後のCAL編集は微修正に限定しない。
 
-> **Status:** Issue #46以降も、AIがformalな完全Trip JSONを生成・再生成する基本方式として維持する。Issue #48では、current Trip JSONを最後にAI生成・Validationされたauthoritative baseとし、`effective Trip`はactive Direct Overridesを加えた派生read modelと定めた。再生成candidateは現在のTrip JSON、`AI Instructions`、active `Direct Overrides`から作り、Validation成功時だけcurrentへ採用する。入力の保存形式と詳細ライフサイクルは後続Issueで定める。
+## 現行正本を読む
 
-## 入力として渡すもの
+CAL用JSON作成を依頼されたChatは、毎回GitHub現行mainの次の2文書を読む。会話に残った旧Schemaや記憶だけで生成しない。
 
-ChatGPTへ次を同時に渡す。
+- [formal Schema](https://github.com/USXUSX/Calendar/blob/main/Schemas/trip.schema.json)
+- [このgeneration guide](https://github.com/USXUSX/Calendar/blob/main/docs/trip-json-generation.md)
 
-1. `Schemas/trip.schema.json`の全文
-2. 旅行の事実、未確定事項、変更指示
-3. 既存旅行の更新では現在の完全JSON
+Gitが正本で、`Calendar_GD`はmerge後の公式共有コピー。GitHubを読めない場合は、現行mainと一致すると確認された共有コピー、またはusから渡された現行2文書を使う。現行性を確認できなければ生成を確定せず、その不足を伝える。
 
-## 生成指示
+## 生成手順
 
-次の指示を使う。
+1. 旅行名・日付・希望・確定済みの訪問先や予約を読む。必須の日付等が不明ならusに確認する。実旅行の日時・予約を創作しない。
+2. 希望に合う少数の場所を調べ、同名施設を住所・地域で照合する。公式情報や保存可能な公開データから、確認できるURL・住所・座標・短いコメントを入れる。調べても不明な値は不明のままにする。候補は訪問確定に変えない。
+3. 以下の対応・意味整合を使って完全JSONを1件生成する。提案した日程と予約済みの事実を区別する。
+4. UTF-8の `<trip-id>.json` として受渡し場所へ保存する。ファイル中はJSONオブジェクトだけ。取得元URL・確認日が必要な情報は既存のsummary / details / urls等に短く記し、独自fieldや取得本文を足さない。
+5. CAL validatorを実行可能なら実行し、エラーの箇所を修正して同じ完全JSONを更新する。Chat側で実行できなければ「CAL Validation未実行」と伝え、合格を装わない。
+6. 日別の行動順・移動・宿泊・候補・未定事項を内容確認し、candidateを渡す。Validation成功だけで正式採用しない。
 
-> Calendarの正式スキーマに一致する完全な旅行JSONを1個だけ生成してください。Markdownや説明文は付けません。旧形式を残さず、不足値はスキーマ指定の`null`または空配列にします。IDは英数字・ハイフン・アンダースコアだけを使い、既存対象のIDは維持します。行動、時刻、場所、経路を別フィールドにし、同じ説明を複数フィールドへ重複させません。分からない事実は推測せず未確定として表現します。
+短い生成指示：
 
-## 重複を避ける規則
+> 現行mainのSchemaとこのガイドを読み、Calendarの正式スキーマに一致する完全な旅行JSONを1個生成してください。ファイル中にはMarkdownや説明文は付けません。確認できた候補・URL・住所・座標・コメントを含め、不明値や予約事実を創作しません。候補は自動選択しません。`<trip-id>.json`を指定の受渡し場所へ保存し、検証結果と残る未定事項を別に短く伝えてください。
 
-- `Day.title`には日付ではなく、その日の短いテーマを書く。
-- `Day.routeSummary`には主な経路だけを書く。
-- `ScheduleItem.action`には「昼食をとる」「美術館を見る」等の行動を書く。時刻やPlace名を埋め込まない。
-- `summary`は一覧で必要な短い補足、`details`は追加事実だけにする。同じ文を両方へ書かない。
-- 移動はScheduleItemへ複製せず、Transportだけにする。
-- Placeは1地点1件とし、ScheduleItem、Transport、BookingからID参照する。
-- Bookingの`notes`には予約条件等の正式情報だけを入れ、ChatGPTへの変更指示は入れない。
+## 項目と不明値
 
-## 検証と表示
+キー・型・enumの詳細はSchemaを正本とし、ここでは生成時の使い分けを定める。必須キーは省略しない。任意情報はSchemaが許す`null`または空配列を使う。`searchQuery`は条件がある場合だけ付ける。
 
-生成物を説明文から切り離したUTF-8 JSONファイルとして一時作業場所へ保存する。検証前のJSONは`Calendar_Local/trips/`へ置かない。不正な1件が旅行一覧の読み込みも止めるためである。
+| 内容 | 格納先・使い分け |
+| --- | --- |
+| 旅行全体と日別 | Tripのtitle / dateRange / summary、Dayのdate / title / routeSummary。titleは短いテーマ、routeSummaryは代表エリア・主経路 |
+| 行動 | ScheduleItem.action / category。場所名や時刻をactionへ重複させず、移動はTransportだけにする |
+| 候補と採用場所 | Placeを1地点1件にしてcandidatePlaceIdsで参照。selectionは明示された採用場所だけ。1候補でも未採用なら空配列 |
+| 場所未定 | candidatePlaceIdsとselectionを空配列、非空searchQueryに元条件、minSelections / maxSelectionsはnull。架空の「未定」というPlaceは作らない |
+| 地点情報 | Place.name / category / address / location / urls / rating。未確認の住所・座標・評価はnull、URLは空配列。locationがある場合は緯度経度の両方が必要 |
+| コメント | 通常コメントはScheduleItem.summary、追加事実・出典等はdetails、施設自体の補足はPlace.summary。重複させない |
+| 時刻 | fixedは開始必須、rangeは開始・終了必須、undecidedは開始・終了null。所要時間不明はdurationMinutes=null。列車の発着時刻と提案枠を混同しない |
+| 移動 | TransportでdayId、両端Place、mode、timeを持ち、Day.transportIdsから参照する。未確認の所要時間を確定値にしない |
+| 予約 | BookingをplaceIdまたはtransportIdへ結ぶ。targetDateは対象日。未予約の予定はpending、実際に予約した証拠がある場合だけbooked。金額不明はnull、予約条件はnotes |
+| 準備・Rio | preparation / rioPlanも必須。準備がなければtasks=[]。Rioが対象外と分かる場合だけapplicable=false / careMode=not_applicable。不明ならundecidedとして判断を残す |
 
-次を実行する。
+候補数は新規Trip JSON全体に一律3件制限を置かない。既存予定へのAFM候補追加の件数制限とは別契約である。minSelections / maxSelectionsは分かる場合だけ設定し、最大数は候補件数以内にする。
+
+IDはSchemaに従う英数字・ハイフン・アンダースコアを使い、同じcandidateの再生成では既存対象のIDを維持する。ScheduleItem.dayIdは親Dayと一致させ、日内orderはScheduleItemとTransportを合わせて重複させない。selectionはcandidatePlaceIdsの部分集合にする。移動のdayIdとDay.transportIds、予約の対象参照と日付を対応させ、参照漏れや不要なPlaceを残さない。
+
+日跨ぎ時刻、未確定の移動端点など、現在のSchemaでそのまま表現できない入力は、事実を偽装して通さず不足を伝える。予約済みの複数泊は開始日をtargetDateとし、チェックアウト日等の条件をnotesへ記す。移動への任意コメントfieldはないため、予約条件はBooking.notes、それ以外の必要な補足はTrip.summary等に対象を明記する。専用fieldが必要な実用途が判明した場合はSchemaと利用側を同じ変更範囲で検討する。
+
+## 受渡しとCAL採用の境界
+
+| 場所 | 役割 |
+| --- | --- |
+| Calendar Git / Calendar_GD | Schema・guideの正本 / 公式参照コピー |
+| `/Users/us/マイドライブ/ChatGPT共有/CAL/<trip-id>.json` | 未採用candidateの作業ファイル。再生成で同じファイルを更新してよく、履歴管理を追加しない |
+| Calendar_Local | CALで採用後の正式Tripと通常状態。Chatから直接書き換えない |
+
+受渡しフォルダへアクセスできないChatは、同名JSONを添付してusに配置を依頼する。保存できたと主張したり、Calendar_GDやCalendar_Localを代わりに使ったりしない。受渡し場所は自動監視・自動取込の入口ではない。
+
+Git正本で次を実行する。このCLIはSchemaとsemantic validationを両方行い、保存状態を変更しない。
 
 ```sh
-python3 scripts/validate_trip.py /path/to/generated-trip.json
+python3 scripts/validate_trip.py '/Users/us/マイドライブ/ChatGPT共有/CAL/<trip-id>.json'
 ```
 
-エラーがあれば該当パスとエラーだけをChatGPTへ返し、部分パッチではなく同じ完全JSONを修正させる。検証成功後に、ファイル名を`id`と一致させて`Calendar_Local/trips/<trip-id>.json`へ配置し、Calendarの一覧、旅程、地図、準備、コメントを確認する。Calendar側で欠損値の補完や旧形式変換は行わない。
+エラーがあれば該当パスとエラーだけをChatへ返し、部分パッチではなく同じcomplete JSONを直す。CALの取込操作がValidation・内容確認・正式採用を担当する。Chatが検証済みファイルをCalendar_Localへコピーする運用にはしない。
 
-## 既存旅行の修正
+Issue #108時点では新規complete JSON向け取込UI / commandの整備は次Stepである。現行`parse_chat_paste`等は日本語ラベル入力用であり、JSON対応済みと扱わない。次Stepはcandidateを読み、CAL所有のSchema / semantic Validation、新規Trip確認、通常の初回採用境界へ接続する。既存Tripを同じIDで置換しない。日本語ラベル経路の存廃はそこで利用価値から判断し、1予定追加コピペの廃止と混同しない。
 
-現在の完全JSON、変更依頼、正式SchemaをChatGPTへ渡す。次の指示を追加する。
+## 北海道4日間の代表例と内容確認
 
-> このcomplete JSON生成指示は新規Trip作成用です。既存authoritative Tripの更新では使わず、CAL claimのbase version/hashとTrip内容に対するJSON Patchだけを生成してください。
+[代表JSON](../Samples/hokkaido-4days-candidate.json)は、2027-06-12〜15を仮の日程とした公開施設ベースの合成例。実旅行・実予約・usの採用済み希望ではない。出典と確認内容は[Samples README](../Samples/README.md)を参照する。
 
-生成後は新規作成と同じvalidatorを実行する。検証成功だけで採用せず、変更対象の値、主要ID、項目件数、Calendar表示を確認してから現在ファイルを置き換える。
+札幌を拠点に、到着日、小樽日帰り、札幌市内、帰路の順とし、遠距離の詰込みを避ける。3泊、往復の主要鉄道移動、候補未選択、店未定、住所・URL・座標・コメント・pending予約を含む。時刻は未定とし、将来ダイヤや空室を保証しない。候補訪問時の市内移動は訪問先選択後に決める。
 
-## 問題の切り分け
+Schemaで今回必要な情報を表現できるため変更は不要。Validationとは別に、日程と対象日、宿泊回数、往復経路、候補の非採用、未定値、参照の整合、行動・移動・コメントの重複がないことを確認する。料金、営業日、予約、交通ダイヤは実旅行決定時に再確認する。
 
-- validatorが失敗する: 生成JSONまたはSchema契約の問題。エラーパスをChatGPTへ返す。
-- validatorは成功するがサーバーが拒否する: ファイル名と`id`、UTF-8、配置場所を確認する。
-- サーバーは返すが表示できない: Calendar UIの問題として、consoleと該当画面を確認する。
-- 表示できるが内容が意図と違う: 旅行資料または生成指示の問題。UIで推測・補正しない。
+## 既存Tripの変更
 
-## 確認済みの基本フロー
-
-Issue #40では、旅行計画資料からの新規完全JSON生成、参照漏れエラーを使った再生成、既存IDを維持した内容変更、再検証、一覧と5画面の表示までを確認した。新機能、自動修正、自動同期は必要なく、`生成 → 検証 → 配置 → 表示確認`を基本運用とする。
-
-## 実旅行での内容確認
-
-Schema成功は、JSONの構造と参照が正しいことを示すが、旅行内容の重複や不足までは保証しない。実旅行では表示前後に次も確認する。
-
-- 日付だけの`Day.title`を使わず、その日のテーマが読めること。
-- 同じ移動をScheduleItemとTransportへ二重に持たず、移動はTransportだけにすること。
-- 同じ食事や宿泊を別ScheduleItemへ重複させないこと。
-- 同じ場所を複数Place IDで定義せず、既存IDへ参照を統合すること。
-- ScheduleItemを統合・削除するとき、候補Placeを先に残す項目へ統合し、候補情報を落とさないこと。
-- 参照されないPlaceを残さないこと。
-- Bookingを対象PlaceまたはTransportへ結び、`targetDate`を実際の対象日にすること。往路・復路等で対象日が異なる予約は分けること。
-
-Issue #42では作成中の北海道旅行をこの観点で完全再生成した。重複予定、重複Place、移動と予約の不足はJSON修正で解消でき、Schema・UI・新機能の変更は不要だった。
+本書の新規Trip生成は既存Tripの上書き経路ではない。Working exportからのcomplete candidateは既存Phase 5のValidation / stale gate / atomic adoptionを通す。AI InstructionのCAL claim経路はbase version/hashに対するJSON Patchを使う。両経路ともChatによる正式ファイルの直接置換は行わない。
