@@ -18,6 +18,7 @@ from scripts.validate_trip import DEFAULT_SCHEMA, semantic_errors, validate_valu
 
 from .errors import ConflictError, GenerationWriteError, NotFoundError, ValidationError
 from .models import UnifiedEvent
+from .chat_exchange import ChatExchangeMixin
 from .trip_detail import _mark_time_conflicts, build_trip_detail_view
 from .chat_paste import parse_chat_paste, draft_requirements, build_import_trip, check_draft_shape
 
@@ -48,7 +49,7 @@ def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-class CalendarDomain:
+class CalendarDomain(ChatExchangeMixin):
     """Semantic CAL interface; both storage roots must be explicitly supplied."""
 
     def __init__(self, db_path: str | Path, trip_root: str | Path):
@@ -313,15 +314,17 @@ class CalendarDomain:
         instruction_id: str | None = None,
         working_revision: dict[str, Any] | None = None,
         working_generation: tuple[str, str] | None = None,
+        chat_envelope: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Generator-neutral complete-candidate atomic adoption layer."""
         self._trip_path(trip_id)
         recovered = self.recover_trip_adoption(trip_id)
         if recovered is not None:
             return recovered
-        if kind not in {"generation_request", "working_trip"}:
+        if kind not in {"generation_request", "working_trip", "chat"}:
             raise ValidationError("candidate adoption kind is invalid")
-        instruction_ids = (instruction_id,) if instruction_id is not None else ()
+        instruction_ids = (self._instruction_ids(chat_envelope["handled_instruction_ids"])
+                           if kind == "chat" else ((instruction_id,) if instruction_id is not None else ()))
         candidate_value, candidate_payload = self._validated_candidate(trip_id, candidate)
         current_path = self._trip_path(trip_id)
         try:
@@ -344,12 +347,20 @@ class CalendarDomain:
             "old_hash": old_digest,
             "candidate_hash": candidate_digest,
         }
+        if kind == "chat":
+            journal["handled_instruction_ids"] = list(instruction_ids)
+            journal["envelope_hash"] = self._digest(self._canonical_json(chat_envelope))
         self._write_file(staging_path, candidate_payload)
         replaced = False
         journal_written = False
         try:
             with self._command() as connection:
                 connection.execute("BEGIN IMMEDIATE")
+                if kind == "chat":
+                    if chat_envelope["base_revision"] != self._effective_revision(trip_id):
+                        raise ConflictError("最新contextからChatでcandidateを再作成してください。")
+                    # The confirmed complete Trip includes (and may edit) current overrides.
+                    connection.execute("UPDATE direct_overrides SET active = 0 WHERE trip_id = ?", (trip_id,))
                 self._validate_adoption_constraints(connection, trip_id, candidate_value, instruction_ids)
                 trip = connection.execute("SELECT version FROM trips WHERE id = ?", (trip_id,)).fetchone()
                 if trip is None or trip["version"] != expected_version or old_digest != expected_hash:
@@ -375,7 +386,7 @@ class CalendarDomain:
                         or instruction["base_hash"] != expected_hash
                     ):
                         raise ConflictError("generation request base changed before adoption")
-                else:
+                elif kind == "working_trip":
                     working = connection.execute(
                         "SELECT base_trip_version, base_effective_hash FROM working_trips WHERE trip_id = ?",
                         (trip_id,),
@@ -436,6 +447,8 @@ class CalendarDomain:
                         (timestamp, request_id, instruction_id),
                     ).rowcount != 1:
                         raise ConflictError("generation request state changed during candidate adoption")
+                elif kind == "chat":
+                    self._complete_chat_instructions(connection, trip_id, instruction_ids, timestamp)
                 elif connection.execute(
                     "DELETE FROM working_trips WHERE trip_id = ?", (trip_id,),
                 ).rowcount != 1:
@@ -456,6 +469,8 @@ class CalendarDomain:
                 if journal_written:
                     self._remove_adoption_file(journal_path)
             raise
+        if kind == "chat":
+            self._finish_chat_candidate(trip_id, journal["envelope_hash"])
         self._remove_adoption_file(journal_path)
         self._remove_adoption_file(staging_path)
         result = {
@@ -467,6 +482,7 @@ class CalendarDomain:
         }
         if kind == "generation_request":
             result.update({"request_id": request_id, "instruction_id": instruction_id})
+        self.get_chat_context(trip_id)
         return result
 
     def _after_candidate_replace(self) -> None:
@@ -490,12 +506,14 @@ class CalendarDomain:
                 current_required = legacy_required | {"kind"}
                 if set(journal) == legacy_required and journal.get("version") == 2:
                     kind = "generation_request"
-                elif set(journal) == current_required and journal.get("version") == 3:
+                elif ((set(journal) == current_required and journal.get("kind") != "chat") or
+                      (set(journal) == current_required | {"handled_instruction_ids", "envelope_hash"} and journal.get("kind") == "chat")) and journal.get("version") == 3:
                     kind = journal.get("kind")
                 else:
                     raise ValueError
-                if journal["trip_id"] != trip_id or kind not in {"generation_request", "working_trip"}:
+                if journal["trip_id"] != trip_id or kind not in {"generation_request", "working_trip", "chat"}:
                     raise ValueError
+                handled = self._instruction_ids(journal.get("handled_instruction_ids", []))
                 request_id = journal["request_id"]
                 instruction_id = journal["instruction_id"]
                 if kind == "generation_request":
@@ -553,6 +571,9 @@ class CalendarDomain:
                         "UPDATE generation_requests SET state = 'completed', updated_at = ? WHERE id = ?",
                         (timestamp, request_id),
                     )
+                elif kind == "chat":
+                    connection.execute("UPDATE direct_overrides SET active = 0 WHERE trip_id = ?", (trip_id,))
+                    self._complete_chat_instructions(connection, trip_id, handled, timestamp)
                 else:
                     connection.execute("DELETE FROM working_trips WHERE trip_id = ?", (trip_id,))
                 status = "adopted"
@@ -585,6 +606,8 @@ class CalendarDomain:
             else:
                 raise ConflictError("current Trip JSON matches neither journal digest")
 
+        if kind == "chat" and status == "adopted":
+            self._finish_chat_candidate(trip_id, journal["envelope_hash"])
         self._remove_adoption_file(self._staging_path(trip_id, candidate_digest))
         self._remove_adoption_file(journal_path)
         result = {
@@ -596,6 +619,7 @@ class CalendarDomain:
         }
         if kind == "generation_request":
             result.update({"request_id": request_id, "instruction_id": instruction_id})
+        self.get_chat_context(trip_id)
         return result
 
     def recover_pending_adoptions(self) -> list[dict[str, Any]]:
@@ -784,6 +808,7 @@ class CalendarDomain:
         finally:
             if staging is not None:
                 staging.unlink(missing_ok=True)
+        self.get_chat_context(trip_id)
         return {"trip_id": trip_id, "status": "adopted", "visibility": "owner", "version": 1}
 
     def _registered_trip(self, trip_id: str) -> sqlite3.Row:
@@ -1547,7 +1572,7 @@ class CalendarDomain:
     ) -> dict[str, Any]:
         """Return the Phase 1 Trip-detail model derived from the effective Trip."""
         return build_trip_detail_view(
-            self.get_effective_trip(trip_id),
+            self.get_chat_context(trip_id)["trip"],
             candidate_judgments=candidate_judgments,
             weather_by_day=weather_by_day,
         )
@@ -2236,6 +2261,7 @@ class CalendarDomain:
                 (instruction_id, instruction_id, trip_id, timestamp, timestamp),
             )
         result = self._get_instruction(instruction_id)
+        self.get_chat_context(trip_id)
         result["request_id"] = instruction_id
         result["request_state"] = "queued"
         return result
@@ -2278,7 +2304,9 @@ class CalendarDomain:
                 (timestamp, instruction_id),
             ).rowcount != 1:
                 raise ConflictError("generation request changed during cancellation")
-        return self._get_instruction(instruction_id)
+        result = self._get_instruction(instruction_id)
+        self.get_chat_context(result["trip_id"])
+        return result
 
     def set_direct_override(self, override_id: str, trip_id: str, source_item_id: str,
                             field_path: str, value: Any) -> dict[str, Any]:
@@ -2311,7 +2339,9 @@ class CalendarDomain:
                     "UPDATE direct_overrides SET value_json = ?, active = 1, updated_at = ? WHERE id = ?",
                     (value_json, timestamp, override_id),
                 )
-        return self._get_override(override_id)
+        result = self._get_override(override_id)
+        self.get_chat_context(result["trip_id"])
+        return result
 
     def edit_trip_item(self, command_id: str, trip_id: str, source_type: str,
                        source_item_id: str, changes: dict[str, Any]) -> dict[str, Any]:
@@ -2420,4 +2450,6 @@ class CalendarDomain:
             connection.execute(
                 "UPDATE direct_overrides SET active = 0, updated_at = ? WHERE id = ?", (_now(), override_id)
             )
-        return self._get_override(override_id)
+        result = self._get_override(override_id)
+        self.get_chat_context(result["trip_id"])
+        return result

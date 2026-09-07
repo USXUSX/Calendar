@@ -44,7 +44,7 @@ Phase 1〜7の完了記録と既存AI経路は保持する。Phase 6〜7のAI生
 | 5. Working Trip確定フロー | 完了 | Workingを反映したcomplete Trip candidateをCAL内で安全に正式Tripへ戻す | Working exportから作成したcomplete candidateをformal Validationし、staleでないことを確認してauthoritative Tripへatomic adoptionし、成功後だけWorkingをclearしてFRMへ結果を返せる | CALはcandidate受入れ、Schema・semantic Validation、captured revisionに対するstale確認、all-or-nothingのadoptionを所有する。candidate生成元を契約へ持ち込まず、失敗時はauthoritative TripとWorkingを変更しない |
 | 6. AI接続を実用化 | 完了 | Working exportからcomplete Trip candidateを生成・再構成する部分をAIGへ接続する | auto policyでは既存Phase 5 gateを通して自動採用し、review policyではcandidate確認後に同じgateから採用でき、結果をFRMで把握できる | CALが最新1件のgeneration stateとcandidateを所有し、AIGはstateless、FRMは表示・操作に限定する。provider、model、credentialはAIG側へ閉じ、stale解消・自動retry・CAL外正本更新は行わない |
 | 7. 候補・特殊ケースを実利用で検証 | 完了（限定付き） | 現行Working指示とAIG再生成で候補や複数予定変更等をどこまで自然に扱えるか実利用で確認する | 候補追加・判断・選定、複数予定変更、別行動等について、既存経路で足りる範囲と実際に不足する範囲が明確になる | 候補・特殊ケースの専用機能を先回りして追加しない。不足が実利用で確認されたものだけを後続Issueで追加する |
-| 8. 実利用でUI・運用を仕上げる | 現在（Issue #96で実用確認） | Chat貼付からCALの細部仕上げまでを実用化する | 初期リリース仕様の採用機能を実装し、対象端末で実用性を確認できる | 新規Trip貼付に限定し、他予定を自動変更しない。後続実装・実運用切替は各Issueで扱う |
+| 8. 実利用でUI・運用を仕上げる | 現在（Issue #96で実用確認） | Chat貼付からCALの細部仕上げまでを実用化する | 初期リリース仕様の採用機能を実装し、対象端末で実用性を確認できる | 新規Trip取込と明示確認するChat継続編集を扱い、他予定を自動変更しない。後続実装・実運用切替は各Issueで扱う |
 
 ### 完了したPhase 5: Working Trip確定フロー
 
@@ -88,7 +88,7 @@ Step 7では、AIGのsafe failure後もWorkingとraw user intentが既存export�
 
 ### 現在のPhase 8: 実利用でUI・運用を仕上げる
 
-Issue #108で新規Tripのcomplete JSON生成・Validation・受渡しを整備した。現行主要方針は[生成ガイド](trip-json-generation.md)。Issue #110で[新規JSON取込](trip-json-import.md)へ接続し、日本語全Trip貼付UIを置き換えた。次は#96のiPad mini実用確認へ戻る。既存Tripへの1予定追加はコピペと分け、CALの取込後編集を微修正に限定しない。#108の完了はPhase 8完了・初期リリース判断を意味しない。
+Issue #108で新規Tripのcomplete JSON生成・Validation・受渡しを整備した。現行主要方針は[生成ガイド](trip-json-generation.md)。Issue #110で[新規JSON取込](trip-json-import.md)へ接続し、日本語全Trip貼付UIを置き換えた。Issue #112で既存Tripのcontext自動共有とChat candidateの確認・保留・正式採用を実装した（Frame #57）。次は#96でChat往復の実機レビューと実用性を判断する。既存Tripへの1予定追加はコピペと分け、CALの取込後編集を微修正に限定しない。#108の完了はPhase 8完了・初期リリース判断を意味しない。
 
 1. Issue #86で初期リリース範囲、新規Trip貼付形式、外部取得・保持方針を仕様化し、正本を整合する。
 2. [後続実装の小さな単位](initial-release.md)に従い、表示・編集、貼付、共通取得と各採用機能をIssueへ分割する。

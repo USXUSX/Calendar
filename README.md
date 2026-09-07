@@ -9,6 +9,9 @@ Goal 1の新規Trip主要経路は、Chatで完全Trip JSONを生成し、CALで
 共有candidateの一覧・読込・Validation・確認から`import_trip_json`で新規採用する（#110）。
 Frameの`/calendar/import`はこのJSON経路を主要入口とし、1予定追加コピペは別経路として維持する。
 旧日本語ラベルの全Trip commandは互換用に保持するが、主要UIからは外した。
+既存Tripは#112の[継続Chat往復](docs/trip-json-generation.md#継続するchat往復112)を使える。
+CALが最新contextを自動共有し、FrameでChat指示追加とcandidateの変更確認・保留・明示反映を行う。
+正式Trip/SQLiteはCALだけが更新する。
 物理iPad miniの実用性・Phase 8振り返り・初期リリース判断は#96に残る。
 
 条件指定の新規予定追加は`search_schedule_candidates` → `add_conditioned_schedule`で、

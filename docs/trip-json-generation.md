@@ -53,7 +53,7 @@ IDはSchemaに従う英数字・ハイフン・アンダースコアを使い、
 | --- | --- |
 | Calendar Git / Calendar_GD | Schema・guideの正本 / 公式参照コピー |
 | `/Users/us/マイドライブ/ChatGPT共有/CAL/<trip-id>.json` | 未採用candidateの作業ファイル。再生成で同じファイルを更新してよく、履歴管理を追加しない |
-| Calendar_Local | CALで採用後の正式Tripと通常状態。Chatから直接書き換えない |
+| Calendar_Local | CALで採用後の正式Tripと通常状態。正式データはChatから直接書き換えない。継続往復の `chat/<trip-id>/candidate.json` だけは下記のChat所有 |
 
 受渡しフォルダへアクセスできないChatは、同名JSONを添付してusに配置を依頼する。保存できたと主張したり、Calendar_GDやCalendar_Localを代わりに使ったりしない。受渡し場所は自動監視・自動取込の入口ではない。
 
@@ -77,4 +77,61 @@ Schemaで今回必要な情報を表現できるため変更は不要。Validati
 
 ## 既存Tripの変更
 
-本書の新規Trip生成は既存Tripの上書き経路ではない。Working exportからのcomplete candidateは既存Phase 5のValidation / stale gate / atomic adoptionを通す。AI InstructionのCAL claim経路はbase version/hashに対するJSON Patchを使う。両経路ともChatによる正式ファイルの直接置換は行わない。
+新規Trip取込は既存Tripの上書き経路ではない。既存Tripの主要なChat往復は次節の共有Envelopeを使う。既存Working exportとAI InstructionのJSON Patch経路も保持する。いずれもCALがValidationと正式採用を担当し、Chatは正式ファイルを直接置換しない。
+
+## 継続するChat往復（#112）
+
+既存Tripの調査・候補比較・大きな編集はChatを主に使い、CALは旅程正本、Validation、
+Place同定・URL/住所/座標補完、天気、直接編集、時刻矛盾の確認を引き続き担当する。
+
+授受先は `/Users/us/Tools/LocalData/Calendar_Local/chat/<trip-id>/`。
+既存Google Drive同期を使い、cloud ChatはDrive側、local Chatは同じLocalファイルへアクセスする。
+経路によってEnvelopeを変えず、新しい共有フォルダや履歴ファイルを増やさない。
+既存の新規Trip取込用 `<trip-id>.json` は初回登録専用として維持する。
+
+- `context.json` はCAL所有。`trip_id / current_revision / effective_revision / trip / instructions`。
+  `trip` は現在のeffective complete Tripで、`instructions` は未処理指示の `id / instruction`。
+  `current_revision` は正式Tripの `trip_version / trip_hash`、`effective_revision` は
+  同じversionとDirect Overrideを含む `effective_hash`。Chatは書き換えない。
+- `candidate.json` はChat所有。次の最小Envelopeだけを同じファイルへ保存する。
+  `trip` は現行formal Schemaのcomplete Trip。独自の旅程Schema、部分Patchではない。
+
+```json
+{
+  "trip_id": "contextのtrip_id",
+  "base_revision": {"trip_version": 1, "effective_hash": "contextのeffective_revisionをそのまま複製"},
+  "handled_instruction_ids": [],
+  "trip": {}
+}
+```
+
+これはEnvelope形状の説明であり、`trip: {}` は有効な旅程ではない。
+Chatは作業開始時に最新contextを読み、`trip`を出発点に既存ID・予約事実・未変更部分を保持して編集する。
+対応した指示だけを`handled_instruction_ids`へ入れ、新しい指示や未対応指示は残す。
+候補を自動選択せず、不明情報を創作しない。共有先へアクセスできなければcandidateを添付し配置を依頼する。
+Chatが書いてよいのはこのcandidateだけで、正式 `trips/`・SQLite・contextを直接更新しない。
+
+CALの通常編集、Place補完、指示追加、正式採用後にcontextを自動更新し、Trip表示・再読込時にも更新する。
+手動「Chatへ出力」は不要。Frameの通常旅程画面からChatへの指示を追加でき、API/AFM workerは起動しない。
+Trip表示・再読込でcandidateを確認し、valid/currentの場合だけ「Chatからの変更あり」を表示する。
+変更前後の項目、反映後の旅程、処理済みにする指示を確認して反映、または保留する。
+保留はファイル・正式状態を変更しない。
+
+staleは最新contextからChatで再作成する。不正JSON・Schema・semantic不整合は修正して再確認する。
+自動merge・自動修復・自動採用はしない。採用時もrevision、確認snapshot、未処理指示、Todo参照を再検証する。
+確認済みcomplete TripにはDirect Overrideの内容が含まれるため、正式採用と同じtransactionでOverrideを解除する。
+候補内で編集された値に古いOverrideを重ねない。既存Workingは保持され、正式version更新でstaleとなる。
+採用成功後だけ対応済み指示を処理済みにし、同じcandidateを削除し、新contextを生成する。
+CALは既存のatomic adoption・中断journalを使い、正式TripとSQLiteの更新責務を所有する。
+context書込み失敗では保存済みCAL状態を巻き戻さず、共有先を確認して再読込する旨を返す。
+
+公開commandは `get_chat_context(trip_id)`、`add_chat_instruction(instruction_id, trip_id, instruction)`、
+`review_chat_candidate(trip_id)`、`adopt_chat_candidate(trip_id, candidate, confirmed=True)`。
+reviewは `status=absent / stale / invalid / ready`、`ready`、未処理`instructions`を返し、
+合格時だけ確認用`candidate / view / changes / handled_instructions`を返す。
+採用は確認snapshotと共有candidateが一致しない場合も拒否する。任意の共有rootはHTTPから指定できない。
+
+合成北海道4日間を使う `sh Tests/chat-exchange.test.sh` で、CAL編集→context→Chat相当candidate→
+確認・保留・採用、stale/invalid/確認後変更の拒否、指示・Override処理、中断後の収束を確認する。
+Frame #57でHTTPとiPad mini相当幅の代表操作を確認する。実データ、Drive実同期遅延、物理端末での実用性、
+production反映はこの検査に含めず、Phase 8の#96で区別して扱う。
