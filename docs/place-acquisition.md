@@ -1,6 +1,6 @@
 # 共通施設取得とPlace補完（Issue #90）
 
-Goal 1の②③⑤⑥向けに`Sources/place_acquisition.py`の`FacilityAdapter.search(FacilityQuery)`を共用する。
+Place同定・事実補完向けに`Sources/place_acquisition.py`の`FacilityAdapter.search(FacilityQuery)`を共用する。
 Queryは名称・代表エリア・既知住所だけで、Trip、参加者、予約、コメント、CAL identityを受け取らない。
 ②③⑤の機能・UI、天気、OpenAI、実運用設定はこの実装に含まない。
 
@@ -21,7 +21,7 @@ maxlag=5、識別可能なUser-Agent、gzipを使用する。自動retryはな�
 `temporary`は出典、取得時刻、provider ID、説明、利用・表示条件と有効期限を含む操作中だけの情報。
 他providerの追加時は保存許諾が確認できるfieldだけを前者へ入れ、保存不明・禁止の値は後者に置く。
 候補選択でこの区別を解除しない。取得失敗は本文・例外・照会内容を含まない`unavailable`、
-候補なしは`no_candidates`になる。⑤コメント追記は[専用契約](comment-enrichment.md)の明示許諾済み根拠だけを使い、temporaryから自動転載しない。
+候補なしは`no_candidates`になる。
 
 Wikidata adapterのpersistableはCC0構造化値だけ。deprecated、qualifier付き、同順位で複数値の
 statementは採用しない。地球以外の座標、不正値、非HTTPS URLは未補完にする。
@@ -81,3 +81,11 @@ UI、実運用設定、②③⑤⑦の機能は本Issueに追加しない。
 通常Validationはmock transportと一時DBのみで、課金・Secret・Calendar_Localへのアクセスを必要としない。
 
 Issue #93の`include_comment_evidence=True`では追加の根拠取得を最大1回許可する。通常取得の既存上限・Place採用契約は変えない。詳細は[コメント追記](comment-enrichment.md)を参照する。
+
+## Issue #116: 正式Place全般を対象にする
+
+`place_id`はeffective Tripのplacesで解決する。selection済み、未選択candidatePlaceIds、
+未定/暫定の候補予定に含まれるPlaceを区別しない。Direct Override追加PlaceやChat candidateの
+正式採用後も同じ境界を使う。補完はPlaceの不足値だけを更新し、candidatePlaceIds、selection、
+予定内容、Workingは変更しない。Frameでは各予定の補完操作から選択済み・候補Placeを選べる。
+CAL内検索/AFM推薦とコメントAIは廃止した。Working保存基盤の移行・削除は行わない。

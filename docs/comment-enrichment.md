@@ -1,3 +1,5 @@
+> Issue #116で廃止。以下は過去の仕様記録であり、公開commandとFrame UIは削除済み。現在は[Chat往復](trip-json-generation.md)を使う。
+
 # 指定情報のコメント追記（Issue #93）
 
 us承認のAFM抽出方式。共通施設取得で保存可能な短い根拠を取得し、施設を確認してから

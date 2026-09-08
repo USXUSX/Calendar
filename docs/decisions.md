@@ -84,3 +84,5 @@
 - Publication model.
 
 Record a decision here only after it is explicitly confirmed. Include the date, context, decision, and consequences when implementation begins.
+
+- 2026-09-08, Issue #116: 候補探索・推薦・大きな旅程編集はChat中心。CAL内検索/AFM推薦・コメントAIとFrameのWorking UIを廃止する。候補データと明示selectionを維持し、effective Tripの正式Place全般を同じ事実補完境界で扱う。直接操作はDirect Overrideへ保存する。Mac確認で停止し、物理受入・リリースは判断しない。

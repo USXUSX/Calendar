@@ -14,8 +14,8 @@
 
 | UI情報 | 取得元・導出 |
 | --- | --- |
-| 日付、主題、移動概要 | `Day.date / title / routeSummary`。Issue #86では日別代表エリアに`routeSummary`を再利用する方針。予定単位のエリア属性は追加しない |
-| 時刻 | `TimeSpec`。`undecided`は「未定」、`range`は開始–終了 |
+| 日付、主題、移動概要 | `Day.date / areas`。areas未登録の日は旧routeSummaryを表示 |
+| 時刻 | `TimeSpec`。`undecided`は「未定」、`range`は開始＋滞在時間 |
 | カテゴリー | `ScheduleItem.category`。移動は`transport`として派生 |
 | 本文、場所link | `action`と`Place`参照。移動は出発地・到着地から派生 |
 | 通常コメント | `ScheduleItem.summary` |
@@ -26,82 +26,53 @@
 
 `scheduleItem`と`transport`の状態はTrip内容に保持する明示値
 `confirmed / tentative / undecided`をそのまま返す。時刻、場所、候補数から導出せず、
-それらの編集でも自動変更しない。候補が複数あれば`has_candidates`を独立して返し、
+通常の編集では自動変更しない。編集sheetで候補を確定する場合だけ確定へ変更する。候補が複数あれば`has_candidates`を独立して返し、
 状態を上書きしない。
 
 `候補あり`と候補一覧は`candidatePlaceIds`から導出する。採用済みの選択は`selection`として
 区別し、未送信の`OK / NG`をそこへ書き込まない。
 
-## 未送信入力
+## 閲覧・編集の意味境界（#116）
 
-候補追加、`OK / NG`、予定単位AI指示は採用済みTripではない。画面または上位applicationが
-編集sessionの一時状態として保持し、表示モデルへ明示的に渡す。画面を保存せず閉じる場合は
-破棄し、送信時だけ次のCAL commandへ変換する。再起動を跨ぐdraft保存が必要になった場合は、
-保存期間・取消・競合を別Issueで決める。
+通常画面の候補OK/NGは`ScheduleItem.candidateJudgments`（Place ID → `ok / ng`）として
+Direct Overrideへ保存する。未判断はキーなし。選択・状態は変えない。
+編集sheetの確定は`selection: [place_id]`と`status: confirmed`を同時に保存する。
 
-- `OK / NG`: `trip_id + source_item_id + place_id`を対象とする候補判断入力。採用済み
-  `PlaceSelection.selection`を直接変更しない。
-- 候補追加: 対象予定とPlace候補を含む局所更新入力。候補を正本へ加える処理と採否判断を分ける。
-- 予定単位AI指示: `trip_item_local_update`として対象type・stable ID・現在対象値・指示を渡し、
-  CALが許可した意味フィールド変更だけを結果とする。
+`edit_trip_item`は状態・時刻・予定本文・コメントに加え、`duration_minutes`、
+`place`（名前と確認済み住所・location・urls）、`candidate_judgments`、`ai_instruction`を扱う。
+移動は`from_place / to_place / transport_mode / service_name`を編集できる。
+新しい場所名は新規Placeへ保存し、他予定の共有Placeを改名しない。
+新規Place・項目変更・AI指示は同一transactionで保存する。不正値は部分保存しない。
 
-## 更新境界
+`fixed`は開始・終了、`range`は開始＋`durationMinutes`を編集し、CALが終了時刻を計算する。
+既存の開始・終了のみのrangeは表示時に滞在時間へ換算する。`undecided`は開始・終了をnullにする。
+通常画面ではrangeの終了側に滞在時間、fixedでは終了時刻を表示する。
 
-編集画面の具体値は、既存の意味ベースcommandへ対応付ける。
+予定単位AI指示は既存`ai_instructions`へ保存し、生成requestを作らない。
+`item:<trip_id>:<source_item_id>:<unique_id>`のIDで対象との関係を保持し、contextのinstructionsに
+`source_item_id`を付ける。同一予定の指示変更は旧IDを取消して新しいIDで保存し、空欄保存はpendingを取消す。
+同一内容の再保存はIDを維持する。旧指示をhandled_instruction_idsに含むcandidateは
+既存のpending照合で拒否され、新しい指示を処理済みにしない。
+Chatが`handled_instruction_ids`で処理完了すると通常画面の未処理表示から外れる。
+予定本文やコメントへ指示そのものを残さない。後続処理は[Chat往復](trip-json-generation.md)に従う。
 
-| 編集値 | Trip由来予定のcommand |
-| --- | --- |
-| 状態 | 対象stable IDの`/status`へのDirect Override |
-| 開始・終了・時刻状態 | 対象stable IDの`/time/start`、`/time/end`、`/time/mode`へのDirect Override |
-| 予定本文 | `/action`へのDirect Override |
-| 通常コメント | `/summary`へのDirect Override |
-| 候補と判断 | 上記の未送信入力。`selection`への即時Direct Overrideにはしない |
+`edit_trip_day`は`areas`（順序付き`{name, location}`配列）を`/areas`へ保存する。
+位置不明はnull、表示は名前を矢印で結ぶ。既存のroute_summary commandは維持するが、
+areasがある日はその配列を表示・天気地点の正本とする。旧文字列を自動分割しない。
+日付編集は天気値を手入力せず、`lookup_place(name, adapter)`のCAL所有の取得結果から
+位置を確認して使う。この読取境界は新規Placeにも共用し、保存前はsheet内だけの値とする。
+保存済み・候補Placeの不足情報は既存の`get/adopt_place_enrichment`へ委譲する。
 
-通常の局所AI更新は、直接編集と同じ対象stable ID・意味フィールド更新境界へ収束させる。
-返却値は対象内の`semantic_field_changes`とし、CALが対象、許可field、schema、effective Tripを
-検証してからDirect Override相当の局所結果として反映する。通常局所更新を既存の
-`generation_requests`へ投入してcomplete Trip candidateを採用する経路にはしない。
+天気は順序付きareas内の最初の座標付きエリアを使用するMac確認案。
+予定Placeや移動endpointからの自動選択はやめ、エリア位置がなければ地点不明とする。
+複数エリアの表示地点・表示数の最終UIはus判断待ち。
 
-新規Trip作成はbaseを持たないため、完全Trip JSONを生成・Schema / semantic validationして
-初回採用する独立経路とする。既存Tripの初期化、Day構成や複数対象の関係を大きく組み替える
-全体再生成だけが、CAL-owned base/version/hash、JSON Patch、complete candidate Validation、
-atomic adoptionを使う。provider、model、credential、AIGはどちらのCAL契約にも含めない。
+新規Trip作成はbaseを持たないため、完全Trip JSONのcomplete candidate Validationから
+初回採用する独立経路とする。既存Tripの大きな変更もChat candidateをCALが検証・明示採用する。
+Day・順序・Place・Transportのstable IDと保存座標はmap-readinessを満たす。
+地図providerやroute生成はGoal 2で決め、地図用の別正本は作らない。
 
-現行schemaは、Dayと順序、予定のPlace候補・選択、Placeの名前・住所・緯度経度・URL、
-Transportの手段・出発地・到着地をstable IDで結べるため、Goal 2で日別の地点と移動を
-派生するmap-readinessを満たす。座標が`null`のPlaceは地図点から除外可能であり、地図provider、
-route生成、navigation連携はGoal 2で決め、地図用の別正本は作らない。
-
-## Phase 3の直接編集契約
-
-### Goal 1の日別代表エリア（Issue #88）
-
-FRM #39の日付行は既存の`day_id`と`route_summary`を表示・編集に使い、
-`edit_trip_day(command_id, trip_id, day_id, {"route_summary": value})`を呼ぶ。
-受け付けるfieldは`route_summary`だけで、valueは現行Schemaの文字列または`null`
-（未設定）とする。空文字列もそのまま保存し、地域の推測・分解・正規化は行わない。
-CALは対象が当該TripのDayであることとcomplete effective TripのSchema / semantic
-Validationを確認し、既存のDirect Overrideへ`day_id + /routeSummary`として保存する。
-同じ対象の再編集は同じOverride行を更新し、不正値・不正対象は保存しない。
-
-戻り値は既存`edit_trip_item`と同じ`{trip, view, updated_fields}`で、
-`updated_fields`は`["route_summary"]`となる。保存後の画面は
-`get_trip_detail_view(trip_id)`でeffective Tripを再取得する。
-Day.titleや他の日・予定を変更せず、formal Trip JSONを直接書き換えない。
-Workingを作成・更新・消去せず、既存Workingがある場合は既存のrevision比較により
-staleになり得る。Working / candidate / OpenAIの契約は変更しない。
-
-Goal 1の通常の具体値手動編集は、予定には既存`edit_trip_item`、日別代表エリアには
-上記commandを使い、Workingを介在させない。日付行・編集sheet・保存後の再読込は
-FRM #39が担当し、UIはTrip JSON / SQLiteを直接操作しない。
-
-### 既存予定
-
-表示モデルの`direct_edit_paths`を使い、`scheduleItem`はstatus、時刻、予定本文、通常コメント、
-`transport`はstatusと時刻を一つの意味commandへ渡す。CALはcomplete effective Tripを
-Schema・semantic Validationしてから一transactionでDirect Overrideへ反映し、失敗時は
-何も部分反映しない。保存後はeffective Tripから再表示する。候補判断と局所AI executorは
-直接編集を置き換えず、Phase 4以降でこの同じ意味境界へ接続する。
+以下のWorking・AI再生成契約は保存基盤の既存記録であり、#116の主要UIではない。
 
 ## Phase 4のWorking Trip保存境界
 

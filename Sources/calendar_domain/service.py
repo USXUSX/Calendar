@@ -250,7 +250,7 @@ class CalendarDomain(ChatExchangeMixin):
         overrides = connection.execute(
             "SELECT source_item_id, field_path, value_json FROM direct_overrides "
             "WHERE trip_id = ? AND active = 1 ORDER BY "
-            "CASE WHEN field_path LIKE '/places/@%' THEN 0 WHEN field_path LIKE '/scheduleItems/@%' THEN 1 ELSE 2 END, created_at, id",
+            "CASE WHEN value_json = 'null' AND (field_path LIKE '/scheduleItems/@%' OR field_path LIKE '/transports/@%') THEN 3 WHEN field_path LIKE '/places/@%' THEN 0 WHEN field_path LIKE '/scheduleItems/@%' THEN 1 ELSE 2 END, created_at, id",
             (trip_id,),
         ).fetchall()
         for row in overrides:
@@ -868,17 +868,21 @@ class CalendarDomain(ChatExchangeMixin):
         parts = cls._path_parts(field_path)
         # CAL-owned structural Direct Overrides address one member by stable ID.
         # Materialize them before ordinary field Overrides; never snapshot a collection.
-        if len(parts) == 2 and parts[0] in {"places", "scheduleItems"} and parts[1].startswith("@"):
+        if len(parts) == 2 and parts[0] in {"places", "scheduleItems", "transports"} and parts[1].startswith("@"):
             identity = parts[1][1:]
             collection = target.get(parts[0])
-            proper_target = (parts[0] == "places" and target is trip) or (
+            proper_target = (parts[0] in {"places", "transports"} and target is trip) or (
                 parts[0] == "scheduleItems" and any(target is d for d in trip["days"]))
             if (not proper_target or not isinstance(collection, list) or not _TRIP_ID.fullmatch(identity)
-                    or not isinstance(value, dict) or value.get("id") != identity):
+                    or (value is None and parts[0] == "places")
+                    or (value is not None and (not isinstance(value, dict) or value.get("id") != identity))):
                 raise ValidationError("invalid structural Direct Override")
             existing = cls._item_matches(trip, identity)
             if existing and (len(existing) != 1 or not any(existing[0] is v for v in collection)):
                 raise ConflictError("addition identity conflicts with another Trip object")
+            if value is None:
+                collection[:] = [v for v in collection if v["id"] != identity]
+                return
             if existing:
                 collection[next(i for i, v in enumerate(collection) if v is existing[0])] = copy.deepcopy(value)
             else:
@@ -895,7 +899,7 @@ class CalendarDomain(ChatExchangeMixin):
         if isinstance(target, dict):
             optional_query = field_path == "/searchQuery" and any(
                 target is item for day in trip["days"] for item in day["scheduleItems"])
-            if leaf not in target and not optional_query:
+            if leaf not in target and not optional_query and leaf not in {"areas", "candidateJudgments", "serviceName"}:
                 raise ValidationError(f"field_path does not exist: {field_path}")
             target[leaf] = copy.deepcopy(value)
         elif isinstance(target, list) and leaf.isdigit() and int(leaf) < len(target):
@@ -910,7 +914,7 @@ class CalendarDomain(ChatExchangeMixin):
             rows = connection.execute(
                 "SELECT source_item_id, field_path, value_json FROM direct_overrides "
                 "WHERE trip_id = ? AND active = 1 ORDER BY "
-                "CASE WHEN field_path LIKE '/places/@%' THEN 0 WHEN field_path LIKE '/scheduleItems/@%' THEN 1 ELSE 2 END, created_at, id",
+                "CASE WHEN value_json = 'null' AND (field_path LIKE '/scheduleItems/@%' OR field_path LIKE '/transports/@%') THEN 3 WHEN field_path LIKE '/places/@%' THEN 0 WHEN field_path LIKE '/scheduleItems/@%' THEN 1 ELSE 2 END, created_at, id",
                 (trip_id,),
             ).fetchall()
         effective = copy.deepcopy(trip)
@@ -1572,11 +1576,18 @@ class CalendarDomain(ChatExchangeMixin):
         weather_by_day: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Return the Phase 1 Trip-detail model derived from the effective Trip."""
-        return build_trip_detail_view(
-            self.get_chat_context(trip_id)["trip"],
+        context = self.get_chat_context(trip_id)
+        result = build_trip_detail_view(
+            context["trip"],
             candidate_judgments=candidate_judgments,
             weather_by_day=weather_by_day,
         )
+        for day in result["days"]:
+            for entry in day["entries"]:
+                entry["ai_instruction"] = next((i["instruction"] for i in context["instructions"]
+                    if i.get("source_item_id") == entry["source_item_id"]), None)
+        return result
+
 
     def get_working_trip_generation_candidate_preview(
         self, trip_id: str, generation_id: str,
@@ -1735,55 +1746,6 @@ class CalendarDomain(ChatExchangeMixin):
                 days[record["day_id"]]["working_instruction"] = record["instruction"]
         view["working"] = {"present": True, "stale": working["stale"]}
         return view
-
-    def search_schedule_candidates(self, trip_id, day_id, query, adapter, transport, *, search_queries=None):
-        """Return transient, advisory AFM recommendations; never writes."""
-        from .conditioned_schedule import search
-        return search(self, trip_id, day_id, query, adapter, transport, search_queries)
-
-    def add_conditioned_schedule(self, command_id, trip_id, day_id, values, result,
-                                 selected_ids, *, confirmed=False):
-        """Add one confirmed schedule, keeping only persistable selected Places."""
-        from .conditioned_schedule import add
-        return add(self, command_id, trip_id, day_id, values, result, selected_ids, confirmed)
-
-    def list_unresolved_schedule_queries(self, trip_id):
-        """Read original conditions for future explicitly triggered AI processing."""
-        from .conditioned_schedule import schedule_queries
-        return schedule_queries(self, trip_id, unresolved_only=True)
-
-    def search_existing_schedule_candidates(self, trip_id, source_item_id, query, adapter,
-                                            transport, *, search_queries=None):
-        """Reuse the shared search with a stable existing ScheduleItem target."""
-        from .conditioned_schedule import search_existing
-        return search_existing(self, trip_id, source_item_id, query, adapter, transport, search_queries)
-
-    def add_schedule_candidates(self, command_id, trip_id, source_item_id, result,
-                                selected_ids, *, confirmed=False):
-        """Save zero to three candidates and original conditions, preserving selection."""
-        from .conditioned_schedule import add_candidates
-        return add_candidates(self, command_id, trip_id, source_item_id, result, selected_ids, confirmed)
-
-    def list_schedule_queries(self, trip_id):
-        """Read conditions even for schedules that already have a formal selection."""
-        from .conditioned_schedule import schedule_queries
-        return schedule_queries(self, trip_id)
-
-    def get_comment_enrichment(self, trip_id, source_item_id, place_id, instruction, adapter):
-        """Acquire transient comment evidence for one explicitly chosen schedule Place."""
-        from .comment_enrichment import acquire
-        return acquire(self, trip_id, source_item_id, place_id, instruction, adapter)
-
-    def prepare_comment_enrichment(self, trip_id, source_item_id, acquisition, candidate_index,
-                                   transport, *, confirmed=False):
-        """Extract only after facility confirmation, returning a preview without writing."""
-        from .comment_enrichment import prepare
-        return prepare(self, trip_id, source_item_id, acquisition, candidate_index, transport, confirmed)
-
-    def append_comment_enrichment(self, command_id, trip_id, source_item_id, preview, *, confirmed=False):
-        """Append a confirmed preview with sources/date, preserving all other fields."""
-        from .comment_enrichment import append
-        return append(self, command_id, trip_id, source_item_id, preview, confirmed)
 
     def get_place_enrichment(self, trip_id, target, adapter, *, area=""):
         """Read-only facility acquisition; only explicit place hints leave CAL."""
@@ -2344,6 +2306,13 @@ class CalendarDomain(ChatExchangeMixin):
         self.get_chat_context(result["trip_id"])
         return result
 
+    def lookup_place(self, name, adapter):
+        from Sources.place_acquisition import FacilityQuery, valid_field
+        result = adapter.search(FacilityQuery(name=name))
+        return {"status": result.status, "candidates": [
+            {k: copy.deepcopy(v) for k,v in c.persistable.items() if valid_field(k,v)}
+            for c in result.candidates if valid_field("name", c.persistable.get("name"))]}
+
     def edit_trip_item(self, command_id: str, trip_id: str, source_type: str,
                        source_item_id: str, changes: dict[str, Any]) -> dict[str, Any]:
         """Validate and persist one target's semantic field changes atomically."""
@@ -2352,33 +2321,26 @@ class CalendarDomain(ChatExchangeMixin):
             raise ValidationError("direct edit requires a scheduleItem or transport target")
         if not isinstance(changes, dict) or not changes:
             raise ValidationError("direct edit changes must be a non-empty object")
-        paths = {
-            "status": "/status", "start": "/time/start", "end": "/time/end",
-            "time_mode": "/time/mode",
-        }
-        if source_type == "scheduleItem":
-            paths.update({"title": "/action", "normal_comment": "/summary"})
-        unknown = set(changes) - set(paths)
-        if unknown:
-            raise ValidationError(f"direct edit field is not allowed: {sorted(unknown)[0]}")
-        effective = self.get_effective_trip(trip_id)
-        matches = self._item_matches(effective, source_item_id)
-        if len(matches) != 1 or (source_type == "transport") != (matches[0] in effective["transports"]):
-            raise ValidationError("direct edit target type does not match the stable ID")
-        return self._edit_trip_fields(command_id, trip_id, source_item_id, changes, paths, effective)
+        from .review_edit import edit_item
+        return edit_item(self, command_id, trip_id, source_type, source_item_id, changes)
+
+    def change_trip_schedule(self, command_id, trip_id, action, payload):
+        """Direct add/delete/reorder via CAL-owned structural Overrides."""
+        from .direct_schedule import change
+        return change(self, command_id, trip_id, action, payload)
 
     def edit_trip_day(self, command_id: str, trip_id: str, day_id: str,
                       changes: dict[str, Any]) -> dict[str, Any]:
         """Update one day's representative area through Direct Override."""
         self._require_text(command_id, "command_id")
         self._require_text(day_id, "day_id")
-        if not isinstance(changes, dict) or set(changes) != {"route_summary"}:
-            raise ValidationError("day edit requires only route_summary")
+        if not isinstance(changes, dict) or not changes or not set(changes) <= {"route_summary", "areas"}:
+            raise ValidationError("day edit requires areas or route_summary")
         effective = self.get_effective_trip(trip_id)
         if not any(day["id"] == day_id for day in effective["days"]):
             raise ValidationError("day edit target does not match a Day stable ID")
         return self._edit_trip_fields(
-            command_id, trip_id, day_id, changes, {"route_summary": "/routeSummary"}, effective,
+            command_id, trip_id, day_id, changes, {"route_summary": "/routeSummary", "areas": "/areas"}, effective,
         )
 
     def _edit_trip_fields(self, command_id: str, trip_id: str, source_item_id: str,
@@ -2436,7 +2398,7 @@ class CalendarDomain(ChatExchangeMixin):
         with self._read() as connection:
             rows = connection.execute(
                 "SELECT id FROM direct_overrides WHERE trip_id = ? AND active = 1 ORDER BY "
-                "CASE WHEN field_path LIKE '/places/@%' THEN 0 WHEN field_path LIKE '/scheduleItems/@%' THEN 1 ELSE 2 END, created_at, id",
+                "CASE WHEN value_json = 'null' AND (field_path LIKE '/scheduleItems/@%' OR field_path LIKE '/transports/@%') THEN 3 WHEN field_path LIKE '/places/@%' THEN 0 WHEN field_path LIKE '/scheduleItems/@%' THEN 1 ELSE 2 END, created_at, id",
                 (trip_id,),
             ).fetchall()
         return [self._get_override(row["id"]) for row in rows]

@@ -68,23 +68,9 @@ def _valid_location(location):
 
 
 def _day_places(trip, day):
-    places = {place["id"]: place for place in trip["places"]}
-    transports = {item["id"]: item for item in trip["transports"]}
-    ordered = []
-    for item in day["scheduleItems"]:
-        ordered.append((item["order"], "schedule", item))
-    for transport_id in day["transportIds"]:
-        item = transports[transport_id]
-        ordered.append((item["order"], "transport", item))
-    for _, kind, item in sorted(ordered, key=lambda value: (value[0], value[2]["id"])):
-        if kind == "schedule":
-            place_ids = item.get("placeSelection", {}).get("selection", [])
-        else:
-            place_ids = [item["fromPlaceId"], item["toPlaceId"]]
-        for place_id in place_ids:
-            place = places.get(place_id)
-            if place is not None and _valid_location(place.get("location")):
-                yield place
+    for index, area in enumerate(day.get("areas", [])):
+        if _valid_location(area.get("location")):
+            yield {"id": f"{day['id']}-area-{index}", **area}
 
 
 class OpenMeteoAdapter:

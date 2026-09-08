@@ -77,6 +77,8 @@ def schema_errors(value: Any, rule: dict[str, Any], root: dict[str, Any], path: 
         for key, item in value.items():
             if key in properties:
                 errors.extend(schema_errors(item, properties[key], root, f"{path}.{key}"))
+            elif isinstance(rule.get("additionalProperties"), dict):
+                errors.extend(schema_errors(item, rule["additionalProperties"], root, f"{path}.{key}"))
     return errors
 
 
@@ -144,6 +146,8 @@ def semantic_errors(trip: dict[str, Any]) -> list[str]:
             selection = item["placeSelection"]
             candidates = set(selection["candidatePlaceIds"])
             selected = set(selection["selection"])
+            if not set(item.get("candidateJudgments", {})) <= candidates:
+                errors.append(f"{base}.candidateJudgments: unknown candidate Place id")
             query = item.get("searchQuery")
             if not candidates and (not isinstance(query, str) or not query.strip()):
                 errors.append(f"{base}.searchQuery: empty candidatePlaceIds requires a nonblank searchQuery")

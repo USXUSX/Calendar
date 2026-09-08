@@ -140,3 +140,10 @@ reviewは `status=absent / stale / invalid / ready`、`ready`、未処理`instru
 FrameのHTTPとiPad mini相当幅の代表操作でも同じ契約を確認する。
 #114のproduction切替では正式Trip/SQLiteを変更せずcontextを再生成し、Drive側の同じ内容の読取りまで確認する。
 物理端末での実用性・Phase 8の判断は#96で扱う。
+
+### #116の編集情報
+
+contextのTripには任意のDay.areas（順序付きname/location）、ScheduleItem.candidateJudgments、
+Transport.serviceNameとmode=shinkansenを保持できる。rangeは開始＋durationMinutesから終了を計算する。
+予定単位instructionsはsource_item_idを持つ。Chatは対象を解決して結果をcandidateへ反映し、
+対応済みのIDをhandled_instruction_idsへ列挙する。指示文自体を予定本文に転記しない。

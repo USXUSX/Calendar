@@ -46,7 +46,7 @@ def _candidate_places(
     if not selection:
         return []
     result = []
-    item_judgments = judgments.get(item["id"], {})
+    item_judgments = judgments.get(item["id"], item.get("candidateJudgments", {}))
     if not isinstance(item_judgments, dict):
         raise ValidationError("candidate judgments must be grouped by source item id")
     for index, place_id in enumerate(selection["candidatePlaceIds"], 1):
@@ -102,6 +102,7 @@ def _entry(
         "source_type": source_type,
         "source_item_id": item["id"],
         "order": item["order"],
+        "transport_mode": item.get("mode"), "service_name": item.get("serviceName"),
         "time": {"label": _time_label(item["time"]), **copy.deepcopy(item["time"])},
         "category": category,
         "category_icon_key": _CATEGORY_ICON_KEYS[category],
@@ -169,7 +170,8 @@ def build_trip_detail_view(
         _mark_time_conflicts(entries)
         days.append({
             "day_id": day["id"], "date": day["date"], "title": day["title"],
-            "route_summary": day["routeSummary"], "weather": copy.deepcopy(weather.get(day["id"])),
+            "areas": copy.deepcopy(day.get("areas", [])),
+            "route_summary": " → ".join(a["name"] for a in day["areas"]) if "areas" in day else day["routeSummary"], "weather": copy.deepcopy(weather.get(day["id"])),
             "entries": entries,
         })
     return {
