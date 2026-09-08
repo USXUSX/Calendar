@@ -49,8 +49,10 @@ Direct Overrideへ保存する。未判断はキーなし。選択・状態は�
 通常画面ではrangeの終了側に滞在時間、fixedでは終了時刻を表示する。
 
 予定単位AI指示は既存`ai_instructions`へ保存し、生成requestを作らない。
-`item:<trip_id>:<source_item_id>`のIDで対象との関係を保持し、contextのinstructionsに
-`source_item_id`を付ける。同一予定の指示欄を更新でき、空欄保存はpendingを取消す。
+`item:<trip_id>:<source_item_id>:<unique_id>`のIDで対象との関係を保持し、contextのinstructionsに
+`source_item_id`を付ける。同一予定の指示変更は旧IDを取消して新しいIDで保存し、空欄保存はpendingを取消す。
+同一内容の再保存はIDを維持する。旧指示をhandled_instruction_idsに含むcandidateは
+既存のpending照合で拒否され、新しい指示を処理済みにしない。
 Chatが`handled_instruction_ids`で処理完了すると通常画面の未処理表示から外れる。
 予定本文やコメントへ指示そのものを残さない。後続処理は[Chat往復](trip-json-generation.md)に従う。
 

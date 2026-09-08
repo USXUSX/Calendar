@@ -1,5 +1,5 @@
 """Item sheet commands for the Calendar #116 review."""
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, uuid4, uuid5
 from .errors import ValidationError
 from scripts.validate_trip import validate_value, semantic_errors
 
@@ -73,13 +73,21 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
         instruction = changes.get('ai_instruction')
         if 'ai_instruction' in changes:
             if not isinstance(instruction, str): raise ValidationError('AI指示は文字列で入力してください。')
-            identity = f'item:{trip_id}:{source_item_id}'
-            now = _now()
-            if instruction.strip():
-                connection.execute("INSERT INTO ai_instructions (id,trip_id,instruction,state,created_at,updated_at) VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET instruction=excluded.instruction,state=excluded.state,updated_at=excluded.updated_at",
-                    (identity,trip_id,instruction.strip(),'pending',now,now))
-            else:
-                connection.execute("UPDATE ai_instructions SET state='cancelled', updated_at=? WHERE id=? AND state='pending'", (now,identity))
+            target_id = f'item:{trip_id}:{source_item_id}'
+            pending = [row for row in connection.execute(
+                "SELECT id, instruction FROM ai_instructions WHERE trip_id=? AND state='pending'", (trip_id,))
+                if row['id'] == target_id or row['id'].startswith(target_id + ':')]
+            instruction = instruction.strip()
+            # An unchanged sheet save preserves the pending instruction identity.
+            if not (len(pending) == 1 and pending[0]['instruction'] == instruction):
+                now = _now()
+                for row in pending:
+                    connection.execute("UPDATE ai_instructions SET state='cancelled', updated_at=? WHERE id=?",
+                                       (now, row['id']))
+                if instruction:
+                    identity = target_id + ':' + uuid4().hex
+                    connection.execute("INSERT INTO ai_instructions (id,trip_id,instruction,state,created_at,updated_at) VALUES (?,?,?,?,?,?)",
+                                       (identity,trip_id,instruction,'pending',now,now))
 
         for target,path,value in edits:
             domain._store_trip_fields(connection,command_id,trip_id,target,{path:value},{path:path})

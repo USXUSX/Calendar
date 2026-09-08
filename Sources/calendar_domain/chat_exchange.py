@@ -31,7 +31,7 @@ class ChatExchangeMixin:
         for instruction in instructions:
             prefix = f"item:{trip_id}:"
             if instruction["id"].startswith(prefix):
-                instruction["source_item_id"] = instruction["id"][len(prefix):]
+                instruction["source_item_id"] = instruction["id"][len(prefix):].split(":", 1)[0]
         value = {"trip_id": trip_id,
                  "current_revision": {"trip_version": version, "trip_hash": self._digest(self._trip_path(trip_id).read_bytes())},
                  "effective_revision": {"trip_version": version, "effective_hash": self._digest(self._canonical_json(effective))},
