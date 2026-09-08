@@ -899,7 +899,7 @@ class CalendarDomain(ChatExchangeMixin):
         if isinstance(target, dict):
             optional_query = field_path == "/searchQuery" and any(
                 target is item for day in trip["days"] for item in day["scheduleItems"])
-            if leaf not in target and not optional_query:
+            if leaf not in target and not optional_query and leaf not in {"areas", "candidateJudgments", "serviceName"}:
                 raise ValidationError(f"field_path does not exist: {field_path}")
             target[leaf] = copy.deepcopy(value)
         elif isinstance(target, list) and leaf.isdigit() and int(leaf) < len(target):
@@ -1576,11 +1576,18 @@ class CalendarDomain(ChatExchangeMixin):
         weather_by_day: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Return the Phase 1 Trip-detail model derived from the effective Trip."""
-        return build_trip_detail_view(
-            self.get_chat_context(trip_id)["trip"],
+        context = self.get_chat_context(trip_id)
+        result = build_trip_detail_view(
+            context["trip"],
             candidate_judgments=candidate_judgments,
             weather_by_day=weather_by_day,
         )
+        for day in result["days"]:
+            for entry in day["entries"]:
+                entry["ai_instruction"] = next((i["instruction"] for i in context["instructions"]
+                    if i.get("source_item_id") == entry["source_item_id"]), None)
+        return result
+
 
     def get_working_trip_generation_candidate_preview(
         self, trip_id: str, generation_id: str,
@@ -2299,6 +2306,13 @@ class CalendarDomain(ChatExchangeMixin):
         self.get_chat_context(result["trip_id"])
         return result
 
+    def lookup_place(self, name, adapter):
+        from Sources.place_acquisition import FacilityQuery, valid_field
+        result = adapter.search(FacilityQuery(name=name))
+        return {"status": result.status, "candidates": [
+            {k: copy.deepcopy(v) for k,v in c.persistable.items() if valid_field(k,v)}
+            for c in result.candidates if valid_field("name", c.persistable.get("name"))]}
+
     def edit_trip_item(self, command_id: str, trip_id: str, source_type: str,
                        source_item_id: str, changes: dict[str, Any]) -> dict[str, Any]:
         """Validate and persist one target's semantic field changes atomically."""
@@ -2307,21 +2321,8 @@ class CalendarDomain(ChatExchangeMixin):
             raise ValidationError("direct edit requires a scheduleItem or transport target")
         if not isinstance(changes, dict) or not changes:
             raise ValidationError("direct edit changes must be a non-empty object")
-        paths = {
-            "status": "/status", "start": "/time/start", "end": "/time/end",
-            "time_mode": "/time/mode",
-        }
-        if source_type == "scheduleItem":
-            paths.update({"title": "/action", "normal_comment": "/summary",
-                          "selection": "/placeSelection/selection"})
-        unknown = set(changes) - set(paths)
-        if unknown:
-            raise ValidationError(f"direct edit field is not allowed: {sorted(unknown)[0]}")
-        effective = self.get_effective_trip(trip_id)
-        matches = self._item_matches(effective, source_item_id)
-        if len(matches) != 1 or (source_type == "transport") != (matches[0] in effective["transports"]):
-            raise ValidationError("direct edit target type does not match the stable ID")
-        return self._edit_trip_fields(command_id, trip_id, source_item_id, changes, paths, effective)
+        from .review_edit import edit_item
+        return edit_item(self, command_id, trip_id, source_type, source_item_id, changes)
 
     def change_trip_schedule(self, command_id, trip_id, action, payload):
         """Direct add/delete/reorder via CAL-owned structural Overrides."""
@@ -2333,13 +2334,13 @@ class CalendarDomain(ChatExchangeMixin):
         """Update one day's representative area through Direct Override."""
         self._require_text(command_id, "command_id")
         self._require_text(day_id, "day_id")
-        if not isinstance(changes, dict) or set(changes) != {"route_summary"}:
-            raise ValidationError("day edit requires only route_summary")
+        if not isinstance(changes, dict) or not changes or not set(changes) <= {"route_summary", "areas"}:
+            raise ValidationError("day edit requires areas or route_summary")
         effective = self.get_effective_trip(trip_id)
         if not any(day["id"] == day_id for day in effective["days"]):
             raise ValidationError("day edit target does not match a Day stable ID")
         return self._edit_trip_fields(
-            command_id, trip_id, day_id, changes, {"route_summary": "/routeSummary"}, effective,
+            command_id, trip_id, day_id, changes, {"route_summary": "/routeSummary", "areas": "/areas"}, effective,
         )
 
     def _edit_trip_fields(self, command_id: str, trip_id: str, source_item_id: str,

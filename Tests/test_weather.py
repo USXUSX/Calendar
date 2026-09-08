@@ -55,17 +55,19 @@ class FakeAdapter:
 
 
 class WeatherContextTests(unittest.TestCase):
-    def test_available_uses_first_selected_place_with_stored_coordinates(self):
+    def test_available_uses_ordered_day_area_not_selected_place(self):
         data = trip([
             {"id": "day-1", "date": "2026-09-10", "scheduleItems": [
                 schedule("first", "day-1", 10, ["missing-location"]),
                 schedule("second", "day-1", 20, ["known"]),
             ], "transportIds": []},
         ], [place("missing-location", "No coords"), place("known", "Known", 35.0, 139.0)])
+        data['days'][0]['areas'] = [{'name':'Known', 'location':{'latitude':36.0,'longitude':140.0}}]
         adapter = FakeAdapter()
         result = build_weather_by_day(data, adapter, today=date(2026, 9, 7))["day-1"]
         self.assertEqual(result["status"], "available")
-        self.assertEqual(result["place_id"], "known")
+        self.assertEqual(result["place_id"], "day-1-area-0")
+        self.assertEqual(adapter.calls[0][0], {"latitude":36.0,"longitude":140.0})
         self.assertEqual(result["place_name"], "Known")
         self.assertEqual(result["forecast_date"], "2026-09-10")
         self.assertEqual(result["attribution"], "Weather data by Open-Meteo.com")
@@ -99,6 +101,7 @@ class WeatherContextTests(unittest.TestCase):
                 schedule("one", "day-1", 10, ["known"]),
             ], "transportIds": []},
         ], [place("known", "Known", 35.0, 139.0)])
+        data["days"][0]["areas"] = [{"name":"Known", "location":{"latitude":35.0,"longitude":139.0}}]
         adapter = FakeAdapter({"status": "unavailable"})
         result = build_weather_by_day(data, adapter, today=date(2026, 9, 7))["day-1"]
         self.assertEqual(result["status"], "unavailable")

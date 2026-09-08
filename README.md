@@ -2,6 +2,12 @@
 
 Calendar is the first standard project in `/Users/us/Tools`, built with a three-layer layout that lets Codex discover the right information without repeated path instructions.
 
+## Calendar #116 Mac再レビュー
+
+閲覧中心の行選択、予定／移動／日付エリアのsheet編集、候補OK/NGと1件確定、
+予定単位Chat指示を実装中。現行仕様は[表示・更新契約](docs/trip-detail-model.md#閲覧編集の意味境界116)。
+Calendar PR #117とFrame PR #62でMac再レビュー待ち。merge・公式同期・物理iPad mini受入へは進まない。
+
 ## Current baseline
 
 Goal 1の新規Trip主要経路は、Chatで完全Trip JSONを生成し、CALでValidation・取込・表示・編集する方式である。取込後の編集は微修正に限定しない。

@@ -28,6 +28,10 @@ class ChatExchangeMixin:
             instructions = [dict(row) for row in connection.execute(
                 "SELECT id, instruction FROM ai_instructions WHERE trip_id = ? AND state = 'pending' ORDER BY created_at, id",
                 (trip_id,))]
+        for instruction in instructions:
+            prefix = f"item:{trip_id}:"
+            if instruction["id"].startswith(prefix):
+                instruction["source_item_id"] = instruction["id"][len(prefix):]
         value = {"trip_id": trip_id,
                  "current_revision": {"trip_version": version, "trip_hash": self._digest(self._trip_path(trip_id).read_bytes())},
                  "effective_revision": {"trip_version": version, "effective_hash": self._digest(self._canonical_json(effective))},

@@ -21,8 +21,8 @@ class CalendarDomain(_CalendarDomain):
             weather_by_day = build_weather_by_day(
                 effective, self._weather_adapter, today=self._weather_today,
             )
-        return build_trip_detail_view(
-            effective,
+        return super().get_trip_detail_view(
+            trip_id,
             candidate_judgments=candidate_judgments,
             weather_by_day=weather_by_day,
         )
