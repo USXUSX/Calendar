@@ -26,21 +26,26 @@
 
 `scheduleItem`と`transport`の状態はTrip内容に保持する明示値
 `confirmed / tentative / undecided`をそのまま返す。時刻、場所、候補数から導出せず、
-通常表示はconfirmedを「確定」、tentative / undecidedを「未確定」とする。場所を選択しても予定状態は変更しない。候補が複数あれば`has_candidates`を独立して返し、
+通常表示ではconfirmedにラベルを付けず、tentative / undecidedだけ「未確定」とする。場所を選択しても予定状態は変更しない。候補が複数あれば`has_candidates`を独立して返し、
 状態を上書きしない。
 
 `候補あり`と候補一覧は`candidatePlaceIds`から導出する。採用済みの選択は`selection`として
-区別し、候補判断の`OK`をそこへ書き込まない。
+区別し、候補判断の「いいね」をそこへ書き込まない。
 
 ## 閲覧・編集の意味境界（#116）
 
-通常画面の候補OKは`ScheduleItem.candidateJudgments`（Place ID → `ok`）として
+通常画面の候補「いいね」は`ScheduleItem.candidateJudgments`（Place ID → `ok`）として
 Direct Overrideへ保存する。未判断はキーなし。選択・状態は変えない。
-編集sheetの場所確定は`selection: [place_id]`だけを保存する。旧ng値は保持できるが判断UIには表示しない。
+インライン編集の場所確定は`selection: [place_id]`だけを保存する。旧ng値は保持できるが判断UIには表示しない。
 
-`edit_trip_item`は状態・時刻・予定本文・コメントに加え、`duration_minutes`、
+`edit_trip_item`は状態・時刻・予定本文・コメント・`category`（観光/食事/宿泊/その他）に加え、`duration_minutes`、
 `place`（名前と確認済み住所・location・urls）、`candidate_judgments`、`ai_instruction`を扱う。
-移動は`from_place / to_place / transport_mode / service_name`を編集できる。
+移動は`from_place / to_place / transport_mode / service_name / important`を編集できる。
+Transport.importantは予約不要でも旅程上重要な移動を表す任意boolean（省略時false）。
+表示モデルはimportantと、bookingIdが参照するBooking.statusをbooking_statusとして返す。
+予約済みbooked・予約予定pending・予約変更を要するchange_requiredは通常予定と同格、
+それ以外はimportantがtrueの場合だけ同格とし、通常の移動は補助的なコネクタ表示にする。
+表示都合の属性は保存せず、Transportとendpoint座標は維持する。
 新しい場所名は新規Placeへ保存し、他予定の共有Placeを改名しない。
 新規Place・項目変更・AI指示は同一transactionで保存する。不正値は部分保存しない。
 
@@ -65,7 +70,8 @@ areasがある日はその配列を表示・天気地点の正本とする。旧
 
 天気は順序付きareasの座標付きエリアすべてから取得し、day.weather.locationsへ順番に返す。
 既存day.weather直下の最初の地点も維持する。通常表示はavailableの地点名・天気マークだけを矢印で結び、
-タップで気温・降水確率・取得時刻等を表示する。予報対象外・取得不可は通常表示しない。
+タップで当日の全表示エリアの天気・最高最低気温・降水確率をまとめて展開し、
+末尾にOpen-Meteoと取得時刻（m/d h:mm）を1回だけ表示する。予報対象外・取得不可は通常表示しない。
 予定Placeや移動endpointから地点を自動選択しない。
 
 新規Trip作成はbaseを持たないため、完全Trip JSONのcomplete candidate Validationから
@@ -73,9 +79,9 @@ areasがある日はその配列を表示・天気地点の正本とする。旧
 Day・順序・Place・Transportのstable IDと保存座標はmap-readinessを満たす。
 地図providerやroute生成はGoal 2で決め、地図用の別正本は作らない。
 
-### iPad mini通常画面（現行#116）
+### 通常旅程とインライン編集（#119）
 
-タイトルと日付・種類フィルターを一つのsticky領域とする。Chat入口はタイトル右側に控えめに置き、
+タイトルと日付・区分フィルターを一つのsticky領域とする。Chat入口はタイトル右側に控えめに置き、
 旅程全体の指示入力と予定別を含むpending指示の一覧だけを開く。通常の説明、成功通知、Trip取込入口、
 Chat差分preview・手動確定ボタンは旅程詳細から外す。失敗時は旅程上部へエラーを示す。
 
@@ -86,11 +92,24 @@ Wikidata P856から取得した公式URLは、既存の明示施設確認・不�
 レストラン候補のみurls中の食べログURLと、source=食べログかつ確認日を持つ既存rating.valueを表示する。
 評価を再取得・推測しない。未確認の点数は空欄。候補コメントはPlace.summary。
 
-候補は番号 / OK / 大きめの公式リンク名 / 食べログと点数 / コメントの順に1件1行で表示する。
-状態は予定の確定/未確定と場所未確定/候補ありを分離する。未処理AI指示は赤字、handled後は非表示。
-時刻はH:MM、時刻・種類・本文・状態の基準を揃え、コメント等を濃い文字で表示する。
-予定選択は濃い青で、右側へ十字型5ボタン（上↑、下↓、左編集、右削除、中央予定追加）を重ねる。
-選択前後で行高を変えず、中央追加は選択予定の直下。編集sheetの再設計は別途判断とする。
+通常は編集モードOFF。右上の鉛筆はChat指示欄、その隣に編集ON/OFFトグルを置く。
+OFFでも候補の「いいね」はON/OFFできる。ONで行をタップすると直接インライン編集し、
+入力欄以外・別行・取消では保存しないで閉じる。明示保存だけが更新commandを呼ぶ。
+日別情報の編集と予定追加もインラインに揃え、日末尾の追加入口と行選択の中間状態は撤去する。
+行内の予定追加は直下へ挿入する。日見出しの予定追加は既存の日末尾追加commandを使う。
+開始 / 終了または滞在時間 / 区分 / タイトルの列を通常表示と合わせ、下段にコメント等を置く。
+undecidedでは時刻入力を無効にする。移動の区分は固定し、出発地・到着地から本文を派生する。
+
+候補1件は、番号 / 小さい「いいね」アイコン / 公式リンク名 / 食べログと点数の1行目と、
+名前の下のコメントの2行目にする。OK/NGの文字ボタンは表示しない。
+時刻はH:MM、区分アイコンは同じ線・サイズ・枠のSVGセットとし、文字ラベルを添えない。
+区分は観光/食事/宿泊/移動/その他。日付はタブ、区分は角丸の弱いチップでグループ間を広く取る。
+区分ごとの淡色をチップ・アイコン・通常行の左端アクセントへ共用し、状態で背景や色を変えない。
+未確定だけ小さい暖色ラベルを本文の1行目横に置く。コメントは濃いグレー、フォントはゴシック系プロポーショナル。
+日別タイトルを太字にし、単独のエリア列と区切りの中黒を表示せず、天気は右寄せにする。
+ブラウザの通常選択・コピーで編集操作や状態文字が混入しないよう、非本文をuser-select:noneにする。
+独自clipboard処理は持たない。末尾は控えめな「↑ 上に戻る」を置く。
+MacとiPad mini相当の全画面・代表操作で確認し、production切替・実Trip変更・物理端末受入は別扱いとする。
 
 以下のWorking・AI再生成契約は保存基盤の既存記録であり、#116の主要UIではない。
 
