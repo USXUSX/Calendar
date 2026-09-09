@@ -146,7 +146,7 @@ FrameのHTTPとiPad mini相当幅の代表操作でも同じ契約を確認す�
 ### #116の編集情報
 
 contextのTripには任意のDay.areas（順序付きname/location）、ScheduleItem.candidateJudgments、
-Transport.serviceNameとmode=shinkansenを保持できる。rangeは開始＋durationMinutesから終了を計算する。
+Transport.serviceNameとmode=shinkansenを保持できる。予約不要でも旅程上重要な移動は任意booleanのimportantで保持する（省略時false）。予約済み・予約予定は既存Bookingを使う。詳細は[表示・更新契約](trip-detail-model.md#通常旅程とインライン編集119)。rangeは開始＋durationMinutesから終了を計算する。
 予定単位instructionsはsource_item_idを持つ。Chatは対象を解決して結果をcandidateへ反映し、
 対応済みのIDをhandled_instruction_idsへ列挙する。指示文自体を予定本文に転記しない。
 

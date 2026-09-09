@@ -105,4 +105,30 @@ class ReviewEditTests(unittest.TestCase):
         self.assertEqual(result['view']['days'][0]['route_summary'],'小樽 → 札幌')
         self.assertEqual(self.domain.get_chat_context(self.tid)['trip']['days'][0]['areas'],areas)
 
+
+    def test_transport_importance_category_and_booking_read_model(self):
+        from Sources.calendar_domain import build_trip_detail_view
+        transport = self.trip['transports'][0]
+        before = self.domain.get_effective_trip(self.tid)
+        saved = self.edit(transport, {'important': True}, 'transport')
+        entry = next(e for d in saved['view']['days'] for e in d['entries'] if e['source_item_id'] == transport['id'])
+        self.assertTrue(entry['important'])
+        current = saved['trip']
+        current['transports'][0].pop('important')
+        self.assertEqual(current, before)
+        self.assertTrue(self.domain.get_effective_trip(self.tid)['transports'][0]['important'])
+        with self.assertRaises(ValidationError):
+            self.edit(transport, {'important':'yes'}, 'transport')
+        self.edit(transport, {'important':False}, 'transport')
+        item = self.trip['days'][0]['scheduleItems'][0]
+        self.edit(item, {'category':'other'})
+        self.assertEqual(self.domain.get_effective_trip(self.tid)['days'][0]['scheduleItems'][0]['category'], 'other')
+        trip = copy.deepcopy(self.trip)
+        trip['bookings'] = [dict(id='reservation', status='pending', notes=None)]
+        trip['transports'][0]['bookingId'] = 'reservation'
+        for status in ('pending','booked','cancelled'):
+            trip['bookings'][0]['status'] = status
+            entry = next(e for d in build_trip_detail_view(trip)['days'] for e in d['entries'] if e['source_item_id'] == transport['id'])
+            self.assertEqual(entry['booking_status'], status)
+
 if __name__=='__main__':unittest.main()

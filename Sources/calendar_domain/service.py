@@ -899,7 +899,7 @@ class CalendarDomain(ChatExchangeMixin):
         if isinstance(target, dict):
             optional_query = field_path == "/searchQuery" and any(
                 target is item for day in trip["days"] for item in day["scheduleItems"])
-            if leaf not in target and not optional_query and leaf not in {"areas", "candidateJudgments", "serviceName"}:
+            if leaf not in target and not optional_query and leaf not in {"areas", "candidateJudgments", "serviceName", "important"}:
                 raise ValidationError(f"field_path does not exist: {field_path}")
             target[leaf] = copy.deepcopy(value)
         elif isinstance(target, list) and leaf.isdigit() and int(leaf) < len(target):
