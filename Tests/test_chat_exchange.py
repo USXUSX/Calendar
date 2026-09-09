@@ -35,6 +35,29 @@ class ChatExchangeTests(unittest.TestCase):
         self.file.write_text(json.dumps(value))
         return value
 
+    def test_normal_load_auto_adopts_and_invalid_keeps_formal_trip(self):
+        self.domain.add_chat_instruction('auto', self.id, '変更してほしい')
+        candidate = self.candidate()
+        loaded = self.domain.load_trip_detail_view(self.id)
+        self.assertEqual(loaded['title'], candidate['trip']['title'])
+        self.assertEqual(loaded['chat']['status'], 'adopted')
+        self.assertEqual(loaded['instructions'], [])
+        self.assertFalse(self.file.exists())
+        formal = self.domain._trip_path(self.id).read_bytes()
+        version = self.context()['current_revision']
+        self.file.write_text(json.dumps(candidate))
+        self.assertEqual(self.domain.load_trip_detail_view(self.id)['chat']['status'], 'stale')
+        for invalid in ('{', json.dumps({'trip_id': self.id})):
+            self.file.write_text(invalid)
+            self.assertEqual(self.domain.load_trip_detail_view(self.id)['chat']['status'], 'invalid')
+            self.assertEqual(self.domain._trip_path(self.id).read_bytes(), formal)
+            self.assertEqual(self.context()['current_revision'], version)
+        candidate = self.candidate()
+        candidate['trip']['days'][0]['scheduleItems'][0]['placeSelection']['selection'] = ['missing-place']
+        self.file.write_text(json.dumps(candidate))
+        self.assertEqual(self.domain.load_trip_detail_view(self.id)['chat']['status'], 'invalid')
+        self.assertEqual(self.domain._trip_path(self.id).read_bytes(), formal)
+
     def test_default_and_explicit_shared_root(self):
         default = CalendarDomain(self.db, self.root / 'data')
         self.assertEqual(default.chat_root, Path('/Users/us/Tools/GoogleDrive/Calendar_Chat'))

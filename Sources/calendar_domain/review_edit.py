@@ -41,7 +41,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
             else:
                 identity = 'place-' + uuid5(NAMESPACE_URL, f'{trip_id}:{command_id}:{field}').hex
                 place = dict(id=identity, name=supplied['name'].strip(), summary=None, category='other',
-                             rating=None, address=supplied.get('address'), location=supplied.get('location'), urls=supplied.get('urls', []))
+                             rating=None, address=supplied.get('address'), location=supplied.get('location'), urls=supplied.get('urls', []), officialUrl=supplied.get('officialUrl'))
                 edits.append((trip_id, '/places/@' + identity, place))
             if field == 'place':
                 ids = list(item['placeSelection']['candidatePlaceIds'])

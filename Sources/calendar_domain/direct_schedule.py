@@ -55,6 +55,14 @@ def change(domain, command_id, trip_id, action, payload):
                 else:
                     item['searchQuery'] = payload.get('search_query')
             item.update(id=identity, dayId=day['id'], order=max([i['order'] for i in entries] + [-1]) + 1)
+            after = payload.get('after_item_id')
+            if after is not None:
+                index = next((n for n, entry in enumerate(entries) if entry['id'] == after), None)
+                if index is None:
+                    raise ConflictError('追加位置の予定が変わりました。再読込してください。')
+                item['order'] = index + 1
+                changes.extend((entry['id'], '/order', n if n <= index else n + 1)
+                               for n, entry in enumerate(entries))
             changes.append((day['id'], '/scheduleItems/@' + identity, item))
         elif action == 'delete':
             identity = payload.get('source_item_id')

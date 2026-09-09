@@ -2,11 +2,12 @@
 
 Calendar is the first standard project in `/Users/us/Tools`, built with a three-layer layout that lets Codex discover the right information without repeated path instructions.
 
-## Calendar #116 Mac再レビュー
+## Calendar #116 iPad miniレビュー反映
 
-閲覧中心の行選択、予定／移動／日付エリアのsheet編集、候補OK/NGと1件確定、
-予定単位Chat指示を実装中。現行仕様は[表示・更新契約](docs/trip-detail-model.md#閲覧編集の意味境界116)。
-Calendar PR #117とFrame PR #62でMac再レビュー待ち。merge・公式同期・物理iPad mini受入へは進まない。
+閲覧主体の固定ヘッダー、自然文中の公式Placeリンク、複数エリア天気、候補OK、
+行高を変えない十字操作と直下追加を実装。通常load/reloadはCALのValidation後にChat candidateを自動反映する。
+現行仕様は[表示・更新契約](docs/trip-detail-model.md#ipad-mini通常画面現行116)と[Chat往復](docs/trip-json-generation.md)。
+編集sheetの再設計、production切替、実データ移行・削除、物理iPad mini受入は今回の実装外。
 
 ## Current baseline
 
@@ -17,7 +18,7 @@ Frameの`/calendar/import`はこのJSON経路を主要入口とし、1予定追�
 旧日本語ラベルの全Trip commandは互換用に保持するが、主要UIからは外した。
 既存Tripは#112の[継続Chat往復](docs/trip-json-generation.md#継続するchat往復112)を使える。
 CALが`GoogleDrive/Calendar_Chat/<trip-id>/`へ最新contextを自動共有し（#114）、
-FrameでChat指示追加とcandidateの変更確認・保留・明示反映を行う。
+FrameでChat指示を追加し、通常load/reloadでCALがcandidateを検証・自動反映する。
 Calendar_GDはGit参照コピー、Calendar_Localは正式Trip/SQLiteのまま分離する。
 正式Trip/SQLiteはCALだけが更新する。
 物理iPad miniの実用性・Phase 8振り返り・初期リリース判断は#96に残る。
@@ -25,7 +26,7 @@ Calendar_GDはGit参照コピー、Calendar_Localは正式Trip/SQLiteのまま�
 Issue #116でChat往復を主要経路とし、CAL内の候補検索・AFM推薦・コメントAIとFrameのWorking/AI編集UIを撤去した。
 通常画面の予定追加（直接/1予定コピペ）、削除、並び替え、候補Placeの選択は
 [直接操作契約](docs/direct-schedule.md)を使う。正式Place補完は選択状態に依存しない。
-Mac確認までを今回の到達点とし、物理iPad mini受入・Phase振り返り・初期リリース判断は#96に残る。
+通常UIの実装・検証・公式同期と分離した確認環境を今回の到達点とし、物理iPad mini受入・Phase振り返り・初期リリース判断は#96に残る。
 
 共通施設取得と⑥Place補完は`get_place_enrichment`で取得し、stable Placeは
 `adopt_place_enrichment`で明示確認済みの不足値だけをDirect Overrideへ正式採用する。

@@ -26,17 +26,17 @@
 
 `scheduleItem`と`transport`の状態はTrip内容に保持する明示値
 `confirmed / tentative / undecided`をそのまま返す。時刻、場所、候補数から導出せず、
-通常の編集では自動変更しない。編集sheetで候補を確定する場合だけ確定へ変更する。候補が複数あれば`has_candidates`を独立して返し、
+通常表示はconfirmedを「確定」、tentative / undecidedを「未確定」とする。場所を選択しても予定状態は変更しない。候補が複数あれば`has_candidates`を独立して返し、
 状態を上書きしない。
 
 `候補あり`と候補一覧は`candidatePlaceIds`から導出する。採用済みの選択は`selection`として
-区別し、未送信の`OK / NG`をそこへ書き込まない。
+区別し、候補判断の`OK`をそこへ書き込まない。
 
 ## 閲覧・編集の意味境界（#116）
 
-通常画面の候補OK/NGは`ScheduleItem.candidateJudgments`（Place ID → `ok / ng`）として
+通常画面の候補OKは`ScheduleItem.candidateJudgments`（Place ID → `ok`）として
 Direct Overrideへ保存する。未判断はキーなし。選択・状態は変えない。
-編集sheetの確定は`selection: [place_id]`と`status: confirmed`を同時に保存する。
+編集sheetの場所確定は`selection: [place_id]`だけを保存する。旧ng値は保持できるが判断UIには表示しない。
 
 `edit_trip_item`は状態・時刻・予定本文・コメントに加え、`duration_minutes`、
 `place`（名前と確認済み住所・location・urls）、`candidate_judgments`、`ai_instruction`を扱う。
@@ -63,14 +63,34 @@ areasがある日はその配列を表示・天気地点の正本とする。旧
 位置を確認して使う。この読取境界は新規Placeにも共用し、保存前はsheet内だけの値とする。
 保存済み・候補Placeの不足情報は既存の`get/adopt_place_enrichment`へ委譲する。
 
-天気は順序付きareas内の最初の座標付きエリアを使用するMac確認案。
-予定Placeや移動endpointからの自動選択はやめ、エリア位置がなければ地点不明とする。
-複数エリアの表示地点・表示数の最終UIはus判断待ち。
+天気は順序付きareasの座標付きエリアすべてから取得し、day.weather.locationsへ順番に返す。
+既存day.weather直下の最初の地点も維持する。通常表示はavailableの地点名・天気マークだけを矢印で結び、
+タップで気温・降水確率・取得時刻等を表示する。予報対象外・取得不可は通常表示しない。
+予定Placeや移動endpointから地点を自動選択しない。
 
 新規Trip作成はbaseを持たないため、完全Trip JSONのcomplete candidate Validationから
-初回採用する独立経路とする。既存Tripの大きな変更もChat candidateをCALが検証・明示採用する。
+初回採用する独立経路とする。既存Tripの大きな変更もChat candidateをCALが通常load / reload時に検証・自動採用する。
 Day・順序・Place・Transportのstable IDと保存座標はmap-readinessを満たす。
 地図providerやroute生成はGoal 2で決め、地図用の別正本は作らない。
+
+### iPad mini通常画面（現行#116）
+
+タイトルと日付・種類フィルターを一つのsticky領域とする。Chat入口はタイトル右側に控えめに置き、
+旅程全体の指示入力と予定別を含むpending指示の一覧だけを開く。通常の説明、成功通知、Trip取込入口、
+Chat差分preview・手動確定ボタンは旅程詳細から外す。失敗時は旅程上部へエラーを示す。
+
+Placeの任意field `officialUrl`は確認済み公式URL（https、未確認は省略/null）。`urls`は参考リンクの配列を維持し、
+順序やドメインから公式サイトを推測しない。予定本文actionを変更・分解せず、選択済みPlace.nameと完全一致する
+部分だけofficialUrlへリンクする。重複Place行を作らず、移動は本文リンクなし。endpointのstable ID・座標は保持する。
+Wikidata P856から取得した公式URLは、既存の明示施設確認・不足値採用でofficialUrlへ保存できる。
+レストラン候補のみurls中の食べログURLと、source=食べログかつ確認日を持つ既存rating.valueを表示する。
+評価を再取得・推測しない。未確認の点数は空欄。候補コメントはPlace.summary。
+
+候補は番号 / OK / 大きめの公式リンク名 / 食べログと点数 / コメントの順に1件1行で表示する。
+状態は予定の確定/未確定と場所未確定/候補ありを分離する。未処理AI指示は赤字、handled後は非表示。
+時刻はH:MM、時刻・種類・本文・状態の基準を揃え、コメント等を濃い文字で表示する。
+予定選択は濃い青で、右側へ十字型5ボタン（上↑、下↓、左編集、右削除、中央予定追加）を重ねる。
+選択前後で行高を変えず、中央追加は選択予定の直下。編集sheetの再設計は別途判断とする。
 
 以下のWorking・AI再生成契約は保存基盤の既存記録であり、#116の主要UIではない。
 

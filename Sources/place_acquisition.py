@@ -18,6 +18,8 @@ from email.utils import parsedate_to_datetime
 def valid_field(key, value):
     if key in {"name", "address"}:
         return isinstance(value, str) and bool(value.strip()) and len(value) <= 500
+    if key == "officialUrl":
+        return isinstance(value, str) and valid_field("urls", [value])
     if key == "urls":
         return (isinstance(value, list) and bool(value) and len(value) <= 5
                 and all(isinstance(u, str) and len(u) <= 2048
@@ -168,6 +170,8 @@ class WikidataAdapter:
                     else:
                         value = [value]
                     fields[key] = value
+                if valid_field("urls", fields.get("urls")):
+                    fields["officialUrl"] = fields["urls"][0]  # Wikidata P856 is the official website.
                 fields = {k: v for k, v in fields.items() if valid_field(k, v)}
                 if "name" not in fields:
                     continue

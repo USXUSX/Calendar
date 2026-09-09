@@ -8,6 +8,7 @@ required by the confirmed Phase 1 UI.
 from __future__ import annotations
 
 import copy
+from urllib.parse import urlsplit
 from typing import Any
 
 from .errors import ValidationError
@@ -58,7 +59,10 @@ def _candidate_places(
             "number": index,
             "place_id": place_id,
             "name": place["name"],
-            "url": place["urls"][0] if place["urls"] else None,
+            "url": place.get("officialUrl"),
+            "comment": place["summary"],
+            "tabelog_url": next((url for url in place["urls"] if urlsplit(url).hostname in {"tabelog.com", "www.tabelog.com"}), None) if place["category"] == "restaurant" else None,
+            "tabelog_rating": place["rating"]["value"] if place["category"] == "restaurant" and place.get("rating") and place["rating"]["source"] == "食べログ" else None,
             "selected_in_base": place_id in selection["selection"],
             "judgment": judgment,
         })
@@ -109,10 +113,11 @@ def _entry(
         "title": title,
         "places": [
             {"id": place_id, "name": places[place_id]["name"],
-             "url": places[place_id]["urls"][0] if places[place_id]["urls"] else None}
+             "url": places[place_id].get("officialUrl"), "location": copy.deepcopy(places[place_id]["location"])}
             for place_id in place_ids
         ],
         "status": item["status"],
+        "place_unconfirmed": source_type == "scheduleItem" and not place_ids,
         "has_candidates": len(candidates) > 1,
         "candidates": candidates,
         "normal_comment": normal_comment,

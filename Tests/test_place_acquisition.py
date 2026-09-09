@@ -41,7 +41,8 @@ class AcquisitionTests(unittest.TestCase):
         result = self.adapter().search(FacilityQuery("サンプルタワー", "東京"))
         self.assertEqual(result.status, "candidates")
         fields = result.candidates[0].persistable
-        self.assertEqual(set(fields), {"name", "location", "address", "urls"})
+        self.assertEqual(set(fields), {"name", "location", "address", "urls", "officialUrl"})
+        self.assertEqual(fields["officialUrl"], fields["urls"][0])
         self.assertEqual(result.candidates[0].temporary["license"], "CC0")
         self.assertTrue(result.candidates[0].temporary["area_hint_matches"])
         self.assertEqual(len(self.calls), 2)

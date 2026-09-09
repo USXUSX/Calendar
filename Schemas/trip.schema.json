@@ -111,6 +111,7 @@
         "category": { "enum": ["restaurant", "hotel", "station", "attraction", "other"] },
         "address": { "$ref": "#/$defs/nullableString" },
         "location": { "$ref": "#/$defs/location" },
+        "officialUrl": { "type": ["string", "null"], "pattern": "^https://" },
         "urls": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^https://" } },
         "rating": { "$ref": "#/$defs/rating" }
       }
