@@ -7,7 +7,7 @@ contract="$root/docs/trip-detail-model.md"
 test -f "$contract"
 grep -F '表示モデル自体を保存せず' "$contract" >/dev/null
 grep -F 'effective Trip' "$contract" >/dev/null
-grep -F '未送信の`OK / NG`' "$contract" >/dev/null
+grep -F '候補判断の`OK`' "$contract" >/dev/null
 grep -F 'ScheduleItem.candidateJudgments' "$contract" >/dev/null
 grep -F 'generation_requests' "$contract" >/dev/null
 grep -F 'complete candidate Validation' "$contract" >/dev/null

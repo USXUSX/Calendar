@@ -179,15 +179,11 @@ def build_weather_by_day(trip, adapter, *, today=None):
         if target < current or target > latest:
             result[day["id"]] = {**common, "status": "outside_forecast"}
             continue
-        place = next(_day_places(trip, day), None)
-        if place is None:
+        places = list(_day_places(trip, day))
+        if not places:
             result[day["id"]] = {**common, "status": "location_unknown"}
             continue
-        forecast = adapter.forecast(place["location"], target)
-        result[day["id"]] = {
-            **common,
-            "place_id": place["id"],
-            "place_name": place["name"],
-            **forecast,
-        }
+        forecasts = [{**common, "place_id": place["id"], "place_name": place["name"],
+                      **adapter.forecast(place["location"], target)} for place in places]
+        result[day["id"]] = {**forecasts[0], "locations": forecasts}
     return result

@@ -16,7 +16,7 @@ def target_input(domain, trip_id, target):
         place = next((p for p in effective["places"] if p["id"] == identity), None)
         if place is None:
             raise NotFoundError("enrichment Place not found")
-        return {key: copy.deepcopy(place[key]) for key in ("name", "address", "location", "urls")}
+        return {key: copy.deepcopy(place.get(key)) for key in ("name", "address", "location", "urls", "officialUrl")}
     working = domain.get_working_trip(trip_id)
     record = next((r for r in working["state"]["temporary_items"] if r["temporary_id"] == identity), None)
     if record is None:
@@ -24,7 +24,7 @@ def target_input(domain, trip_id, target):
     name = record["values"].get("place_name")
     if not isinstance(name, str) or not name.strip():
         raise ValidationError("temporary place_name is required")
-    return {"name": name, "address": None, "location": None, "urls": []}
+    return {"name": name, "address": None, "location": None, "urls": [], "officialUrl": None}
 
 
 def acquire(domain, trip_id, target, adapter, area):
@@ -78,6 +78,6 @@ def prepare(domain, trip_id, target, result, candidate_index, confirmed):
     if not isinstance(fields, dict) or any(not valid_field(k, v) for k, v in fields.items()):
         raise ValidationError("invalid enrichment fields")
     payload = {k: copy.deepcopy(v) for k, v in fields.items()
-               if k in {"address", "location", "urls"} and not original[k]}
+               if k in {"address", "location", "urls", "officialUrl"} and not original[k]}
     return {"trip_id": trip_id, "target": copy.deepcopy(target),
             "status": "ready" if payload else "unfilled", "fields": payload}

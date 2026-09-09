@@ -15,6 +15,21 @@ class CalendarDomain(_CalendarDomain):
         self._weather_adapter = weather_adapter or OpenMeteoAdapter()
         self._weather_today = weather_today
 
+    def load_trip_detail_view(self, trip_id):
+        """Ordinary screen load: validate/adopt the latest Chat candidate, then display."""
+        review = self.review_chat_candidate(trip_id)
+        status = review["status"]
+        message = review.get("message") or "\n".join(review.get("errors", []))
+        if review["ready"]:
+            try:
+                self.adopt_chat_candidate(trip_id, review["candidate"], confirmed=True)
+                status, message = "adopted", ""
+            except DomainError as error:
+                status, message = "invalid", str(error)
+        result = self.get_trip_detail_view(trip_id)
+        result["chat"] = {"status": status, "message": message if status in {"invalid", "stale"} else ""}
+        return result
+
     def get_trip_detail_view(self, trip_id, *, candidate_judgments=None, weather_by_day=None):
         effective = self.get_chat_context(trip_id)["trip"]
         if weather_by_day is None:

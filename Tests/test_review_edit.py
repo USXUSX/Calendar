@@ -9,6 +9,31 @@ class ReviewEditTests(unittest.TestCase):
     def edit(self, item, changes, kind='scheduleItem'):
         return self.domain.edit_trip_item('review-edit', self.tid, kind, item['id'], changes)
 
+    def test_official_links_rating_and_transport_coordinates(self):
+        from Sources.calendar_domain import build_trip_detail_view
+        trip = copy.deepcopy(self.trip)
+        item = trip['days'][0]['scheduleItems'][0]
+        place = trip['places'][0]
+        place.update(name='すし善', category='restaurant', officialUrl='https://example.com/official',
+                     urls=['https://tabelog.com/example'], summary='静かな店',
+                     rating={'source':'食べログ', 'value':3.65, 'observedAt':'2026-09-09'})
+        item.update(action='すし善で夕食', status='confirmed')
+        item['placeSelection'].update(candidatePlaceIds=[place['id']], selection=[place['id']])
+        view = build_trip_detail_view(trip)
+        entry = next(e for e in view['days'][0]['entries'] if e['source_item_id']==item['id'])
+        self.assertEqual(entry['title'], 'すし善で夕食')
+        self.assertEqual(entry['places'][0]['url'], place['officialUrl'])
+        self.assertEqual(entry['candidates'][0]['tabelog_rating'], 3.65)
+        place['category'] = 'hotel'
+        candidate = next(e for e in build_trip_detail_view(trip)['days'][0]['entries'] if e['source_item_id']==item['id'])['candidates'][0]
+        self.assertIsNone(candidate['tabelog_url'])
+        self.assertIsNone(candidate['tabelog_rating'])
+        transport = trip['transports'][0]
+        endpoint = next(p for p in trip['places'] if p['id']==transport['fromPlaceId'])
+        endpoint['location'] = {'latitude':43.06, 'longitude':141.35}
+        entry = next(e for d in build_trip_detail_view(trip)['days'] for e in d['entries'] if e['source_item_id']==transport['id'])
+        self.assertEqual(entry['places'][0]['location'], endpoint['location'])
+
     def test_sheet_roundtrip_and_handled_instruction(self):
         item = self.trip['days'][0]['scheduleItems'][0]
         saved = self.edit(item,dict(title='時計台へ行く', place={'name':'札幌市時計台','urls':['https://example.com/clock'],'location':{'latitude':43.06,'longitude':141.35}},time_mode='range',start='10:01',end=None,duration_minutes=90,ai_instruction='雨の場合の代替候補を探す'))

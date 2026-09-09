@@ -95,6 +95,15 @@ class WeatherContextTests(unittest.TestCase):
         self.assertEqual(result["status"], "location_unknown")
         self.assertEqual(adapter.calls, [])
 
+    def test_all_area_forecasts_keep_route_order(self):
+        data = trip([{'id':'day-1', 'date':'2026-09-08', 'scheduleItems':[], 'transportIds':[],
+                      'areas':[{'name':'札幌市','location':{'latitude':43.06,'longitude':141.35}},
+                               {'name':'小樽市','location':{'latitude':43.19,'longitude':140.99}}]}], [])
+        adapter = FakeAdapter()
+        forecasts = build_weather_by_day(data, adapter, today=date(2026,9,7))['day-1']['locations']
+        self.assertEqual([w['place_name'] for w in forecasts], ['札幌市','小樽市'])
+        self.assertEqual(len(adapter.calls), 2)
+
     def test_provider_failure_remains_distinct(self):
         data = trip([
             {"id": "day-1", "date": "2026-09-08", "scheduleItems": [

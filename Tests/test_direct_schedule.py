@@ -17,6 +17,23 @@ class DirectScheduleTests(unittest.TestCase):
         self.domain.import_trip_json(self.trip,confirmed=True)
     def change(self, action, **values):
         return self.domain.change_trip_schedule(action,self.tid,action,dict(day_id=self.did,**values))
+    def test_insert_immediately_after_transport_and_reject_missing_anchor(self):
+        from Sources.calendar_domain import ConflictError
+        original = self.domain.get_trip_detail_view(self.tid)['days'][0]['entries']
+        anchor = next(e for e in original if e['source_type'] == 'transport')
+        inserted = self.change('add', title='直下の予定', category='food', start=None, end=None,
+                               after_item_id=anchor['source_item_id'], search_query='昼食の店')
+        entries = inserted['view']['days'][0]['entries']
+        index = next(i for i,e in enumerate(entries) if e['source_item_id'] == anchor['source_item_id'])
+        self.assertEqual(entries[index+1]['title'], '直下の予定')
+        retained = [e['source_item_id'] for e in entries if e['title'] != '直下の予定']
+        self.assertEqual(retained, [e['source_item_id'] for e in original])
+        before = self.domain.get_effective_trip(self.tid)
+        with self.assertRaises(ConflictError):
+            self.domain.change_trip_schedule('bad-anchor', self.tid, 'add', dict(day_id=self.did,
+                title='不正', category='food', start=None, end=None, after_item_id='missing'))
+        self.assertEqual(self.domain.get_effective_trip(self.tid), before)
+
     def test_add_edit_reorder_delete_and_chat_adopt(self):
         value = self.change('add',title='追加予定',category='sightseeing',start=None,end=None,place_name='合成場所')
         item = value['trip']['days'][0]['scheduleItems'][-1]

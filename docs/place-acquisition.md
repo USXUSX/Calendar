@@ -89,3 +89,5 @@ Issue #93の`include_comment_evidence=True`では追加の根拠取得を最大1
 正式採用後も同じ境界を使う。補完はPlaceの不足値だけを更新し、candidatePlaceIds、selection、
 予定内容、Workingは変更しない。Frameでは各予定の補完操作から選択済み・候補Placeを選べる。
 CAL内検索/AFM推薦とコメントAIは廃止した。Working保存基盤の移行・削除は行わない。
+
+#116では確認済み公式URLを任意Place.officialUrlとして区別する。Wikidata P856はurlsとofficialUrlへ返す。既存の施設確認と不足値採用を使い、非空officialUrlは上書きしない。新規Placeのlookup結果も同じfieldを保存できる。

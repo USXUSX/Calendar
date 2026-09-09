@@ -1582,6 +1582,7 @@ class CalendarDomain(ChatExchangeMixin):
             candidate_judgments=candidate_judgments,
             weather_by_day=weather_by_day,
         )
+        result["instructions"] = context["instructions"]
         for day in result["days"]:
             for entry in day["entries"]:
                 entry["ai_instruction"] = next((i["instruction"] for i in context["instructions"]

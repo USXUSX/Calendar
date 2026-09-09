@@ -34,7 +34,7 @@ Gitが正本で、`Calendar_GD`はmerge後の公式共有コピー。GitHubを�
 | 行動 | ScheduleItem.action / category。場所名や時刻をactionへ重複させず、移動はTransportだけにする |
 | 候補と採用場所 | Placeを1地点1件にしてcandidatePlaceIdsで参照。selectionは明示された採用場所だけ。1候補でも未採用なら空配列 |
 | 場所未定 | candidatePlaceIdsとselectionを空配列、非空searchQueryに元条件、minSelections / maxSelectionsはnull。架空の「未定」というPlaceは作らない |
-| 地点情報 | Place.name / category / address / location / urls / rating。未確認の住所・座標・評価はnull、URLは空配列。locationがある場合は緯度経度の両方が必要 |
+| 地点情報 | Place.name / category / address / location / urls / ratingと任意officialUrl。公式と確認済みのURLだけofficialUrlへ設定する。未確認の住所・座標・評価はnull、URLは空配列。locationがある場合は緯度経度の両方が必要 |
 | コメント | 通常コメントはScheduleItem.summary、追加事実・出典等はdetails、施設自体の補足はPlace.summary。重複させない |
 | 時刻 | fixedは開始必須、rangeは開始・終了必須、undecidedは開始・終了null。所要時間不明はdurationMinutes=null。列車の発着時刻と提案枠を混同しない |
 | 移動 | TransportでdayId、両端Place、mode、timeを持ち、Day.transportIdsから参照する。未確認の所要時間を確定値にしない |
@@ -115,19 +115,21 @@ Chatが書いてよいのはこのcandidateだけで、正式 `trips/`・SQLite�
 
 CALの通常編集、Place補完、指示追加、正式採用後にcontextを自動更新し、Trip表示・再読込時にも更新する。
 手動「Chatへ出力」は不要。Frameの通常旅程画面からChatへの指示を追加でき、API/AFM workerは起動しない。
-Trip表示・再読込でcandidateを確認し、valid/currentの場合だけ「Chatからの変更あり」を表示する。
-変更前後の項目、反映後の旅程、処理済みにする指示を確認して反映、または保留する。
-保留はファイル・正式状態を変更しない。
+通常画面load / reloadは`load_trip_detail_view(trip_id)`を呼ぶ。CALがcandidateを読んでrevision / Schema /
+semantic / 未処理指示 / Todo参照を検証し、valid/currentなら確認画面を挟まず正式採用して最新viewを返す。
+未反映差分preview・保留・反映ボタンは通常UIに置かない。invalid/stale時も現在の正式旅程を返し、
+`view.chat.message`だけをエラー表示する。`view.instructions`はpendingの一覧。
+直接編集後の再表示は`get_trip_detail_view`でcontextを共有し、編集応答の途中でcandidateを採用しない。
 
 staleは最新contextからChatで再作成する。不正JSON・Schema・semantic不整合は修正して再確認する。
-自動merge・自動修復・自動採用はしない。採用時もrevision、確認snapshot、未処理指示、Todo参照を再検証する。
-確認済みcomplete TripにはDirect Overrideの内容が含まれるため、正式採用と同じtransactionでOverrideを解除する。
+staleの自動merge・不正値の自動修復はしない。採用時もrevision、確認snapshot、未処理指示、Todo参照を再検証する。
+Validation済みcomplete TripにはDirect Overrideの内容が含まれるため、正式採用と同じtransactionでOverrideを解除する。
 候補内で編集された値に古いOverrideを重ねない。既存Workingは保持され、正式version更新でstaleとなる。
 採用成功後だけ対応済み指示を処理済みにし、同じcandidateを削除し、新contextを生成する。
 CALは既存のatomic adoption・中断journalを使い、正式TripとSQLiteの更新責務を所有する。
 context書込み失敗では保存済みCAL状態を巻き戻さず、共有先を確認して再読込する旨を返す。
 
-公開commandは `get_chat_context(trip_id)`、`add_chat_instruction(instruction_id, trip_id, instruction)`、
+通常画面以外の既存確認用commandとして `get_chat_context(trip_id)`、`add_chat_instruction(instruction_id, trip_id, instruction)`、
 `review_chat_candidate(trip_id)`、`adopt_chat_candidate(trip_id, candidate, confirmed=True)`。
 reviewは `status=absent / stale / invalid / ready`、`ready`、未処理`instructions`を返し、
 合格時だけ確認用`candidate / view / changes / handled_instructions`を返す。
@@ -136,7 +138,7 @@ reviewは `status=absent / stale / invalid / ready`、`ready`、未処理`instru
 採用は確認snapshotと共有candidateが一致しない場合も拒否する。任意の共有rootはHTTPから指定できない。
 
 合成北海道4日間を使う `sh Tests/chat-exchange.test.sh` で、CAL編集→context→Chat相当candidate→
-確認・保留・採用、stale/invalid/確認後変更の拒否、指示・Override処理、中断後の収束を確認する。
+通常loadでの自動採用、stale/invalid/途中変更の拒否、指示・Override処理、中断後の収束を確認する。
 FrameのHTTPとiPad mini相当幅の代表操作でも同じ契約を確認する。
 #114のproduction切替では正式Trip/SQLiteを変更せずcontextを再生成し、Drive側の同じ内容の読取りまで確認する。
 物理端末での実用性・Phase 8の判断は#96で扱う。
@@ -147,3 +149,5 @@ contextのTripには任意のDay.areas（順序付きname/location）、Schedule
 Transport.serviceNameとmode=shinkansenを保持できる。rangeは開始＋durationMinutesから終了を計算する。
 予定単位instructionsはsource_item_idを持つ。Chatは対象を解決して結果をcandidateへ反映し、
 対応済みのIDをhandled_instruction_idsへ列挙する。指示文自体を予定本文に転記しない。
+
+Place.officialUrlは確認済み公式リンク、urlsは参考リンク。本文actionは「すし善で夕食」のような自然文を保持し、施設名をPlace.nameと一致させる。レストランの食べログ点数は既存rating（source=食べログ、observedAt付き）へ確認済みの値だけ記す。
