@@ -88,7 +88,7 @@ Step 7では、AIGのsafe failure後もWorkingとraw user intentが既存export�
 
 ### 現在のPhase 8: 実利用でUI・運用を仕上げる
 
-Issue #108で新規Tripのcomplete JSON生成・Validation・受渡しを整備した。現行主要方針は[生成ガイド](trip-json-generation.md)。Issue #110で[新規JSON取込](trip-json-import.md)へ接続し、日本語全Trip貼付UIを置き換えた。Issue #112で既存Tripのcontext自動共有とChat candidateの確認・保留・正式採用を実装した（Frame #57）。#114で運用授受先をGoogleDrive/Calendar_Chatへ切替済み。#119で#116後のMac再確認を反映し、編集モード・直接インライン編集・移動重要性・全エリア天気展開・候補いいねを整備する。#121 / Frame #70で通常旅程と編集の配置を共有し、時刻2段・確定チェック・候補行の正式採用・新規行追加を整備した。MacとiPad mini相当の全画面・代表操作を確認する。production切替と物理iPad mini受入、Phase振り返りは#96に残す。既存Tripへの1予定追加はコピペと分け、CALの取込後編集を微修正に限定しない。#108の完了はPhase 8完了・初期リリース判断を意味しない。
+Issue #108で新規Tripのcomplete JSON生成・Validation・受渡しを整備した。現行主要方針は[生成ガイド](trip-json-generation.md)。Issue #110で[新規JSON取込](trip-json-import.md)へ接続し、日本語全Trip貼付UIを置き換えた。Issue #112で既存Tripのcontext自動共有とChat candidateの確認・保留・正式採用を実装した（Frame #57）。#114で運用授受先をGoogleDrive/Calendar_Chatへ切替済み。#119で#116後のMac再確認を反映し、編集モード・直接インライン編集・移動重要性・全エリア天気展開・候補いいねを整備する。#121 / Frame #70で通常旅程と編集の配置を共有し、時刻2段・確定チェック・候補行の正式採用・新規行追加を整備した。MacとiPad mini相当の全画面・代表操作を確認する。その後#124で候補正式採用時の自然文更新等を反映し、物理iPad miniレビューはusが「概ねOK」と判断した。#126で生成ガイドを現行仕様へ合わせ、新規complete JSONの生成・取込・表示・編集を合成入力で最終確認した。production切替・実Trip変更は含めず、Phase 8振り返り・Goal 1初期リリース可否は#96でusが判断する。既存Tripへの1予定追加はコピペと分け、CALの取込後編集を微修正に限定しない。#108の完了はPhase 8完了・初期リリース判断を意味しない。
 
 1. Issue #86で初期リリース範囲、新規Trip貼付形式、外部取得・保持方針を仕様化し、正本を整合する。
 2. [後続実装の小さな単位](initial-release.md)に従い、表示・編集、貼付、共通取得と各採用機能をIssueへ分割する。

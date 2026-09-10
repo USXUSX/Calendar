@@ -43,6 +43,41 @@ class TripJsonImportTests(unittest.TestCase):
             self.domain.import_trip_json(changed, confirmed=True)
         self.assertEqual(saved.read_bytes(), before)
 
+    def test_representative_generation_import_adopt_and_edit(self):
+        candidate = json.loads((ROOT / 'Samples/hokkaido-import-review.json').read_text())
+        filename = candidate['id'] + '.json'
+        (self.handoff / filename).write_text(json.dumps(candidate))
+        review = self.domain.read_trip_json_candidate(filename, candidate_root=self.handoff)
+        self.assertTrue(review['ready'], review['errors'])
+        self.domain.import_trip_json(review['candidate'], confirmed=True)
+        trip_id = candidate['id']
+        self.assertEqual(self.domain.get_effective_trip(trip_id), candidate)
+        entries = {e['source_item_id']: e for d in review['view']['days'] for e in d['entries']}
+        self.assertIn(candidate['bookings'][0]['notes'], entries['stay-1']['important_comments'])
+        self.assertEqual(entries['departure']['booking_status'], 'pending')
+        self.assertTrue(entries['arrival']['important'])
+        self.assertFalse(entries['walk-museum']['important'])
+        self.assertEqual(entries['visit-museum']['time']['durationMinutes'], 90)
+        self.assertEqual(entries['city-choice']['title'], '札幌で名所を楽しむ')
+        self.domain.edit_trip_item('adopt-clock', trip_id, 'scheduleItem', 'city-choice',
+                                   {'adopt_place_id': 'clock'})
+        effective = self.domain.get_effective_trip(trip_id)
+        item = next(i for i in effective['days'][2]['scheduleItems'] if i['id'] == 'city-choice')
+        self.assertEqual(item['placeSelection']['selection'], ['clock'])
+        self.assertEqual(item['action'], '札幌市時計台で名所を楽しむ')
+        self.assertEqual(item['status'], 'tentative')
+        self.domain.edit_trip_item('edit-clock', trip_id, 'scheduleItem', 'city-choice',
+                                   {'title': '札幌市時計台で展示を見る', 'normal_comment': 'ゆっくり見学',
+                                    'start': '10:15', 'end': '11:15', 'time_mode': 'fixed'})
+        effective = self.domain.get_effective_trip(trip_id)
+        item = next(i for i in effective['days'][2]['scheduleItems'] if i['id'] == 'city-choice')
+        self.assertEqual(item['action'], '札幌市時計台で展示を見る')
+        self.assertEqual(item['time']['start'], '10:15')
+        self.assertEqual(item['summary'], 'ゆっくり見学')
+        self.assertEqual(effective['bookings'], candidate['bookings'])
+        self.assertEqual(effective['transports'], candidate['transports'])
+        self.assertEqual(json.loads(self.domain._trip_path(trip_id).read_text()), candidate)
+
     def test_invalid_json_schema_semantic_and_path(self):
         for value in ['{', 'null', '{}']:
             self.file.write_text(value)
