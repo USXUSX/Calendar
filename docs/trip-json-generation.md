@@ -16,13 +16,13 @@ Gitが正本で、`Calendar_GD`はmerge後の公式共有コピー。GitHubを�
 1. 旅行名・日付・希望・確定済みの訪問先や予約を読む。必須の日付等が不明ならusに確認する。実旅行の日時・予約を創作しない。
 2. 希望に合う少数の場所を調べ、同名施設を住所・地域で照合する。公式情報や保存可能な公開データから、確認できるURL・住所・座標・短いコメントを入れる。調べても不明な値は不明のままにする。候補は訪問確定に変えない。
 3. 以下の対応・意味整合を使って完全JSONを1件生成する。提案した日程と予約済みの事実を区別する。
-4. UTF-8のcomplete JSON本体を `Calendar_Chat/<trip-id>/candidate.json` へ保存する。ファイル中はJSONオブジェクトだけ。取得元URL・確認日が必要な情報は既存のsummary / details / urls等に短く記し、独自fieldや取得本文を足さない。
-5. CAL validatorを実行可能なら実行し、エラーの箇所を修正して同じ完全JSONを更新する。Chat側で実行できなければ「CAL Validation未実行」と伝え、合格を装わない。
-6. 日別の行動順・移動・宿泊・候補・未定事項を内容確認し、candidateを渡す。Validation成功だけで正式採用しない。
+4. UTF-8のcomplete JSON本体はチャット本文へ全文展開せず、`/Users/us/Tools/GoogleDrive/Calendar_Chat/<trip-id>/candidate.json` へ保存する。ファイル中はJSONオブジェクトだけ。取得元URL・確認日が必要な情報は既存のsummary / details / urls等に短く記し、独自fieldや取得本文を足さない。
+5. CAL validatorを実行し、エラーがあれば同じ`candidate.json`を修正して再検証する。Chat側で実行できなければ「CAL Validation未実行」と伝え、合格を装わない。
+6. 日別の行動順・移動・宿泊・候補・未定事項を内容確認し、candidateを渡す。チャット側の最終表示はファイル名・Validation結果・残る未定事項だけを簡潔に返す。Validation成功だけで正式採用しない。
 
 短い生成指示：
 
-> 現行mainのSchemaとこのガイドを読み、Calendarの正式スキーマに一致する完全な旅行JSONを1個生成してください。ファイル中にはMarkdownや説明文は付けません。確認できた候補・URL・住所・座標・コメントを含め、不明値や予約事実を創作しません。候補は自動選択しません。`Calendar_Chat/<trip-id>/candidate.json`へcomplete JSON本体を保存し、検証結果と残る未定事項を別に短く伝えてください。
+> 現行mainのSchemaとこのガイドを読み、Calendarの正式スキーマに一致する完全な旅行JSONを1個生成してください。ファイル中にはMarkdownや説明文は付けません。確認できた候補・URL・住所・座標・コメントを含め、不明値や予約事実を創作しません。候補は自動選択しません。保存・検証・最終表示は上記の生成手順に従ってください。
 
 ## 項目と不明値
 
@@ -60,7 +60,7 @@ IDはSchemaに従う英数字・ハイフン・アンダースコアを使い、
 | Calendar_Local | CALで採用後の正式TripとSQLite等の通常状態。Chatから直接書き換えない |
 | `/Users/us/Tools/GoogleDrive/Calendar_Chat/<trip-id>/` | 新規・既存Trip共通の授受先。既存TripのcontextはCAL所有、candidateはChat所有のEnvelope。Calendar_GDとは分ける |
 
-受渡しフォルダへアクセスできないChatは、`candidate.json`を添付し、対象の`<trip-id>/`への配置をusに依頼する。保存できたと主張したり、Calendar_GDやCalendar_Localを代わりに使ったりしない。新規Tripは明示的な取込操作で採用する。
+受渡しフォルダへアクセスできない場合のみ、その旨を示して`candidate.json`を添付し、対象の`<trip-id>/`への配置をusに依頼する。保存できたと主張したり、Calendar_GDやCalendar_Localを代わりに使ったりしない。新規Tripは明示的な取込操作で採用する。
 
 Git正本で次を実行する。このCLIはSchemaとsemantic validationを両方行い、保存状態を変更しない。
 
@@ -68,7 +68,7 @@ Git正本で次を実行する。このCLIはSchemaとsemantic validationを両�
 python3 scripts/validate_trip.py '/Users/us/Tools/GoogleDrive/Calendar_Chat/<trip-id>/candidate.json'
 ```
 
-エラーがあれば該当パスとエラーだけをChatへ返し、部分パッチではなく同じcomplete JSONを直す。CALの取込操作がValidation・内容確認・正式採用を担当する。Chatが検証済みファイルをCalendar_Localへコピーする運用にはしない。
+エラーがあれば該当パスとエラーだけをChatへ返し、部分パッチではなく同じ`candidate.json`のcomplete JSONを修正して再検証する。CALの取込操作がValidation・内容確認・正式採用を担当する。Chatが検証済みファイルをCalendar_Localへコピーする運用にはしない。
 
 Issue #110で[新規JSON取込](trip-json-import.md)へ接続した。Frameで共有candidateを選び、Validation結果と内容を確認して新規登録する。既存Tripは同じIDで置換しない。日本語ラベルの全Trip補正UIは置き換え、1予定追加コピペは維持する。
 
