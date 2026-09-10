@@ -20,12 +20,14 @@ class TripJsonImportTests(unittest.TestCase):
         self.handoff = self.root / 'handoff'
         self.handoff.mkdir()
         self.candidate = json.loads((ROOT / 'Samples/hokkaido-4days-candidate.json').read_text())
-        self.file = self.handoff / (self.candidate['id'] + '.json')
+        self.filename = self.candidate['id'] + "/candidate.json"
+        self.file = self.handoff / self.filename
+        self.file.parent.mkdir()
         self.file.write_text(json.dumps(self.candidate))
 
     def test_handoff_snapshot_adoption_and_duplicate(self):
-        self.assertEqual(self.domain.list_trip_json_candidates(candidate_root=self.handoff)['files'], [self.file.name])
-        review = self.domain.read_trip_json_candidate(self.file.name, candidate_root=self.handoff)
+        self.assertEqual(self.domain.list_trip_json_candidates(candidate_root=self.handoff)['files'], [self.filename])
+        review = self.domain.read_trip_json_candidate(self.filename, candidate_root=self.handoff)
         self.assertTrue(review['ready'])
         self.assertEqual(len(review['view']['days']), 4)
         self.assertFalse(self.domain.trip_root.exists())
@@ -45,7 +47,8 @@ class TripJsonImportTests(unittest.TestCase):
 
     def test_representative_generation_import_adopt_and_edit(self):
         candidate = json.loads((ROOT / 'Samples/hokkaido-import-review.json').read_text())
-        filename = candidate['id'] + '.json'
+        filename = candidate['id'] + '/candidate.json'
+        (self.handoff / candidate['id']).mkdir()
         (self.handoff / filename).write_text(json.dumps(candidate))
         review = self.domain.read_trip_json_candidate(filename, candidate_root=self.handoff)
         self.assertTrue(review['ready'], review['errors'])
@@ -82,7 +85,7 @@ class TripJsonImportTests(unittest.TestCase):
         for value in ['{', 'null', '{}']:
             self.file.write_text(value)
             try:
-                result = self.domain.read_trip_json_candidate(self.file.name, candidate_root=self.handoff)
+                result = self.domain.read_trip_json_candidate(self.filename, candidate_root=self.handoff)
                 self.assertFalse(result['ready'])
             except ValidationError:
                 pass
@@ -97,8 +100,40 @@ class TripJsonImportTests(unittest.TestCase):
         self.file.symlink_to(ROOT / 'Samples/hokkaido-4days-candidate.json')
         self.assertEqual(self.domain.list_trip_json_candidates(candidate_root=self.handoff)['files'], [])
         with self.assertRaises(ValidationError):
-            self.domain.read_trip_json_candidate(self.file.name, candidate_root=self.handoff)
+            self.domain.read_trip_json_candidate(self.filename, candidate_root=self.handoff)
         self.assertFalse(self.domain.trip_root.exists())
+
+    def test_shared_root_and_handoff_contract(self):
+        default = CalendarDomain(self.db, self.root / 'unused')
+        self.assertEqual(default._candidate_root(), Path('/Users/us/Tools/GoogleDrive/Calendar_Chat'))
+        domain = CalendarDomain(self.db, self.domain.trip_root, chat_root=self.handoff)
+        (self.file.parent / 'context.json').write_text('{}')
+        (self.handoff / 'old.json').write_text('{}')
+        self.assertEqual(domain.list_trip_json_candidates()['files'], [self.filename])
+        self.assertTrue(domain.read_trip_json_candidate(self.filename)['ready'])
+        wrong = self.handoff / 'wrong' / 'candidate.json'
+        wrong.parent.mkdir()
+        wrong.write_text(json.dumps(self.candidate))
+        self.assertFalse(domain.read_trip_json_candidate('wrong/candidate.json')['ready'])
+        envelope = {'trip_id': self.candidate['id'], 'base_revision': {},
+                    'handled_instruction_ids': [], 'trip': self.candidate}
+        self.file.write_text(json.dumps(envelope))
+        self.assertFalse(domain.read_trip_json_candidate(self.filename)['ready'])
+        self.assertEqual(json.loads(self.file.read_text()), envelope)
+        self.assertFalse(self.domain.trip_root.exists())
+
+    def test_nested_path_and_directory_symlink_rejected(self):
+        for filename in ['../candidate.json', '/tmp/candidate.json',
+                         'a/../candidate.json', 'a/b/candidate.json',
+                         self.candidate['id'] + '/context.json', 'old.json']:
+            with self.subTest(filename=filename), self.assertRaises(ValidationError):
+                self.domain.read_trip_json_candidate(filename, candidate_root=self.handoff)
+        linked = self.handoff / 'linked'
+        linked.symlink_to(self.file.parent, target_is_directory=True)
+        self.assertEqual(self.domain.list_trip_json_candidates(candidate_root=self.handoff)['files'],
+                         [self.filename])
+        with self.assertRaises(ValidationError):
+            self.domain.read_trip_json_candidate('linked/candidate.json', candidate_root=self.handoff)
 
     def test_unregistered_file_and_database_failure(self):
         path = self.domain._trip_path(self.candidate['id'])
