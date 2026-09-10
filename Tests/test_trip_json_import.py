@@ -135,19 +135,32 @@ class TripJsonImportTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             self.domain.read_trip_json_candidate('linked/candidate.json', candidate_root=self.handoff)
 
-    def test_unregistered_file_and_database_failure(self):
+    def test_unregistered_orphan_file_is_replaced(self):
         path = self.domain._trip_path(self.candidate['id'])
         path.parent.mkdir(parents=True)
-        path.write_text('existing')
+        path.write_text('obsolete orphan')
+        review = self.domain.review_trip_json(self.candidate)
+        self.assertTrue(review['ready'])
+        result = self.domain.import_trip_json(review['candidate'], confirmed=True)
+        self.assertEqual(result['status'], 'adopted')
+        self.assertEqual(json.loads(path.read_text()), self.candidate)
+        with sqlite3.connect(self.db) as db:
+            self.assertEqual(db.execute('SELECT count(*) FROM trips WHERE id = ?', (self.candidate['id'],)).fetchone()[0], 1)
+        changed = copy.deepcopy(self.candidate)
+        changed['title'] = 'must not overwrite registered trip'
         with self.assertRaises(ConflictError):
-            self.domain.import_trip_json(self.candidate, confirmed=True)
-        self.assertEqual(path.read_text(), 'existing')
-        path.unlink()
+            self.domain.import_trip_json(changed, confirmed=True)
+        self.assertEqual(json.loads(path.read_text()), self.candidate)
+
+    def test_database_failure_removes_new_file(self):
+        candidate = copy.deepcopy(self.candidate)
+        candidate['id'] = candidate['id'] + '-db-failure'
+        path = self.domain._trip_path(candidate['id'])
         with sqlite3.connect(self.db) as db:
             db.execute("CREATE TRIGGER fail_import BEFORE INSERT ON trips BEGIN SELECT RAISE(ABORT, 'test'); END")
         with self.assertRaises(Exception):
-            self.domain.import_trip_json(self.candidate, confirmed=True)
-        self.assertEqual(list(path.parent.iterdir()), [])
+            self.domain.import_trip_json(candidate, confirmed=True)
+        self.assertFalse(path.exists())
         with sqlite3.connect(self.db) as db:
             self.assertEqual(db.execute('SELECT count(*) FROM trips').fetchone()[0], 0)
 
