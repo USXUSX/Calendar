@@ -8,7 +8,7 @@ Schemaと参照検証に従い、candidatePlaceIds、予定内容、他Placeを�
 
 `change_trip_schedule(command_id, trip_id, action, payload)`は以下の通常操作を扱う。
 
-- add: 任意after_item_idを指定すると同日のその予定/移動の直下へ挿入する。対象が消えていれば保存しない。省略時は末尾。day_idとtitle/category/start/end/normal_comment、place_nameまたは未定時のsearch_query。
+- add: 任意after_item_idを指定すると同日のその予定/移動の直下へ挿入する。対象が消えていれば保存しない。省略時は末尾。day_idとtitle/category/start/end/normal_comment、任意status/show_duration、place_nameまたは未定時のsearch_query。時刻は表示・更新契約のCAL変換を使う。場所も条件も未入力なら本文をsearchQueryへ保持し、本文だけで追加できる（分割・場所の自動生成なし）。
 - add（コピペ）: day_idとtext。既存の日本語ラベル形式で予定を1件だけ記す。未解決行・不足・別日・複数予定は保存せず、貼付内容の修正を求める。
 - delete: day_idとsource_item_id。Todoから参照中の予定は解除が先。Placeや予約情報は削除しない。
 - reorder: day_idと、その日の全予定・移動を並べたitem_ids。

@@ -94,11 +94,39 @@ class ReviewEditTests(unittest.TestCase):
         self.assertEqual(before,self.domain.get_effective_trip(self.tid))
         self.assertFalse(self.domain.get_chat_context(self.tid)['instructions'])
 
+    def test_inline_clock_pair_and_candidate_preserve_text(self):
+        item = self.trip['days'][0]['scheduleItems'][0]
+        for show, mode, duration in ((True, 'range', 75), (False, 'fixed', None)):
+            saved = self.edit(item, dict(start='09:00', end='10:15', show_duration=show))
+            time = saved['trip']['days'][0]['scheduleItems'][0]['time']
+            self.assertEqual(time, dict(mode=mode, start='09:00', end='10:15', durationMinutes=duration))
+        saved = self.edit(item, dict(start=None, end='10:15', show_duration=True))
+        self.assertEqual(saved['trip']['days'][0]['scheduleItems'][0]['time'],
+                         dict(mode='undecided', start=None, end=None, durationMinutes=None))
+        saved = self.edit(item, dict(start='23:30', end='00:30', show_duration=True))
+        self.assertEqual(saved['trip']['days'][0]['scheduleItems'][0]['time']['durationMinutes'], 60)
+        before = self.domain.get_effective_trip(self.tid)
+        with self.assertRaises(ValidationError):
+            self.edit(item, dict(title='invalid', start='29:00', end='10:15', show_duration=True))
+        self.assertEqual(self.domain.get_effective_trip(self.tid), before)
+        item = next(i for d in self.trip['days'] for i in d['scheduleItems'] if len(i['placeSelection']['candidatePlaceIds']) > 1)
+        pid = item['placeSelection']['candidatePlaceIds'][0]
+        saved = self.edit(item, {'selection': [pid]})
+        selected = next(i for d in saved['trip']['days'] for i in d['scheduleItems'] if i['id'] == item['id'])
+        self.assertEqual(selected['action'], item['action'])
+        self.assertEqual(selected['status'], item['status'])
+        added = self.domain.change_trip_schedule('inline-add', self.tid, 'add',
+            dict(day_id=self.did, title='自然文の予定', category='other', start='09:00', end='10:15',
+                 show_duration=True, status='confirmed', normal_comment='コメント'))
+        new = next(i for i in added['trip']['days'][0]['scheduleItems'] if i['action'] == '自然文の予定')
+        self.assertEqual(new['status'], 'confirmed')
+        self.assertEqual(new['time']['durationMinutes'], 75)
+
     def test_transport_and_ordered_areas(self):
         item=self.trip['transports'][0]
         result=self.edit(item,dict(from_place={'name':'新千歳空港駅'},to_place={'name':'札幌駅'},transport_mode='shinkansen',service_name='確認用列車',status='tentative',ai_instruction=''),'transport')
         entry=next(e for d in result['view']['days'] for e in d['entries'] if e['source_item_id']==item['id'])
-        self.assertEqual(entry['title'],'新千歳空港駅から札幌駅へ移動')
+        self.assertEqual(entry['title'],'新千歳空港駅 → 札幌駅')
         self.assertEqual(entry['transport_mode'],'shinkansen')
         areas=[{'name':'小樽','location':None},{'name':'札幌','location':{'latitude':43.06,'longitude':141.35}}]
         result=self.domain.edit_trip_day('day',self.tid,self.did,{'areas':areas})

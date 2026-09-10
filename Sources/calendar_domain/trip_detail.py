@@ -31,6 +31,26 @@ _DIRECT_EDIT_PATHS = {
 }
 
 
+def input_time_spec(start, end, show_duration):
+    """Map the inline clock pair to the existing TimeSpec, without UI modes."""
+    if type(show_duration) is not bool:
+        raise ValidationError('滞在時間表示を確認してください。')
+    if not start:
+        return dict(mode='undecided', start=None, end=None, durationMinutes=None)
+    duration = None
+    if show_duration and end:
+        try:
+            sh, sm = map(int, start.split(':'))
+            eh, em = map(int, end.split(':'))
+            duration = ((eh * 60 + em) - (sh * 60 + sm)) % (24 * 60)
+        except (AttributeError, ValueError) as error:
+            raise ValidationError('開始・終了時刻を確認してください。') from error
+        if not duration:
+            raise ValidationError('滞在時間には異なる開始・終了時刻を入力してください。')
+    return dict(mode='range' if duration else 'fixed', start=start, end=end or None,
+                durationMinutes=duration)
+
+
 def _time_label(value: dict[str, Any]) -> str:
     if value["mode"] == "undecided":
         return "未定"
@@ -97,7 +117,7 @@ def _entry(
     else:
         from_place = places[item["fromPlaceId"]]
         to_place = places[item["toPlaceId"]]
-        title = f"{from_place['name']}から{to_place['name']}へ移動"
+        title = f"{from_place['name']} → {to_place['name']}"
         category = "transport"
         place_ids = [item["fromPlaceId"], item["toPlaceId"]]
         normal_comment = None
