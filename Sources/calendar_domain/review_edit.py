@@ -11,7 +11,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
     if source_type == 'scheduleItem':
         paths.update(category='/category', title='/action', normal_comment='/summary', selection='/placeSelection/selection',
                      candidate_judgments='/candidateJudgments')
-        extra = {'place', 'ai_instruction'}
+        extra = {'place', 'ai_instruction', 'adopt_place_id'}
     else:
         paths.update(important='/important', transport_mode='/mode', service_name='/serviceName')
         extra = {'from_place', 'to_place', 'ai_instruction'}
@@ -26,7 +26,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
             raise ValidationError('編集対象を確認してください。')
         item = matches[0]
         edits = [(source_item_id, paths[k], v) for k,v in changes.items() if k in paths]
-        for field in extra - {'ai_instruction', 'show_duration'}:
+        for field in extra - {'ai_instruction', 'show_duration', 'adopt_place_id'}:
             if field not in changes:
                 continue
             supplied = changes[field]
@@ -51,6 +51,20 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
                               (source_item_id, '/placeSelection/selection', [identity])])
             else:
                 edits.append((source_item_id, '/fromPlaceId' if field == 'from_place' else '/toPlaceId', identity))
+        if 'adopt_place_id' in changes:
+            pid = changes['adopt_place_id']
+            if not isinstance(pid, str) or pid not in item['placeSelection']['candidatePlaceIds'] or set(changes) != {'adopt_place_id'}:
+                raise ValidationError('正式採用する候補を確認してください。')
+            place = next(p for p in trip['places'] if p['id'] == pid)
+            title = item['action']
+            old_names = [p['name'] for p in trip['places'] if p['id'] in item['placeSelection']['selection']]
+            old_name = next((name for name in sorted(old_names, key=len, reverse=True) if name in title), None)
+            if old_name:
+                title = title.replace(old_name, place['name'])
+            elif place['name'] not in title:
+                title = place['name'] + 'で' + (title.split('で', 1)[1] if 'で' in title else title)
+            edits.extend([(source_item_id, '/placeSelection/selection', [pid]),
+                          (source_item_id, '/action', title)])
         if 'candidate_judgments' in changes:
             votes = changes['candidate_judgments']
             if not isinstance(votes, dict) or set(votes) - set(item['placeSelection']['candidatePlaceIds']) or any(v not in {'ok','ng'} for v in votes.values()):

@@ -5,6 +5,7 @@ CALが正本管理、直接編集、Chat指示/context、candidate確認・反�
 
 `edit_trip_item(..., changes={"selection": [place_id, ...]})`で候補Placeを明示選択/解除する。
 Schemaと参照検証に従い、candidatePlaceIds、予定内容、他Placeを変えない。
+候補行の正式採用は`adopt_place_id`を使い、[表示・更新契約](trip-detail-model.md)に従って本文も更新する。
 
 `change_trip_schedule(command_id, trip_id, action, payload)`は以下の通常操作を扱う。
 
