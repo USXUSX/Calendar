@@ -15,6 +15,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
     else:
         paths.update(important='/important', transport_mode='/mode', service_name='/serviceName')
         extra = {'from_place', 'to_place', 'ai_instruction'}
+    extra.add('show_duration')
     if set(changes) - set(paths) - extra:
         raise ValidationError('編集項目を確認してください。')
     with domain._command() as connection:
@@ -25,7 +26,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
             raise ValidationError('編集対象を確認してください。')
         item = matches[0]
         edits = [(source_item_id, paths[k], v) for k,v in changes.items() if k in paths]
-        for field in extra - {'ai_instruction'}:
+        for field in extra - {'ai_instruction', 'show_duration'}:
             if field not in changes:
                 continue
             supplied = changes[field]
@@ -54,7 +55,13 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
             votes = changes['candidate_judgments']
             if not isinstance(votes, dict) or set(votes) - set(item['placeSelection']['candidatePlaceIds']) or any(v not in {'ok','ng'} for v in votes.values()):
                 raise ValidationError('候補のOK/NGを確認してください。')
-        if changes.get('time_mode') == 'range':
+        if 'show_duration' in changes:
+            from .trip_detail import input_time_spec
+            time = input_time_spec(changes.get('start', item['time']['start']),
+                                   changes.get('end', item['time']['end']), changes['show_duration'])
+            edits = [(target, path, value) for target, path, value in edits if not path.startswith('/time/')]
+            edits.extend((source_item_id, '/time/' + field, value) for field, value in time.items())
+        elif changes.get('time_mode') == 'range':
             start = changes.get('start')
             duration = changes.get('duration_minutes')
             if not isinstance(start, str) or type(duration) is not int or duration <= 0:

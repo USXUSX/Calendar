@@ -42,8 +42,9 @@ def change(domain, command_id, trip_id, action, payload):
                 if not isinstance(title, str) or not title.strip():
                     raise ValidationError('予定名を入力してください。')
                 start, end = payload.get('start'), payload.get('end')
-                item = dict(status='undecided', action=title, category=category, summary=payload.get('normal_comment'), details=[],
-                            time=dict(mode='fixed' if start else 'undecided', start=start, end=end, durationMinutes=None),
+                from .trip_detail import input_time_spec
+                item = dict(status=payload.get('status', 'undecided'), action=title, category=category, summary=payload.get('normal_comment'), details=[],
+                            time=input_time_spec(start, end, payload.get('show_duration', False)),
                             placeSelection=dict(candidatePlaceIds=[], selection=[], minSelections=None, maxSelections=None))
                 name = payload.get('place_name')
                 if isinstance(name, str) and name.strip():
@@ -53,7 +54,7 @@ def change(domain, command_id, trip_id, action, payload):
                     item['placeSelection']['candidatePlaceIds'] = [pid]
                     item['placeSelection']['selection'] = [pid]
                 else:
-                    item['searchQuery'] = payload.get('search_query')
+                    item['searchQuery'] = payload.get('search_query') or title
             item.update(id=identity, dayId=day['id'], order=max([i['order'] for i in entries] + [-1]) + 1)
             after = payload.get('after_item_id')
             if after is not None:
