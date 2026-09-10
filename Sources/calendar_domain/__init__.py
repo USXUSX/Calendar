@@ -1,5 +1,9 @@
 """CAL-owned semantic domain interface v1."""
 
+import copy
+
+from scripts.validate_trip import validation_stage_errors
+
 from .errors import ConflictError, DomainError, GenerationWriteError, NotFoundError, ValidationError
 from .models import UnifiedEvent
 from .service import CalendarDomain as _CalendarDomain
@@ -14,6 +18,33 @@ class CalendarDomain(_CalendarDomain):
         super().__init__(db_path, trip_root, chat_root=chat_root)
         self._weather_adapter = weather_adapter or OpenMeteoAdapter()
         self._weather_today = weather_today
+
+    def review_trip_json(self, candidate):
+        """Validate a new candidate; only a registered Trip is an overwrite conflict."""
+        candidate = copy.deepcopy(candidate)
+        stage, errors = validation_stage_errors(candidate, self._trip_schema)
+        if errors:
+            return {"ready": False, "stage": stage, "errors": errors, "view": None}
+        candidate, _ = self._validated_candidate(candidate["id"], candidate)
+        with self._read() as connection:
+            exists = connection.execute("SELECT 1 FROM trips WHERE id = ?", (candidate["id"],)).fetchone()
+        if exists:
+            raise ConflictError("同じTrip IDの登録先が既に存在します。上書きはできません。")
+        view = build_trip_detail_view(candidate)
+        for day in view["days"]:
+            for entry in day["entries"]:
+                entry["direct_edit_paths"] = {}
+                entry["ai_local_update_target"] = None
+        return {"ready": True, "errors": [], "view": view, "candidate": candidate}
+
+    def _import_new_trip(self, candidate):
+        """Replace an unregistered orphan Trip JSON, while never overwriting a registered Trip."""
+        trip_id = candidate["id"]
+        with self._read() as connection:
+            registered = connection.execute("SELECT 1 FROM trips WHERE id = ?", (trip_id,)).fetchone()
+        if not registered:
+            self._trip_path(trip_id).unlink(missing_ok=True)
+        return super()._import_new_trip(candidate)
 
     def load_trip_detail_view(self, trip_id):
         """Ordinary screen load: validate/adopt the latest Chat candidate, then display."""
