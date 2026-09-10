@@ -2,14 +2,13 @@
 
 Calendar is the first standard project in `/Users/us/Tools`, built with a three-layer layout that lets Codex discover the right information without repeated path instructions.
 
-## Calendar #124 iPad miniレビュー反映
+## Calendar #126 新規Trip主要経路
 
-通常表示と編集で時刻1列2段・区分・本文・コメントの位置を共有する。
-確定状態と滞在時間表示はチェック操作、移動はendpoint等の構造化入力、候補は行内の正式採用操作とする。
-現行仕様は[表示・更新契約](docs/trip-detail-model.md#通常旅程とインライン編集119--121)。
-候補名の幅・交通手段アイコン・編集操作配置を調整し、正式採用で本文を更新する。
-Frame #72と接続し、合成TripでMac・iPad mini相当の表示と保存・破棄を確認する。
-production切替・実Trip変更は含めず、物理iPad mini受入とPhase 8振り返りは#96に残る。
+[生成ガイド](docs/trip-json-generation.md)を自然な予定本文・候補正式採用の現行仕様へ合わせ、
+[合成代表入力](Samples/README.md#新規trip主要経路の最終確認126)からcomplete JSONを生成した。
+CAL ValidationとFrameの読込・内容確認・取込・通常表示・直接編集を一時環境で確認済み。
+#124反映後の物理iPad miniレビューはusが「概ねOK」と判断済み。
+production切替・実Trip変更は含めず、Phase 8振り返りとGoal 1初期リリース判断は#96に残す。
 
 ## Current baseline
 

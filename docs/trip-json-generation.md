@@ -31,15 +31,19 @@ Gitが正本で、`Calendar_GD`はmerge後の公式共有コピー。GitHubを�
 | 内容 | 格納先・使い分け |
 | --- | --- |
 | 旅行全体と日別 | Tripのtitle / dateRange / summary、Dayのdate / title / routeSummary。titleは短いテーマ、routeSummaryは代表エリア・主経路 |
-| 行動 | ScheduleItem.action / category。場所名や時刻をactionへ重複させず、移動はTransportだけにする |
-| 候補と採用場所 | Placeを1地点1件にしてcandidatePlaceIdsで参照。selectionは明示された採用場所だけ。1候補でも未採用なら空配列 |
+| 行動 | ScheduleItem.action / category。actionはユーザー向けの自然な予定本文。採用済み / 確定済みPlaceは名前を含める（例: `すし善で昼食`）。時刻はtime、移動はTransportだけにする |
+| 候補と採用場所 | Placeを1地点1件にしてcandidatePlaceIdsで参照。selectionは明示された採用場所だけ。1候補でも未採用なら空配列。未選択の本文は `小樽で昼食` のような自然文とし、候補名の列挙と分ける |
 | 場所未定 | candidatePlaceIdsとselectionを空配列、非空searchQueryに元条件、minSelections / maxSelectionsはnull。架空の「未定」というPlaceは作らない |
 | 地点情報 | Place.name / category / address / location / urls / ratingと任意officialUrl。公式と確認済みのURLだけofficialUrlへ設定する。未確認の住所・座標・評価はnull、URLは空配列。locationがある場合は緯度経度の両方が必要 |
 | コメント | 通常コメントはScheduleItem.summary、追加事実・出典等はdetails、施設自体の補足はPlace.summary。重複させない |
 | 時刻 | fixedは開始必須、rangeは開始・終了必須、undecidedは開始・終了null。所要時間不明はdurationMinutes=null。列車の発着時刻と提案枠を混同しない |
-| 移動 | TransportでdayId、両端Place、mode、timeを持ち、Day.transportIdsから参照する。未確認の所要時間を確定値にしない |
+| 移動 | TransportでdayId、両端Place、mode、timeを持ち、Day.transportIdsから参照する。未確認の所要時間を確定値にしない。重要な移動はimportant=true、通常のコネクタ移動はfalse / 省略。ScheduleItemや別タイトルに二重登録しない |
 | 予約 | BookingをplaceIdまたはtransportIdへ結ぶ。targetDateは対象日。未予約の予定はpending、実際に予約した証拠がある場合だけbooked。金額不明はnull、予約条件はnotes |
 | 準備・Rio | preparation / rioPlanも必須。準備がなければtasks=[]。Rioが対象外と分かる場合だけapplicable=false / careMode=not_applicable。不明ならundecidedとして判断を残す |
+
+CAL上で候補を正式採用すると、selectionと予定本文を一括更新する（#124）。採用済みPlace.nameと一致する本文中の部分を、確認済みofficialUrlへリンクする。通常表示では採用済みの候補一覧を隠す。具体的な更新・表示契約は[旅程詳細モデル](trip-detail-model.md#通常旅程とインライン編集119--121)を正本とする。
+
+予定の確定状態（status）、時刻の表現（time）、予約状態（Booking.status）は別に保つ。確定予定でも時刻未定はあり、開始時刻があるだけで予約済みにはしない。
 
 候補数は新規Trip JSON全体に一律3件制限を置かない。既存予定へのAFM候補追加の件数制限とは別契約である。minSelections / maxSelectionsは分かる場合だけ設定し、最大数は候補件数以内にする。
 
@@ -75,6 +79,12 @@ Issue #110で[新規JSON取込](trip-json-import.md)へ接続した。Frameで�
 札幌を拠点に、到着日、小樽日帰り、札幌市内、帰路の順とし、遠距離の詰込みを避ける。3泊、往復の主要鉄道移動、候補未選択、店未定、住所・URL・座標・コメント・pending予約を含む。時刻は未定とし、将来ダイヤや空室を保証しない。候補訪問時の市内移動は訪問先選択後に決める。
 
 Schemaで今回必要な情報を表現できるため変更は不要。Validationとは別に、日程と対象日、宿泊回数、往復経路、候補の非採用、未定値、参照の整合、行動・移動・コメントの重複がないことを確認する。料金、営業日、予約、交通ダイヤは実旅行決定時に再確認する。
+
+## 新規Trip主要経路の最終確認（#126）
+
+[代表入力と出典](../Samples/README.md#新規trip主要経路の最終確認126)から生成した[complete JSON](../Samples/hokkaido-import-review.json)を使う。確定Placeを含む本文、未選択の複数候補、3泊、重要 / コネクタ移動、fixed / range / undecided、booked / pendingを含む。日時とbookedは明示した合成入力であり、実旅行・実予約を意味しない。
+
+このcandidateを一時受渡し先に置き、Frame `/calendar/import` で読込・Validation・内容確認・新規登録し、通常旅程で候補正式採用と本文・時刻・コメントの直接編集を確認する。テストではDB・Trip root・Chat root・candidate rootをすべて一時環境へ明示する。Calendar_Localや運用共有先には保存しない。
 
 ## 既存Tripの変更
 
@@ -146,7 +156,7 @@ FrameのHTTPとiPad mini相当幅の代表操作でも同じ契約を確認す�
 ### #116の編集情報
 
 contextのTripには任意のDay.areas（順序付きname/location）、ScheduleItem.candidateJudgments、
-Transport.serviceNameとmode=shinkansenを保持できる。予約不要でも旅程上重要な移動は任意booleanのimportantで保持する（省略時false）。予約済み・予約予定は既存Bookingを使う。詳細は[表示・更新契約](trip-detail-model.md#通常旅程とインライン編集119)。rangeは開始＋durationMinutesから終了を計算する。
+Transport.serviceNameとmode=shinkansenを保持できる。予約不要でも旅程上重要な移動は任意booleanのimportantで保持する（省略時false）。予約済み・予約予定は既存Bookingを使う。詳細は[表示・更新契約](trip-detail-model.md#通常旅程とインライン編集119--121)。rangeは開始＋durationMinutesから終了を計算する。
 予定単位instructionsはsource_item_idを持つ。Chatは対象を解決して結果をcandidateへ反映し、
 対応済みのIDをhandled_instruction_idsへ列挙する。指示文自体を予定本文に転記しない。
 

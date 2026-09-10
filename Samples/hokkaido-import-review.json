@@ -1,0 +1,635 @@
+{
+  "id": "hokkaido-import-review",
+  "title": "札幌・小樽4日間（新規取込の合成確認）",
+  "dateRange": {
+    "start": "2027-06-12",
+    "end": "2027-06-15"
+  },
+  "summary": "2027年6月12〜15日、札幌3泊の合成入力。宿泊bookedと日時はテスト上の指定で、実予約ではない。鉄道ダイヤ・空室・料金は未確認。航空便は未指定。施設情報は2026-09-10確認。",
+  "days": [
+    {
+      "id": "day-1",
+      "date": "2027-06-12",
+      "title": "到着して札幌で休む",
+      "routeSummary": "新千歳空港→札幌",
+      "scheduleItems": [
+        {
+          "id": "dinner-1",
+          "dayId": "day-1",
+          "order": 1,
+          "status": "undecided",
+          "action": "札幌で夕食をとる",
+          "category": "food",
+          "summary": "店と時刻は未定。移動・観光の前後に余裕を取る。",
+          "details": [],
+          "time": {
+            "mode": "undecided",
+            "start": null,
+            "end": null,
+            "durationMinutes": null
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [],
+            "selection": [],
+            "minSelections": null,
+            "maxSelections": null
+          },
+          "searchQuery": "札幌駅周辺で到着後に夕食。営業時刻を確認して選ぶ"
+        },
+        {
+          "id": "stay-1",
+          "dayId": "day-1",
+          "order": 2,
+          "status": "confirmed",
+          "action": "JRタワーホテル日航札幌に宿泊",
+          "category": "accommodation",
+          "summary": "合成入力では3泊を予約済みと指定。実予約ではない。",
+          "details": [],
+          "time": {
+            "mode": "fixed",
+            "start": "18:00",
+            "end": null,
+            "durationMinutes": null
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [
+              "hotel"
+            ],
+            "selection": [
+              "hotel"
+            ],
+            "minSelections": null,
+            "maxSelections": 1
+          }
+        }
+      ],
+      "transportIds": [
+        "arrival"
+      ]
+    },
+    {
+      "id": "day-2",
+      "date": "2027-06-13",
+      "title": "小樽の歴史を訪ねる",
+      "routeSummary": "札幌→小樽→札幌",
+      "scheduleItems": [
+        {
+          "id": "breakfast-2",
+          "dayId": "day-2",
+          "order": 0,
+          "status": "undecided",
+          "action": "札幌で朝食をとる",
+          "category": "food",
+          "summary": "店と時刻は未定。移動・観光の前後に余裕を取る。",
+          "details": [],
+          "time": {
+            "mode": "undecided",
+            "start": null,
+            "end": null,
+            "durationMinutes": null
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [],
+            "selection": [],
+            "minSelections": null,
+            "maxSelections": null
+          },
+          "searchQuery": "札幌駅周辺または宿泊先で朝食"
+        },
+        {
+          "id": "visit-museum",
+          "dayId": "day-2",
+          "order": 3,
+          "status": "confirmed",
+          "action": "小樽市総合博物館 運河館で地域の歴史展示を見る",
+          "category": "sightseeing",
+          "summary": "訪問を指定した合成入力。営業日は実旅行決定時に再確認。",
+          "details": [],
+          "time": {
+            "mode": "range",
+            "start": "10:00",
+            "end": "11:30",
+            "durationMinutes": 90
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [
+              "museum"
+            ],
+            "selection": [
+              "museum"
+            ],
+            "minSelections": null,
+            "maxSelections": 1
+          }
+        },
+        {
+          "id": "lunch-2",
+          "dayId": "day-2",
+          "order": 4,
+          "status": "undecided",
+          "action": "小樽で昼食をとる",
+          "category": "food",
+          "summary": "店と時刻は未定。移動・観光の前後に余裕を取る。",
+          "details": [],
+          "time": {
+            "mode": "undecided",
+            "start": null,
+            "end": null,
+            "durationMinutes": null
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [],
+            "selection": [],
+            "minSelections": null,
+            "maxSelections": null
+          },
+          "searchQuery": "小樽の運河周辺で昼食。混雑に応じて選ぶ"
+        },
+        {
+          "id": "dinner-2",
+          "dayId": "day-2",
+          "order": 7,
+          "status": "undecided",
+          "action": "札幌で夕食をとる",
+          "category": "food",
+          "summary": "店と時刻は未定。移動・観光の前後に余裕を取る。",
+          "details": [],
+          "time": {
+            "mode": "undecided",
+            "start": null,
+            "end": null,
+            "durationMinutes": null
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [],
+            "selection": [],
+            "minSelections": null,
+            "maxSelections": null
+          },
+          "searchQuery": "札幌駅周辺で夕食"
+        },
+        {
+          "id": "stay-2",
+          "dayId": "day-2",
+          "order": 8,
+          "status": "confirmed",
+          "action": "JRタワーホテル日航札幌に宿泊",
+          "category": "accommodation",
+          "summary": "合成入力では3泊を予約済みと指定。実予約ではない。",
+          "details": [],
+          "time": {
+            "mode": "undecided",
+            "start": null,
+            "end": null,
+            "durationMinutes": null
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [
+              "hotel"
+            ],
+            "selection": [
+              "hotel"
+            ],
+            "minSelections": null,
+            "maxSelections": 1
+          }
+        }
+      ],
+      "transportIds": [
+        "to-otaru",
+        "walk-museum",
+        "walk-back",
+        "from-otaru"
+      ]
+    },
+    {
+      "id": "day-3",
+      "date": "2027-06-14",
+      "title": "札幌中心部をゆっくり楽しむ",
+      "routeSummary": "札幌",
+      "scheduleItems": [
+        {
+          "id": "breakfast-3",
+          "dayId": "day-3",
+          "order": 0,
+          "status": "undecided",
+          "action": "札幌で朝食をとる",
+          "category": "food",
+          "summary": "店と時刻は未定。移動・観光の前後に余裕を取る。",
+          "details": [],
+          "time": {
+            "mode": "undecided",
+            "start": null,
+            "end": null,
+            "durationMinutes": null
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [],
+            "selection": [],
+            "minSelections": null,
+            "maxSelections": null
+          },
+          "searchQuery": "宿泊先または札幌駅周辺で朝食"
+        },
+        {
+          "id": "city-choice",
+          "dayId": "day-3",
+          "order": 1,
+          "status": "tentative",
+          "action": "札幌で名所を楽しむ",
+          "category": "sightseeing",
+          "summary": "時計台と大通公園から1か所を選ぶ案。両方を訪問確定にせず、市内移動も選択後に決める。",
+          "details": [],
+          "time": {
+            "mode": "fixed",
+            "start": "10:00",
+            "end": "11:00",
+            "durationMinutes": null
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [
+              "clock",
+              "odori"
+            ],
+            "selection": [],
+            "minSelections": null,
+            "maxSelections": 1
+          },
+          "searchQuery": "札幌中心部で天候と気分に応じて1か所選ぶ"
+        },
+        {
+          "id": "lunch-3",
+          "dayId": "day-3",
+          "order": 2,
+          "status": "undecided",
+          "action": "札幌で昼食をとる",
+          "category": "food",
+          "summary": "店と時刻は未定。移動・観光の前後に余裕を取る。",
+          "details": [],
+          "time": {
+            "mode": "undecided",
+            "start": null,
+            "end": null,
+            "durationMinutes": null
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [],
+            "selection": [],
+            "minSelections": null,
+            "maxSelections": null
+          },
+          "searchQuery": "選んだ札幌中心部の観光先近くで昼食"
+        },
+        {
+          "id": "dinner-3",
+          "dayId": "day-3",
+          "order": 3,
+          "status": "undecided",
+          "action": "札幌で夕食をとる",
+          "category": "food",
+          "summary": "店と時刻は未定。移動・観光の前後に余裕を取る。",
+          "details": [],
+          "time": {
+            "mode": "undecided",
+            "start": null,
+            "end": null,
+            "durationMinutes": null
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [],
+            "selection": [],
+            "minSelections": null,
+            "maxSelections": null
+          },
+          "searchQuery": "札幌駅周辺で夕食"
+        },
+        {
+          "id": "stay-3",
+          "dayId": "day-3",
+          "order": 4,
+          "status": "confirmed",
+          "action": "JRタワーホテル日航札幌に宿泊",
+          "category": "accommodation",
+          "summary": "合成入力では3泊を予約済みと指定。実予約ではない。",
+          "details": [],
+          "time": {
+            "mode": "undecided",
+            "start": null,
+            "end": null,
+            "durationMinutes": null
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [
+              "hotel"
+            ],
+            "selection": [
+              "hotel"
+            ],
+            "minSelections": null,
+            "maxSelections": 1
+          }
+        }
+      ],
+      "transportIds": []
+    },
+    {
+      "id": "day-4",
+      "date": "2027-06-15",
+      "title": "帰路に備えて空港へ向かう",
+      "routeSummary": "札幌→新千歳空港",
+      "scheduleItems": [
+        {
+          "id": "breakfast-4",
+          "dayId": "day-4",
+          "order": 0,
+          "status": "undecided",
+          "action": "札幌で朝食をとる",
+          "category": "food",
+          "summary": "店と時刻は未定。移動・観光の前後に余裕を取る。",
+          "details": [],
+          "time": {
+            "mode": "undecided",
+            "start": null,
+            "end": null,
+            "durationMinutes": null
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [],
+            "selection": [],
+            "minSelections": null,
+            "maxSelections": null
+          },
+          "searchQuery": "宿泊先または札幌駅周辺で朝食"
+        },
+        {
+          "id": "souvenir",
+          "dayId": "day-4",
+          "order": 1,
+          "status": "tentative",
+          "action": "札幌駅でお土産を選ぶ",
+          "category": "sightseeing",
+          "summary": "空港への移動前。航空便決定後に余裕を確保する。",
+          "details": [],
+          "time": {
+            "mode": "undecided",
+            "start": null,
+            "end": null,
+            "durationMinutes": null
+          },
+          "placeSelection": {
+            "candidatePlaceIds": [
+              "sapporo"
+            ],
+            "selection": [
+              "sapporo"
+            ],
+            "minSelections": null,
+            "maxSelections": 1
+          }
+        }
+      ],
+      "transportIds": [
+        "departure"
+      ]
+    }
+  ],
+  "places": [
+    {
+      "id": "cts",
+      "name": "新千歳空港駅",
+      "summary": null,
+      "category": "station",
+      "address": null,
+      "location": null,
+      "urls": [
+        "https://www.jrhokkaido.co.jp/airport/"
+      ],
+      "rating": null
+    },
+    {
+      "id": "sapporo",
+      "name": "札幌駅",
+      "summary": null,
+      "category": "station",
+      "address": null,
+      "location": null,
+      "urls": [
+        "https://www.jrhokkaido.co.jp/airport/"
+      ],
+      "rating": null
+    },
+    {
+      "id": "otaru",
+      "name": "小樽駅",
+      "summary": null,
+      "category": "station",
+      "address": null,
+      "location": null,
+      "urls": [
+        "https://www.jrhokkaido.co.jp/train/tr020_01.html"
+      ],
+      "rating": null
+    },
+    {
+      "id": "hotel",
+      "name": "JRタワーホテル日航札幌",
+      "summary": "札幌駅直結。所在地・接続を公式アクセス案内で確認（2026-09-10）。空室・宿泊料金は未確認。",
+      "category": "hotel",
+      "address": "北海道札幌市中央区北5条西2丁目5番地",
+      "location": null,
+      "urls": [
+        "https://www.jrhotels.co.jp/tower/access/"
+      ],
+      "rating": null,
+      "officialUrl": "https://www.jrhotels.co.jp/tower/access/"
+    },
+    {
+      "id": "museum",
+      "name": "小樽市総合博物館 運河館",
+      "summary": null,
+      "category": "attraction",
+      "address": "北海道小樽市色内2丁目1-20",
+      "location": null,
+      "urls": [
+        "https://otaru.gr.jp/shop/otaru-museum-canal"
+      ],
+      "rating": null,
+      "officialUrl": "https://www.city.otaru.lg.jp/docs/2020111400122/"
+    },
+    {
+      "id": "clock",
+      "name": "札幌市時計台",
+      "summary": null,
+      "category": "attraction",
+      "address": "札幌市中央区北1条西2丁目",
+      "location": null,
+      "urls": [
+        "https://sapporoshi-tokeidai.jp/"
+      ],
+      "rating": null,
+      "officialUrl": "https://sapporoshi-tokeidai.jp/"
+    },
+    {
+      "id": "odori",
+      "name": "大通公園",
+      "summary": "座標は公園の代表点で、入口や待合せ地点ではない。出典: https://www.wikidata.org/wiki/Q3107971 （2026-09-10確認、CC0）。",
+      "category": "attraction",
+      "address": null,
+      "location": {
+        "latitude": 43.059722,
+        "longitude": 141.346389
+      },
+      "urls": [
+        "https://odori-park.jp/"
+      ],
+      "rating": null,
+      "officialUrl": "https://odori-park.jp/"
+    }
+  ],
+  "transports": [
+    {
+      "id": "arrival",
+      "dayId": "day-1",
+      "order": 0,
+      "status": "tentative",
+      "mode": "train",
+      "fromPlaceId": "cts",
+      "toPlaceId": "sapporo",
+      "time": {
+        "mode": "undecided",
+        "start": null,
+        "end": null,
+        "durationMinutes": null
+      },
+      "bookingId": null,
+      "important": true
+    },
+    {
+      "id": "to-otaru",
+      "dayId": "day-2",
+      "order": 1,
+      "status": "tentative",
+      "mode": "train",
+      "fromPlaceId": "sapporo",
+      "toPlaceId": "otaru",
+      "time": {
+        "mode": "undecided",
+        "start": null,
+        "end": null,
+        "durationMinutes": null
+      },
+      "bookingId": null
+    },
+    {
+      "id": "walk-museum",
+      "dayId": "day-2",
+      "order": 2,
+      "status": "tentative",
+      "mode": "walk",
+      "fromPlaceId": "otaru",
+      "toPlaceId": "museum",
+      "time": {
+        "mode": "undecided",
+        "start": null,
+        "end": null,
+        "durationMinutes": null
+      },
+      "bookingId": null
+    },
+    {
+      "id": "walk-back",
+      "dayId": "day-2",
+      "order": 5,
+      "status": "tentative",
+      "mode": "walk",
+      "fromPlaceId": "museum",
+      "toPlaceId": "otaru",
+      "time": {
+        "mode": "undecided",
+        "start": null,
+        "end": null,
+        "durationMinutes": null
+      },
+      "bookingId": null
+    },
+    {
+      "id": "from-otaru",
+      "dayId": "day-2",
+      "order": 6,
+      "status": "tentative",
+      "mode": "train",
+      "fromPlaceId": "otaru",
+      "toPlaceId": "sapporo",
+      "time": {
+        "mode": "undecided",
+        "start": null,
+        "end": null,
+        "durationMinutes": null
+      },
+      "bookingId": null
+    },
+    {
+      "id": "departure",
+      "dayId": "day-4",
+      "order": 2,
+      "status": "tentative",
+      "mode": "train",
+      "fromPlaceId": "sapporo",
+      "toPlaceId": "cts",
+      "time": {
+        "mode": "undecided",
+        "start": null,
+        "end": null,
+        "durationMinutes": null
+      },
+      "bookingId": "seat-return"
+    }
+  ],
+  "preparation": {
+    "id": "prep",
+    "tasks": [
+      {
+        "id": "check-bookings",
+        "label": "宿泊の空室・料金と往復交通を確認する",
+        "dueDate": "2027-06-01",
+        "completed": false,
+        "order": 0
+      }
+    ]
+  },
+  "rioPlan": {
+    "id": "rio",
+    "applicable": false,
+    "careMode": "not_applicable",
+    "careDecisionDueDate": null,
+    "careDetails": null,
+    "packingTemplate": null,
+    "packingItems": []
+  },
+  "bookings": [
+    {
+      "id": "stay-booking",
+      "category": "accommodation",
+      "status": "booked",
+      "targetDate": "2027-06-12",
+      "placeId": "hotel",
+      "transportId": null,
+      "label": "3泊の宿泊（合成予約）",
+      "amount": null,
+      "currency": "JPY",
+      "notes": "テスト入力で予約済みと指定。実予約ではない。6月12日チェックイン、15日チェックアウト。金額・取消条件は未指定。"
+    },
+    {
+      "id": "seat-return",
+      "category": "transport",
+      "status": "pending",
+      "targetDate": "2027-06-15",
+      "placeId": null,
+      "transportId": "departure",
+      "label": "帰路の指定席を検討",
+      "amount": null,
+      "currency": "JPY",
+      "notes": "予約はしていない。列車・席種・要否は航空便決定後に確認する。"
+    }
+  ]
+}
