@@ -94,6 +94,26 @@ class ReviewEditTests(unittest.TestCase):
         self.assertEqual(before,self.domain.get_effective_trip(self.tid))
         self.assertFalse(self.domain.get_chat_context(self.tid)['instructions'])
 
+    def test_candidate_adoption_updates_body_atomically_and_preserves_status_and_likes(self):
+        item = next(i for d in self.trip['days'] for i in d['scheduleItems'] if len(i['placeSelection']['candidatePlaceIds']) > 1)
+        pid, second = item['placeSelection']['candidatePlaceIds'][:2]
+        name = next(p['name'] for p in self.trip['places'] if p['id'] == pid)
+        self.edit(item, {'title': '小樽で昼食', 'candidate_judgments': {pid: 'ok'}})
+        saved = self.edit(item, {'adopt_place_id': pid})
+        selected = next(i for d in saved['trip']['days'] for i in d['scheduleItems'] if i['id'] == item['id'])
+        self.assertEqual(selected['action'], name + 'で昼食')
+        self.assertEqual(selected['status'], item['status'])
+        self.assertEqual(selected['candidateJudgments'], {pid:'ok'})
+        self.assertEqual(selected['placeSelection']['selection'], [pid])
+        self.assertEqual(selected['placeSelection']['candidatePlaceIds'], item['placeSelection']['candidatePlaceIds'])
+        saved = self.edit(item, {'adopt_place_id': second})
+        selected = next(i for d in saved['trip']['days'] for i in d['scheduleItems'] if i['id'] == item['id'])
+        self.assertEqual(selected['action'], next(p['name'] for p in self.trip['places'] if p['id'] == second) + 'で昼食')
+        before = self.domain.get_effective_trip(self.tid)
+        for changes in ({'adopt_place_id':'missing'}, {'adopt_place_id':pid, 'status':'confirmed'}):
+            with self.assertRaises(ValidationError): self.edit(item, changes)
+            self.assertEqual(self.domain.get_effective_trip(self.tid), before)
+
     def test_inline_clock_pair_and_candidate_preserve_text(self):
         item = self.trip['days'][0]['scheduleItems'][0]
         for show, mode, duration in ((True, 'range', 75), (False, 'fixed', None)):
