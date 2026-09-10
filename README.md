@@ -14,6 +14,7 @@ production切替・実Trip変更は含めず、Phase 8振り返りとGoal 1初�
 
 Goal 1の新規Trip主要経路は、Chatで完全Trip JSONを生成し、CALでValidation・取込・表示・編集する方式である。取込後の編集は微修正に限定しない。
 [生成・受渡しガイド](docs/trip-json-generation.md)と[JSON取込契約](docs/trip-json-import.md)を参照する。
+`GoogleDrive/Calendar_Chat/<trip-id>/candidate.json`へ新規complete JSON本体を受け渡し、
 共有candidateの一覧・読込・Validation・確認から`import_trip_json`で新規採用する（#110）。
 Frameの`/calendar/import`はこのJSON経路を主要入口とし、1予定追加コピペは別経路として維持する。
 旧日本語ラベルの全Trip commandは互換用に保持するが、主要UIからは外した。

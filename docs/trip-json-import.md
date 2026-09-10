@@ -7,17 +7,18 @@ Frame `/calendar/import` は共有candidateの選択→Validation→内容確認
 
 ## CAL command
 
-- `list_trip_json_candidates()` はChatGPT共有/CALの直下にあるJSONのファイル名を返す。自動採用しない。
+- `list_trip_json_candidates()` はCalendar_Chat直下のTripフォルダにある`candidate.json`を、`<trip-id>/candidate.json`の相対名で返す。`context.json`や旧直下JSONは対象にしない。自動採用しない。
 - `read_trip_json_candidate(filename)` はUTF-8 JSONを読み、Schema・semantic Validationと
-  ファイル名／Trip ID一致を確認する。`ready / errors / view`、合格時のみ`candidate`を返す。
+  親フォルダ名／Trip ID一致を確認する。`ready / errors / view`、合格時のみ`candidate`を返す。
   不正JSON・読込不能はValidationError、既存IDまたは既存正式ファイルはConflictError。
 - `review_trip_json(candidate)` は書込みなしで同じ構造・意味検証と新規ID確認をする。
 - `import_trip_json(candidate, confirmed=True)` は画面で確認したsnapshotを再検証して初回採用する。
   共有ファイルの再読込は行わず、確認後の更新を無確認で登録しない。
 
 一覧・読込の`candidate_root`はテスト等の明示指定用。既定は
-`/Users/us/マイドライブ/ChatGPT共有/CAL`。HTTPから任意のrootは受け取らない。
-親ディレクトリ参照・symlinkは対象にしない。candidateや確認履歴を恒久保存しない。
+domainの`chat_root`（未指定時は`/Users/us/Tools/GoogleDrive/Calendar_Chat`）と共通。HTTPから任意のrootは受け取らない。
+新規candidateはcomplete JSON本体であり、既存Trip用Envelopeは受け付けない。
+親ディレクトリ参照・多段の下位フォルダ・Tripフォルダやcandidateのsymlinkは対象にしない。candidateや確認履歴を恒久保存しない。
 
 JSONのID・候補・selection・予約・準備等をそのまま保持し、値を推測・再生成しない。
 previewの編集・AI targetは無効。修正はChatでcandidateを更新して再確認する。

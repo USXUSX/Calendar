@@ -664,36 +664,37 @@ class CalendarDomain(ChatExchangeMixin):
             )
         return {"id": trip_id, "visibility": visibility}
 
-    @staticmethod
-    def _candidate_root(candidate_root: str | Path | None = None) -> Path:
-        return Path(candidate_root) if candidate_root is not None else Path("/Users/us/マイドライブ/ChatGPT共有/CAL")
+    def _candidate_root(self, candidate_root: str | Path | None = None) -> Path:
+        return Path(candidate_root) if candidate_root is not None else self.chat_root
 
     def list_trip_json_candidates(self, *, candidate_root: str | Path | None = None) -> dict[str, Any]:
         """List handoff filenames only; never auto-import or inspect formal storage."""
         root = self._candidate_root(candidate_root)
         try:
-            files = sorted(p.name for p in root.iterdir()
-                           if p.suffix == ".json" and p.is_file() and not p.is_symlink())
+            files = sorted(f"{p.name}/candidate.json" for p in root.iterdir()
+                           if _TRIP_ID.fullmatch(p.name) and p.is_dir() and not p.is_symlink()
+                           and (p / "candidate.json").is_file()
+                           and not (p / "candidate.json").is_symlink())
         except OSError as error:
             raise ValidationError("JSON受渡しフォルダを読み込めません。配置を確認してください。") from error
         return {"files": files}
 
     def read_trip_json_candidate(self, filename: str, *, candidate_root: str | Path | None = None) -> dict[str, Any]:
         """Read one handoff file and return the exact validated confirmation snapshot."""
-        if (not isinstance(filename, str) or Path(filename).name != filename
-                or not filename.endswith(".json")):
+        if (not isinstance(filename, str)
+                or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,99}/candidate\.json", filename)):
             raise ValidationError("JSONファイル名を確認してください。")
         root = self._candidate_root(candidate_root).resolve()
         path = root / filename
-        if path.is_symlink() or path.resolve().parent != root:
+        if path.parent.is_symlink() or path.is_symlink() or path.resolve().parent.parent != root:
             raise ValidationError("受渡しフォルダ内のJSONを選択してください。")
         try:
             candidate = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, ValueError) as error:
             raise ValidationError("JSONを読み込めません。UTF-8の完全JSONを確認してください。") from error
         result = self.review_trip_json(candidate)
-        if result["ready"] and filename != candidate["id"] + ".json":
-            return {"ready": False, "errors": ["ファイル名をTrip ID + .jsonに合わせてください。"], "view": None}
+        if result["ready"] and path.parent.name != candidate["id"]:
+            return {"ready": False, "errors": ["受渡しフォルダ名をTrip IDに合わせてください。"], "view": None}
         return result
 
     def review_trip_json(self, candidate: dict[str, Any]) -> dict[str, Any]:
