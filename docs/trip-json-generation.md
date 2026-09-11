@@ -35,8 +35,8 @@ Gitが正本で、`Calendar_GD`はmerge後の公式共有コピー。GitHubを�
 | 候補と採用場所 | Placeを1地点1件にしてcandidatePlaceIdsで参照。selectionは明示された採用場所だけ。1候補でも未採用なら空配列。未選択の本文は `小樽で昼食` のような自然文とし、候補名の列挙と分ける |
 | 場所未定 | candidatePlaceIdsとselectionを空配列、非空searchQueryに元条件、minSelections / maxSelectionsはnull。架空の「未定」というPlaceは作らない |
 | 地点情報 | Place.name / category / address / location / urls / ratingと任意officialUrl。公式と確認済みのURLだけofficialUrlへ設定する。未確認の住所・座標・評価はnull、URLは空配列。locationがある場合は緯度経度の両方が必要 |
-| コメント | 通常コメントはScheduleItem.summary、追加事実・出典等はdetails、施設自体の補足はPlace.summary。重複させない |
-| 時刻 | fixedは開始必須、rangeは開始・終了必須、undecidedは開始・終了null。所要時間不明はdurationMinutes=null。列車の発着時刻と提案枠を混同しない |
+| コメント | 通常コメントはScheduleItem.summary、追加事実・出典等はdetails、施設自体の補足はPlace.summary。予約の重要コメントはBooking.notes、予約に属さない予定固有の重要コメントはScheduleItem / Transportの任意importantComment。情報の所有箇所に置き、他へ複製しない |
+| 時刻 | fixedは開始必須、rangeは開始・終了必須、undecidedは時刻未定、noneは時刻設定が不要。どちらもstart / end / durationMinutesはnullとし、順序はorderで表す。所要時間不明はdurationMinutes=null。列車の発着時刻と提案枠を混同しない |
 | 移動 | TransportでdayId、両端Place、mode、timeを持ち、Day.transportIdsから参照する。未確認の所要時間を確定値にしない。重要な移動はimportant=true、通常のコネクタ移動はfalse / 省略。ScheduleItemや別タイトルに二重登録しない |
 | 予約 | BookingをplaceIdまたはtransportIdへ結ぶ。targetDateは対象日。未予約の予定はpending、実際に予約した証拠がある場合だけbooked。金額不明はnull、予約条件はnotes |
 | 準備・Rio | preparation / rioPlanも必須。準備がなければtasks=[]。Rioが対象外と分かる場合だけapplicable=false / careMode=not_applicable。不明ならundecidedとして判断を残す |
@@ -49,24 +49,36 @@ CAL上で候補を正式採用すると、selectionと予定本文を一括更�
 
 IDはSchemaに従う英数字・ハイフン・アンダースコアを使い、同じcandidateの再生成では既存対象のIDを維持する。ScheduleItem.dayIdは親Dayと一致させ、日内orderはScheduleItemとTransportを合わせて重複させない。selectionはcandidatePlaceIdsの部分集合にする。移動のdayIdとDay.transportIds、予約の対象参照と日付を対応させ、参照漏れや不要なPlaceを残さない。
 
-日跨ぎ時刻、未確定の移動端点など、現在のSchemaでそのまま表現できない入力は、事実を偽装して通さず不足を伝える。予約済みの複数泊は開始日をtargetDateとし、チェックアウト日等の条件をnotesへ記す。移動への任意コメントfieldはないため、予約条件はBooking.notes、それ以外の必要な補足はTrip.summary等に対象を明記する。専用fieldが必要な実用途が判明した場合はSchemaと利用側を同じ変更範囲で検討する。
+日跨ぎ時刻、未確定の移動端点など、現在のSchemaでそのまま表現できない入力は、事実を偽装して通さず不足を伝える。予約済みの複数泊は開始日をtargetDateとし、チェックアウト日等の条件をnotesへ記す。移動の予約条件はBooking.notes、予約に属さない重要コメントはTransport.importantComment、それ以外の必要な補足はTrip.summary等に対象を明記する。専用fieldが必要な実用途が判明した場合はSchemaと利用側を同じ変更範囲で検討する。
 
 ## 生成品質の確認
 
 以下はSchemaの必須条件を追加するものではなく、新規生成・既存Trip再生成で使う内容確認である。CAL Validationに通ることと、使いやすい旅程であることは別に確認する。「埋めるべき」は確認できる情報を調べて入れる方針であり、不明値を創作して全欄を埋める意味ではない。
 
-| 観点 | 生成時の判断・確認 |
+### 内容を判断する原則
+
+| 原則 | 生成時の判断・確認 |
 | --- | --- |
-| status・時刻・予約 | ScheduleItem / Transportのstatusは、その行動自体を行うと決めているかで判断する。実施が確定ならconfirmed、提案・仮置きならtentative、実施するか未定ならundecided。単に「ほぼ確定そう」と推測してconfirmedにしない。確定した朝食・チェックアウト・空港移動でも時刻はundecidedにでき、店や便の詳細が未定という理由だけでtentativeにしない。予定時刻があること、Placeを選んだこと、予約済みであることを同一視しない。Booking.statusは確認できた予約事実に従う |
-| 同じ行動の重複 | 同一時間帯・同一場所の「市場を訪れる」と「市場で朝食」が一続きの行動なら「市場で朝食・散策」へまとめる。残す項目のIDと必要な候補・コメント・参照を保持する。別の行動や明示された別行動は時刻が重なるだけで統合しない。実際の時間衝突は勝手な時刻変更で隠さず、未解決事項として返す。移動はTransportに集約する |
-| 日別代表エリアと座標 | Day.areasを行動順の主要エリア（宿泊拠点だけでなく日帰り先・空港周辺等）で埋め、routeSummaryと矛盾させない。各nameに対応する代表地点を地域・住所で照合し、公開情報で確認できたlatitude / longitudeをlocationへ両方入れる。広域名ならどの代表地点か分かるnameにする。未確認ならlocation=nullとし、必要な未取得地点を返す。無関係な拠点座標で代用しない。Place.locationだけを埋めてもDay.areasの代わりにはならない |
-| 予約と対象 | 移動予約はBooking.transportIdと対象Transport.bookingIdを対応させ、Booking.targetDateをその移動日にする。宿泊・施設予約はBooking.placeIdを実際の対象Placeへ結び、該当予定のselectionとの対応を確認する。ScheduleItemにbookingIdを追加しない。未採用候補を予約表示のために選ばず、対象不明なら参照は許されるnullのままにする。予約不要の移動へ表示目的だけでBookingを作らない |
-| 往復・複数区間予約 | BookingのtransportId / targetDateは各1件なので、生成時は対象区間ごとのBookingに整理し、往路・復路それぞれからbookingIdで参照する。同一予約に含まれることはnotesに記す。総額しか分からなければ区間金額を創作・重複計上せずamount=nullとし、確認済み総額と対象範囲を一方のnotesに記す。片道しか確認できないのに両方をbookedにしない |
-| 候補と未確認値 | 候補は1件でも未採用ならselection=[]。実施確定の「昼食」と店の未選択は両立する。明示採用済みのPlace、予約事実、未変更部分は再生成でも保持する。時刻・料金・住所・座標・評価・URLを推測で確定せず、Schemaに従う不明値を使い、利用に必要な不足だけ短く返す |
+| 意味・効力の範囲に置く | 情報はその意味・効力が成立する日／予定にだけ配置し、別日へ先取り・持ち越し・重複しない。対象期間のある条件と、特定時点の行動を区別する。例えば宿泊やレンタカーの開始・終了条件は、それぞれが成立する日の該当予定に対応させる |
+| 情報の所有箇所を一つにする | 同一情報を複数箇所へ冗長に複製せず、最も適切な所有箇所へ置く。予約に属する情報と予定・施設固有の情報は前節の格納先に分け、通常コメントと重要コメントにも同じ内容を重ねない。共通情報は参照で共有する |
+| 構造と説明を分ける | 構造化フィールドで表現済みの情報を説明文へ重複させず、説明文にはそこで分からない判断条件・補足だけを書く。候補名の列挙や時刻・金額の再掲でコメントを埋めない。自然な予定本文に採用済みPlace名を含める契約は維持する。予約前の備忘・検討事項・金額は原則として旅程表示用コメントへ入れない |
+| 独立した概念を混同しない | statusは行動自体の実施判断（決定済みconfirmed、提案・仮置きtentative、実施するか未定undecided）、timeは時刻の表現、Booking.statusは確認できた予約事実、selectionは明示された場所の採用を表す。一つの確定から他の確定を推測しない。実施確定でも時刻や場所は未定にでき、時刻不要と時刻未定も区別する。候補は1件でも未採用ならselection=[]とする |
+| 確認済みの事実を使い、変更範囲を守る | 外部情報は対象の同一性と根拠を確認できた値だけを入れ、不明値・予約事実を創作しない。再生成でも既存対象のID、明示採用済みPlace、予約事実、未変更部分を保持する。変更によって情報の効力が変わる場合は再確認し、利用に必要な不足・未解決事項だけ短く返す |
+| 行動の単位を揃える | 同じ行動の言い換えや、一続きの行動を冗長に分割した項目はまとめ、残すIDと必要な候補・コメント・参照を保持する。別の行動や明示された別行動は時刻が重なるだけで統合しない。実際の時間衝突は勝手な時刻変更で隠さず、未解決事項として返す。移動はTransportに集約する |
+
+### 原則を既存fieldへ適用する
+
+以下は格納・参照上の補足であり、個別の旅行に限る例外ルールではない。
+
+| 対象 | 対応・確認 |
+| --- | --- |
+| 日別代表エリアと座標 | Day.areasは行動順の主要エリアを表し、routeSummaryと一致させる。各nameの代表地点を地域・住所で照合し、確認できたlatitude / longitudeをlocationへ両方入れる。広域名なら代表地点が分かるnameにする。未確認ならlocation=nullとし、必要な未取得地点を返す。別地点の座標で代用せず、Place.locationとDay.areasはそれぞれの対象を表す |
+| 予約の対象と参照 | 移動予約はBooking.transportIdと対象Transport.bookingIdを対応させ、targetDateをその移動日にする。宿泊・施設予約はBooking.placeIdを実際の対象へ結び、該当予定のselectionとの対応を確認する。ScheduleItemにbookingIdを追加しない。対象不明の参照は許されるnullのままにし、表示目的で未採用候補を選んだり、予約不要の移動へBookingを作ったりしない |
+| 一つの予約が複数対象を含む場合 | BookingのtransportId / targetDateは各1件なので、複数区間は対象ごとのBookingと各Transport.bookingIdに整理する。同一予約に含まれることはnotesに記す。総額しか分からなければ区間金額を創作・重複計上せずamount=nullとし、確認済み総額と対象範囲を一方のnotesに置く。bookedは確認できた対象範囲に限る。複数泊の対象日・期間は前節の表現に従う |
 
 天気は座標付きDay.areasを使い、予定Placeや移動端点から自動選択しない。予報値はTrip JSONへ書き込まずCALが取得する。座標があっても予報期間外・取得不可なら表示されない。表示・取得の詳細は[旅程詳細モデル](trip-detail-model.md#閲覧編集の意味境界116)を参照する。
 
-生成後は日別の行動順と時刻、同じ行動の重複、代表エリア、予約対象・対象日・往復参照、候補の非採用、不明値を一度通して確認する。Schema / validatorは構造・既存の意味整合を担当し、これらの品質判断を一律の拒否条件にしない。
+生成後は上記原則に沿って内容を一度通して確認し、日別の行動順・時刻、情報の適用範囲・所有箇所、代表エリアと予約の参照が整合することを確かめる。Schema / validatorは構造・既存の意味整合を担当し、これらの品質判断を一律の拒否条件にしない。
 
 ## 受渡しとCAL採用の境界
 
@@ -194,11 +206,3 @@ Transport.serviceNameとmode=shinkansenを保持できる。予約不要でも�
 対応済みのIDをhandled_instruction_idsへ列挙する。指示文自体を予定本文に転記しない。
 
 Place.officialUrlは確認済み公式リンク、urlsは参考リンク。本文actionは「すし善で夕食」のような自然文を保持し、施設名をPlace.nameと一致させる。レストラン候補で食べログURLを取得できた場合は、取得できる範囲で既存rating（source=食べログ、observedAt付き）も設定し、点数を取得できない場合のみnullとする。確認済みの値だけを記し、推測しない。
-### 実Tripレビューで確認したコメント・時刻の生成ルール（#138）
-
-- 通常コメントと重要コメントを重複させない。同一の重要コメントを複数予定へ複製しない。
-- チェックイン情報は宿泊開始日、チェックアウト情報は出発日の該当予定だけに置く。
-- 予約前の備忘・検討事項・金額は原則として旅程表示用コメントへ入れない。
-- 候補一覧で分かる店名・候補地名をコメントへ重複記載せず、候補一覧では分からない判断条件・補足だけを書く。
-- 時刻不要の予定は無理に未定にせず、`time.mode: "none"`（設定なし）とし、start / end / durationMinutesをnullにする。順序は既存orderで指定する。
-- 予約の重要コメントは元のBooking.notesへ置く。予約に属さない予定固有の重要コメントはScheduleItem / Transportの任意`importantComment`へ置ける。
