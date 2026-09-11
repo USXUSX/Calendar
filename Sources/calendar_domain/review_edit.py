@@ -9,7 +9,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
     paths = dict(status='/status', start='/time/start', end='/time/end',
                  time_mode='/time/mode', duration_minutes='/time/durationMinutes')
     if source_type == 'scheduleItem':
-        paths.update(category='/category', title='/action', normal_comment='/summary', selection='/placeSelection/selection',
+        paths.update(category='/category', title='/action', normal_comment='/summary', supporting_details='/details', selection='/placeSelection/selection',
                      candidate_judgments='/candidateJudgments')
         extra = {'place', 'ai_instruction', 'adopt_place_id', 'remove_candidate_place_id'}
     else:

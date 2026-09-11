@@ -94,6 +94,14 @@ class ReviewEditTests(unittest.TestCase):
         self.assertEqual(before,self.domain.get_effective_trip(self.tid))
         self.assertFalse(self.domain.get_chat_context(self.tid)['instructions'])
 
+    def test_full_comment_update_preserves_separate_ai_instruction(self):
+        item = self.trip['days'][0]['scheduleItems'][0]
+        saved = self.edit(item, {'normal_comment': '本文\n補足全文', 'supporting_details': [], 'ai_instruction': '雨天案を調べる'})
+        entry = next(e for e in saved['view']['days'][0]['entries'] if e['source_item_id'] == item['id'])
+        self.assertEqual(entry['normal_comment'], '本文\n補足全文')
+        self.assertEqual(entry['supporting_details'], [])
+        self.assertEqual(entry['ai_instruction'], '雨天案を調べる')
+
     def test_remove_candidate_only_from_target_and_preserve_other_references(self):
         item = next(i for d in self.trip['days'] for i in d['scheduleItems'] if len(i['placeSelection']['candidatePlaceIds']) > 1)
         pid, second = item['placeSelection']['candidatePlaceIds'][:2]

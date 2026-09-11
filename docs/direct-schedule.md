@@ -29,3 +29,7 @@ Workingは作成・変更しない。既存Workingのstaleは従来のrevision�
 Validation/atomic adoptionを使う。正式Trip JSONの移行・削除、DB schema追加は不要。
 
 #116の到達点は通常UIの実装・検証・公式同期と、分離した合成データ環境での再確認準備。物理iPad mini受入・Phase 8終了・リリース判断は#96に残る。
+
+通常コメントを全文編集する利用側はsummaryとdetailsを改行で表示し、変更時は
+`normal_comment`と`supporting_details`を同じedit_trip_itemで更新できる。
+変更しない保存では元のsummary/detailsを維持し、AI指示はai_instructionだけへ渡す。
