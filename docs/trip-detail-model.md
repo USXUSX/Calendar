@@ -53,7 +53,7 @@ Transport.importantは予約不要でも旅程上重要な移動を表す任意b
 開始ありを`fixed`へ変換し、開始・終了ありかつshow_duration=trueなら2値を保持して差分（深夜跨ぎは翌日）を
 `durationMinutes`へ計算し`range`にする。同時刻の滞在時間は保存エラー。終了なしではfixedとする。
 通常表示は同じ時刻欄の上段に開始、下段に終了または滞在時間を置き、編集時は同一欄・同一幅で開始/終了を入力する。
-ユーザー向けmode選択や滞在分数入力は置かない。既存APIのtime_mode/range＋duration_minutesは互換のため保持する。
+時刻設定は具体的時刻 / 未定 / 設定なしを選ぶ。滞在分数入力は置かない。既存APIのtime_mode/range＋duration_minutesは互換のため保持する。
 
 予定単位AI指示は既存`ai_instructions`へ保存し、生成requestを作らない。
 `item:<trip_id>:<source_item_id>:<unique_id>`のIDで対象との関係を保持し、contextのinstructionsに
@@ -100,7 +100,7 @@ OFFでも候補の「いいね」はON/OFFできる。ONで行をタップする
 日別情報の編集と予定追加もインラインに揃え、日末尾の追加入口と行選択の中間状態は撤去する。
 行内の予定追加は直下へ挿入する。日見出しの予定追加は既存の日末尾追加commandを使う。
 時刻1列（開始/終了の2段）・区分・本文の列を通常表示と編集で共有し、コメントも本文の直下で編集する。
-時刻未定でも入力欄を無効にせず、開始空欄で表す。状態は確定チェックON→confirmed、OFF→tentativeとし、
+時刻は具体的時刻 / 未定 / 設定なしを選び、具体的時刻で開始・終了を入力する。状態は確定チェックON→confirmed、OFF→tentativeとし、
 既存undecidedもUIでは未確定にまとめる。滞在時間表示は時刻入力の下のチェックで直接選ぶ。
 移動の「重要な移動」は「確定」の右に置く。予定追加と変更を保存は同じ行の左右に置く。
 通常予定はactionの自然文をそのまま入力し、場所/行動へ分解しない。Place補完とAI指示は補助欄を展開する。
@@ -401,3 +401,23 @@ Step 4では`run_started_generation()`がcurrentな`generating`行から、開�
 [追加契約](conditioned-schedule.md)の意味境界から最大3候補を取得・明示選択し、
 Direct Overrideで予定を1件追加する。通常詳細entryの`search_query`は元条件（既存項目はnull）。
 正式場所は`places`、未決定候補は既存`candidates`で区別する。Frame画面への接続は後続。
+
+
+## 実Tripレビューの意味境界（#138）
+
+`time_mode: "none"`は設定なし、`undecided`は未定。いずれも時刻編集でstart / end /
+durationMinutesをnullへ揃える。noneのview.time.labelは空文字、配置はorderを維持する。
+具体的時刻は`time_mode: "fixed"`とstart / end / show_durationを渡し、CALがfixed / rangeを導出する。
+直接追加も同じtime_modeを受け取る。省略時は既存の開始空欄→undecidedを維持する。
+
+entry.important_comment_fieldsは`{source_id, comment}`配列。編集時は`important_comments`に
+source_id→文字列のobjectを渡す。CALがその予定に紐づくBooking.notesへ保存する。
+予約がない場合は予定自身をsource_idとして任意importantCommentへ保存する。
+既存の予定固有コメントも保持する。空文字はnullへ変換する。別予定・別予約のIDは拒否し、
+通常コメント等と同じtransactionで検証・保存する。共有Bookingを編集するとそのBookingを参照する表示にも反映される。
+既存important_commentsは表示用文字列配列を維持する。
+
+採用後のentry.placesにもtabelog_url / tabelog_ratingを返す。元Placeのurls / ratingをそのまま使い、
+再取得・推測せず、候補一覧を隠しても通常表示で利用できる。
+直接編集・追加とChat candidateのValidation失敗は項目pathと理由を返す。
+JSON構文エラーには行・列を返す。失敗時の部分保存やcandidate自動修復はしない。

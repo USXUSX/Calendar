@@ -44,7 +44,7 @@ def change(domain, command_id, trip_id, action, payload):
                 start, end = payload.get('start'), payload.get('end')
                 from .trip_detail import input_time_spec
                 item = dict(status=payload.get('status', 'undecided'), action=title, category=category, summary=payload.get('normal_comment'), details=[],
-                            time=input_time_spec(start, end, payload.get('show_duration', False)),
+                            time=input_time_spec(start, end, payload.get('show_duration', False), payload.get('time_mode')),
                             placeSelection=dict(candidatePlaceIds=[], selection=[], minSelections=None, maxSelections=None))
                 name = payload.get('place_name')
                 if isinstance(name, str) and name.strip():
@@ -87,8 +87,11 @@ def change(domain, command_id, trip_id, action, payload):
             raise ValidationError('未知の予定操作です。')
         for target, path, value in changes:
             domain._apply_value(trip, target, path, value)
-        if validate_value(trip, domain._trip_schema) + semantic_errors(trip):
-            raise ValidationError('予定の時刻・カテゴリ・参照を確認してください。')
+        errors = validate_value(trip, domain._trip_schema)
+        if not errors:
+            errors = semantic_errors(trip)
+        if errors:
+            raise ValidationError('予定を保存できません: ' + '\n'.join(errors))
         for target, path, value in changes:
             domain._store_trip_fields(connection, command_id, trip_id, target, {path: value}, {path: path})
     return dict(view=domain.get_trip_detail_view(trip_id), trip=domain.get_effective_trip(trip_id))
