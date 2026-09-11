@@ -203,9 +203,10 @@ class CalendarDomainTests(unittest.TestCase):
         expected = self.domain.get_effective_trip(trip_id)
         day_id = expected["days"][0]["id"]
         expected["days"][0]["routeSummary"] = "小樽→札幌"
-        result = self.domain.edit_trip_day("day-edit", trip_id, day_id, {"route_summary": "小樽→札幌"})
+        expected["days"][0]["title"] = "港町を巡る"
+        result = self.domain.edit_trip_day("day-edit", trip_id, day_id, {"route_summary": "小樽→札幌", "title": "港町を巡る"})
         self.assertEqual(result["trip"], expected)
-        self.assertEqual(result["updated_fields"], ["route_summary"])
+        self.assertEqual(result["updated_fields"], ["route_summary", "title"])
         reloaded = CalendarDomain(self.db_path, self.trip_root, chat_root=self.trip_root.parent / "chat")
         self.assertEqual(reloaded.get_effective_trip(trip_id), expected)
         self.assertEqual(result["view"], reloaded.get_trip_detail_view(trip_id))
@@ -237,7 +238,7 @@ class CalendarDomainTests(unittest.TestCase):
         cases += [(target, {"route_summary": "小樽"}) for target in
                   ["missing", "schedule-dinner", "transport-ferry", trip_id]]
         cases += [(day_id, changes) for changes in
-                  [{}, None, {"title": "小樽"}, {"route_summary": "小樽", "title": "主題"}]]
+                  [{}, None, {"unknown": "小樽"}, {"route_summary": "小樽", "title": 42}]]
         for target, changes in cases:
             with self.subTest(target=target, changes=changes):
                 with self.assertRaises(ValidationError):
