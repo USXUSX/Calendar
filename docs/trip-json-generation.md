@@ -15,7 +15,7 @@ Gitが正本で、`Calendar_GD`はmerge後の公式共有コピー。GitHubを�
 
 1. 旅行名・日付・希望・確定済みの訪問先や予約を読む。必須の日付等が不明ならusに確認する。実旅行の日時・予約を創作しない。
 2. 希望に合う少数の場所を調べ、同名施設を住所・地域で照合する。公式情報や保存可能な公開データから、確認できるURL・住所・座標・短いコメントを入れる。調べても不明な値は不明のままにする。候補は訪問確定に変えない。
-3. 以下の対応・意味整合を使って完全JSONを1件生成する。提案した日程と予約済みの事実を区別する。
+3. 以下の対応・意味整合と[生成品質の確認](#生成品質の確認)を使って完全JSONを1件生成する。提案した日程と予約済みの事実を区別する。
 4. UTF-8のcomplete JSON本体はチャット本文へ全文展開せず、cloud Chatは接続中のGoogle Drive上の `Calendar_Chat/<trip-id>/candidate.json` へ保存する。local Chatは同じ同期フォルダ `/Users/us/Tools/GoogleDrive/Calendar_Chat/<trip-id>/candidate.json` を使う。ファイル中はJSONオブジェクトだけ。取得元URL・確認日が必要な情報は既存のsummary / details / urls等に短く記し、独自fieldや取得本文を足さない。
 5. Chatは生成したJSONの構造と内容を自己確認するが、CAL正式Validationを実行済みとは扱わない。Schema・semanticの正式ValidationはCALが新規Trip取込時に行い、エラー時はその結果に従って同じ`candidate.json`を修正する。
 6. 日別の行動順・移動・宿泊・候補・未定事項を内容確認し、candidateを渡す。チャット側の最終表示は保存した `Calendar_Chat/<trip-id>/candidate.json` と残る未定事項だけを簡潔に返す。CAL Validation成功前に正式採用済みとは扱わない。
@@ -43,13 +43,30 @@ Gitが正本で、`Calendar_GD`はmerge後の公式共有コピー。GitHubを�
 
 CAL上で候補を正式採用すると、selectionと予定本文を一括更新する（#124）。採用済みPlace.nameと一致する本文中の部分を、確認済みofficialUrlへリンクする。通常表示では採用済みの候補一覧を隠す。具体的な更新・表示契約は[旅程詳細モデル](trip-detail-model.md#通常旅程とインライン編集119--121)を正本とする。
 
-予定の確定状態（status）、時刻の表現（time）、予約状態（Booking.status）は別に保つ。確定予定でも時刻未定はあり、開始時刻があるだけで予約済みにはしない。
+予定の確定状態（status）、時刻の表現（time）、予約状態（Booking.status）は別に保つ。具体的な判断と生成後の確認は次節に従う。
 
 候補数は新規Trip JSON全体に一律3件制限を置かない。既存予定へのAFM候補追加の件数制限とは別契約である。minSelections / maxSelectionsは分かる場合だけ設定し、最大数は候補件数以内にする。
 
 IDはSchemaに従う英数字・ハイフン・アンダースコアを使い、同じcandidateの再生成では既存対象のIDを維持する。ScheduleItem.dayIdは親Dayと一致させ、日内orderはScheduleItemとTransportを合わせて重複させない。selectionはcandidatePlaceIdsの部分集合にする。移動のdayIdとDay.transportIds、予約の対象参照と日付を対応させ、参照漏れや不要なPlaceを残さない。
 
 日跨ぎ時刻、未確定の移動端点など、現在のSchemaでそのまま表現できない入力は、事実を偽装して通さず不足を伝える。予約済みの複数泊は開始日をtargetDateとし、チェックアウト日等の条件をnotesへ記す。移動への任意コメントfieldはないため、予約条件はBooking.notes、それ以外の必要な補足はTrip.summary等に対象を明記する。専用fieldが必要な実用途が判明した場合はSchemaと利用側を同じ変更範囲で検討する。
+
+## 生成品質の確認
+
+以下はSchemaの必須条件を追加するものではなく、新規生成・既存Trip再生成で使う内容確認である。CAL Validationに通ることと、使いやすい旅程であることは別に確認する。「埋めるべき」は確認できる情報を調べて入れる方針であり、不明値を創作して全欄を埋める意味ではない。
+
+| 観点 | 生成時の判断・確認 |
+| --- | --- |
+| status・時刻・予約 | ScheduleItem / Transportのstatusは、その行動自体を行うと決めているかで判断する。実施が確定ならconfirmed、提案・仮置きならtentative、実施するか未定ならundecided。単に「ほぼ確定そう」と推測してconfirmedにしない。確定した朝食・チェックアウト・空港移動でも時刻はundecidedにでき、店や便の詳細が未定という理由だけでtentativeにしない。予定時刻があること、Placeを選んだこと、予約済みであることを同一視しない。Booking.statusは確認できた予約事実に従う |
+| 同じ行動の重複 | 同一時間帯・同一場所の「市場を訪れる」と「市場で朝食」が一続きの行動なら「市場で朝食・散策」へまとめる。残す項目のIDと必要な候補・コメント・参照を保持する。別の行動や明示された別行動は時刻が重なるだけで統合しない。実際の時間衝突は勝手な時刻変更で隠さず、未解決事項として返す。移動はTransportに集約する |
+| 日別代表エリアと座標 | Day.areasを行動順の主要エリア（宿泊拠点だけでなく日帰り先・空港周辺等）で埋め、routeSummaryと矛盾させない。各nameに対応する代表地点を地域・住所で照合し、公開情報で確認できたlatitude / longitudeをlocationへ両方入れる。広域名ならどの代表地点か分かるnameにする。未確認ならlocation=nullとし、必要な未取得地点を返す。無関係な拠点座標で代用しない。Place.locationだけを埋めてもDay.areasの代わりにはならない |
+| 予約と対象 | 移動予約はBooking.transportIdと対象Transport.bookingIdを対応させ、Booking.targetDateをその移動日にする。宿泊・施設予約はBooking.placeIdを実際の対象Placeへ結び、該当予定のselectionとの対応を確認する。ScheduleItemにbookingIdを追加しない。未採用候補を予約表示のために選ばず、対象不明なら参照は許されるnullのままにする。予約不要の移動へ表示目的だけでBookingを作らない |
+| 往復・複数区間予約 | BookingのtransportId / targetDateは各1件なので、生成時は対象区間ごとのBookingに整理し、往路・復路それぞれからbookingIdで参照する。同一予約に含まれることはnotesに記す。総額しか分からなければ区間金額を創作・重複計上せずamount=nullとし、確認済み総額と対象範囲を一方のnotesに記す。片道しか確認できないのに両方をbookedにしない |
+| 候補と未確認値 | 候補は1件でも未採用ならselection=[]。実施確定の「昼食」と店の未選択は両立する。明示採用済みのPlace、予約事実、未変更部分は再生成でも保持する。時刻・料金・住所・座標・評価・URLを推測で確定せず、Schemaに従う不明値を使い、利用に必要な不足だけ短く返す |
+
+天気は座標付きDay.areasを使い、予定Placeや移動端点から自動選択しない。予報値はTrip JSONへ書き込まずCALが取得する。座標があっても予報期間外・取得不可なら表示されない。表示・取得の詳細は[旅程詳細モデル](trip-detail-model.md#閲覧編集の意味境界116)を参照する。
+
+生成後は日別の行動順と時刻、同じ行動の重複、代表エリア、予約対象・対象日・往復参照、候補の非採用、不明値を一度通して確認する。Schema / validatorは構造・既存の意味整合を担当し、これらの品質判断を一律の拒否条件にしない。
 
 ## 受渡しとCAL採用の境界
 
@@ -83,7 +100,28 @@ Schemaで今回必要な情報を表現できるため変更は不要。Validati
 
 ## 既存Tripの変更
 
-新規Trip取込は既存Tripの上書き経路ではない。既存Tripの主要なChat往復は次節の共有Envelopeを使う。既存Working exportとAI InstructionのJSON Patch経路も保持する。いずれもCALがValidationと正式採用を担当し、Chatは正式ファイルを直接置換しない。
+新規Trip取込は既存Tripの上書き経路ではない。既存Tripの主要なChat往復は[継続するChat往復](#継続するchat往復112)の共有Envelopeを使う。既存Working exportとAI InstructionのJSON Patch経路も保持する。いずれもCALがValidationと正式採用を担当し、Chatは正式ファイルを直接置換しない。
+
+### 再生成の使い分け
+
+| 状態・変更 | 使う経路 |
+| --- | --- |
+| 登録前 | 同じTrip IDのcomplete JSON本体を同じcandidate.jsonへ何度でも再生成し、CALで再度Validation・内容確認してからImportする |
+| 登録後の局所変更 | 時刻・予定・コメント等はCALの直接編集、または最新contextを基にした既存Trip用candidate Envelopeで変更する。Chatへ局所変更を頼む場合も返すtripはcomplete JSON |
+| 登録後の全体再生成 | 宿泊地・日数・日別構成等を大きく組み直す場合も最新contextのeffective Tripを出発点に、変更範囲を指示してEnvelope内のcomplete Tripを再生成する。既存対象のID・予約事実・変更対象外の内容を保持する。同じTripの更新に新規Importを使わない |
+| 開始日入りTrip IDで日程変更 | 開始日が変わりIDも新日程に合わせる運用では、新しいTrip IDと同名フォルダへcomplete JSON本体を作り、新TripとしてImportする。旧TripのIDやフォルダだけを変更して更新扱いにしない。旧Tripの整理・削除は別途usの指示で扱う |
+
+Trip IDに日付を含めることや、開始日変更時のID変更はSchema上の必須条件ではない。上表は日付入りIDと日程を一致させる場合の再作成運用であり、自動リネーム・自動移行は追加しない。新日程では予約の有効性、交通日時、営業日等を見直し、旧予約を新日程で有効なbookedへ機械的に移さない。
+
+既存Tripのcandidateは通常表示・再読込で検証後に自動反映される。全体再生成でも別の確認画面はないため、変更意図を整理してから受渡し先へ保存する。base_revisionを手で現在値へ付け替えず、staleなら最新contextから作り直す。受渡し・採用の詳細は[継続するChat往復](#継続するchat往復112)を正本とする。
+
+## 実利用からガイドを更新する
+
+1. 実旅行で不足を見つけたら、短いCalendar Issueに「困った表示・生成結果」「期待する内容」「一般化できる生成ルール」を記す。実Trip本文や予約情報を転記せず、必要なら架空の短い例で示す。
+2. 現行mainの本ガイド・Schema・関係する表示/Validation契約を確認する。既存fieldで表せる生成品質は、本ガイドの該当箇所を修正・統合する。旅行ごとの例外一覧や別チェックリストを増やさない。Schemaで表せない実用途やCAL自体の不具合だけを、別の変更範囲として検討する。
+3. 文書変更は契約との内容照合と差分検査を最小確認とし、例JSONを変更した場合だけそのJSONも検証する。現行TDSに従いPR・merge・Calendar_GD公式同期・Issue closeまで進める。変更理由と確認結果はIssue / PRに残し、ガイドには現行ルールを残す。
+
+以後の生成は冒頭の現行正本読取りで更新を取り込む。既存の実Tripへは遡及適用せず、修正が必要なTripは別途依頼されたときに通常の変更経路で扱う。
 
 ## 継続するChat往復（#112）
 
