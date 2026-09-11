@@ -63,7 +63,9 @@ Transport.importantは予約不要でも旅程上重要な移動を表す任意b
 Chatが`handled_instruction_ids`で処理完了すると通常画面の未処理表示から外れる。
 予定本文やコメントへ指示そのものを残さない。後続処理は[Chat往復](trip-json-generation.md)に従う。
 
-`edit_trip_day`は`areas`（順序付き`{name, location}`配列）を`/areas`へ保存する。
+`edit_trip_day`は`title`を既存Day.titleの`/title`へ保存する。日付行の1日のタイトル／予定要約はこの値を使う。
+正式Tripを変更せずDirect Overrideへ保存し、Workingは作成・変更しない。
+同じcommandで`areas`（順序付き`{name, location}`配列）を`/areas`へ保存する。
 位置不明はnull、表示は名前を矢印で結ぶ。既存のroute_summary commandは維持するが、
 areasがある日はその配列を表示・天気地点の正本とする。旧文字列を自動分割しない。
 日付編集は天気値を手入力せず、`lookup_place(name, adapter)`のCAL所有の取得結果から

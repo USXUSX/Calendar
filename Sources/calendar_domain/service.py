@@ -2333,16 +2333,16 @@ class CalendarDomain(ChatExchangeMixin):
 
     def edit_trip_day(self, command_id: str, trip_id: str, day_id: str,
                       changes: dict[str, Any]) -> dict[str, Any]:
-        """Update one day's representative area through Direct Override."""
+        """Update one day's title and representative areas through Direct Override."""
         self._require_text(command_id, "command_id")
         self._require_text(day_id, "day_id")
-        if not isinstance(changes, dict) or not changes or not set(changes) <= {"route_summary", "areas"}:
-            raise ValidationError("day edit requires areas or route_summary")
+        if not isinstance(changes, dict) or not changes or not set(changes) <= {"title", "route_summary", "areas"}:
+            raise ValidationError("day edit requires title, areas or route_summary")
         effective = self.get_effective_trip(trip_id)
         if not any(day["id"] == day_id for day in effective["days"]):
             raise ValidationError("day edit target does not match a Day stable ID")
         return self._edit_trip_fields(
-            command_id, trip_id, day_id, changes, {"route_summary": "/routeSummary", "areas": "/areas"}, effective,
+            command_id, trip_id, day_id, changes, {"title": "/title", "route_summary": "/routeSummary", "areas": "/areas"}, effective,
         )
 
     def _edit_trip_fields(self, command_id: str, trip_id: str, source_item_id: str,

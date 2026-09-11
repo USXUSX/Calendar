@@ -193,7 +193,7 @@ Transport.serviceNameとmode=shinkansenを保持できる。予約不要でも�
 予定単位instructionsはsource_item_idを持つ。Chatは対象を解決して結果をcandidateへ反映し、
 対応済みのIDをhandled_instruction_idsへ列挙する。指示文自体を予定本文に転記しない。
 
-Place.officialUrlは確認済み公式リンク、urlsは参考リンク。本文actionは「すし善で夕食」のような自然文を保持し、施設名をPlace.nameと一致させる。レストランの食べログ点数は既存rating（source=食べログ、observedAt付き）へ確認済みの値だけ記す。
+Place.officialUrlは確認済み公式リンク、urlsは参考リンク。本文actionは「すし善で夕食」のような自然文を保持し、施設名をPlace.nameと一致させる。レストラン候補で食べログURLを取得できた場合は、取得できる範囲で既存rating（source=食べログ、observedAt付き）も設定し、点数を取得できない場合のみnullとする。確認済みの値だけを記し、推測しない。
 ### 実Tripレビューで確認したコメント・時刻の生成ルール（#138）
 
 - 通常コメントと重要コメントを重複させない。同一の重要コメントを複数予定へ複製しない。
