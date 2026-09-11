@@ -7,6 +7,11 @@ CALが正本管理、直接編集、Chat指示/context、candidate確認・反�
 Schemaと参照検証に従い、candidatePlaceIds、予定内容、他Placeを変えない。
 候補行の正式採用は`adopt_place_id`を使い、[表示・更新契約](trip-detail-model.md)に従って本文も更新する。
 
+`edit_trip_item(..., changes={"remove_candidate_place_id": place_id})`は指定候補をその予定だけから外す。
+候補ID、selection、candidateJudgmentsから同じIDを単一transactionで除外する。
+Place本体・他予定・本文・確定状態は保持する。正式採用／選択解除／いいねとは別の単独commandとし、
+候補以外のIDや他fieldとの同時更新は拒否する。
+
 `change_trip_schedule(command_id, trip_id, action, payload)`は以下の通常操作を扱う。
 
 - add: 任意after_item_idを指定すると同日のその予定/移動の直下へ挿入する。対象が消えていれば保存しない。省略時は末尾。day_idとtitle/category/start/end/normal_comment、任意status/show_duration、place_nameまたは未定時のsearch_query。時刻は表示・更新契約のCAL変換を使う。場所も条件も未入力なら本文をsearchQueryへ保持し、本文だけで追加できる（分割・場所の自動生成なし）。
@@ -24,3 +29,7 @@ Workingは作成・変更しない。既存Workingのstaleは従来のrevision�
 Validation/atomic adoptionを使う。正式Trip JSONの移行・削除、DB schema追加は不要。
 
 #116の到達点は通常UIの実装・検証・公式同期と、分離した合成データ環境での再確認準備。物理iPad mini受入・Phase 8終了・リリース判断は#96に残る。
+
+通常コメントを全文編集する利用側はsummaryとdetailsを改行で表示し、変更時は
+`normal_comment`と`supporting_details`を同じedit_trip_itemで更新できる。
+変更しない保存では元のsummary/detailsを維持し、AI指示はai_instructionだけへ渡す。
