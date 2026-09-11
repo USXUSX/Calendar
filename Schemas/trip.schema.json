@@ -14,7 +14,7 @@
       "additionalProperties": false,
       "required": ["mode", "start", "end", "durationMinutes"],
       "properties": {
-        "mode": { "enum": ["fixed", "range", "undecided"] },
+        "mode": { "enum": ["fixed", "range", "undecided", "none"] },
         "start": { "$ref": "#/$defs/clock" },
         "end": { "$ref": "#/$defs/clock" },
         "durationMinutes": { "type": ["integer", "null"], "minimum": 1 }
@@ -46,6 +46,7 @@
         "category": { "enum": ["sightseeing", "food", "accommodation", "other"] },
         "summary": { "$ref": "#/$defs/nullableString" },
         "details": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "importantComment": { "$ref": "#/$defs/nullableString" },
         "time": { "$ref": "#/$defs/time" },
         "placeSelection": { "$ref": "#/$defs/placeSelection" }
       }
@@ -78,6 +79,7 @@
         "serviceName": { "$ref": "#/$defs/nullableString" },
         "fromPlaceId": { "$ref": "#/$defs/id" },
         "toPlaceId": { "$ref": "#/$defs/id" },
+        "importantComment": { "$ref": "#/$defs/nullableString" },
         "time": { "$ref": "#/$defs/time" },
         "bookingId": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] }
       }

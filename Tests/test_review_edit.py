@@ -180,3 +180,40 @@ class ReviewEditTests(unittest.TestCase):
             self.assertEqual(entry['booking_status'], status)
 
 if __name__=='__main__':unittest.main()
+
+class TripReview138Tests(unittest.TestCase):
+    setUp = ReviewEditTests.setUp
+    edit = ReviewEditTests.edit
+    def test_none_time_and_comment_destinations(self):
+        item = self.trip['days'][0]['scheduleItems'][0]
+        saved = self.edit(item, {'time_mode':'none', 'start':'09:00', 'show_duration':True})
+        entry = next(e for d in saved['view']['days'] for e in d['entries'] if e['source_item_id']==item['id'])
+        self.assertEqual(entry['time'], dict(mode='none', start=None,end=None,durationMinutes=None,label=''))
+        self.assertEqual(entry['order'], item['order'])
+        field = entry['important_comment_fields'][0]
+        saved = self.edit(item, {'normal_comment':'通常', 'important_comments':{field['source_id']:'重要'}})
+        target = self.domain._item_matches(saved['trip'], field['source_id'])[0]
+        self.assertEqual(target['importantComment' if field['source_id']==item['id'] else 'notes'], '重要')
+        before = saved['trip']
+        with self.assertRaisesRegex(ValidationError, '保存先'):
+            self.edit(item, {'title':'失敗', 'important_comments':{'unrelated':'不正'}})
+        self.assertEqual(self.domain.get_effective_trip(self.tid), before)
+        with self.assertRaisesRegex(ValidationError, r'\.time\.start'):
+            self.edit(item, {'start':'29:00', 'time_mode':'fixed'})
+        self.assertEqual(self.domain.get_effective_trip(self.tid), before)
+        saved = self.edit(item, {'time_mode':'undecided'})
+        entry = next(e for d in saved['view']['days'] for e in d['entries'] if e['source_item_id']==item['id'])
+        self.assertEqual(entry['time']['label'], '未定')
+
+    def test_booking_notes_and_adopted_metadata(self):
+        transport = next(t for t in self.trip['transports'] if t.get('bookingId'))
+        saved = self.edit(transport, {'important_comments':{transport['bookingId']:'予約の重要事項'}}, 'transport')
+        booking = next(b for b in saved['trip']['bookings'] if b['id']==transport['bookingId'])
+        self.assertEqual(booking['notes'], '予約の重要事項')
+        item = next(i for d in self.trip['days'] for i in d['scheduleItems'] if len(i['placeSelection']['candidatePlaceIds'])>1)
+        pid = item['placeSelection']['candidatePlaceIds'][0]
+        saved = self.edit(item, {'adopt_place_id':pid})
+        entry = next(e for d in saved['view']['days'] for e in d['entries'] if e['source_item_id']==item['id'])
+        candidate = next(p for p in entry['candidates'] if p['place_id']==pid)
+        for key in ('tabelog_url','tabelog_rating'):
+            self.assertEqual(entry['places'][0][key], candidate[key])

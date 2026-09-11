@@ -126,11 +126,13 @@ def semantic_errors(trip: dict[str, Any]) -> list[str]:
 
     for index, entry in enumerate(schedule_items + trip["transports"]):
         time = entry["time"]
-        base = f"$: TimeSpec {index}"
+        base = f"$: TimeSpec {index} ({entry['id']}).time"
         if time["mode"] == "fixed" and time["start"] is None:
             errors.append(f"{base}: fixed time requires start")
         if time["mode"] == "range" and (time["start"] is None or time["end"] is None):
             errors.append(f"{base}: range time requires start and end")
+        if time["mode"] == "none" and any(time[key] is not None for key in ("start", "end", "durationMinutes")):
+            errors.append(f"{base}: none time requires null start, end and durationMinutes")
         if time["mode"] == "undecided" and (time["start"] is not None or time["end"] is not None):
             errors.append(f"{base}: undecided time requires null start and end")
 

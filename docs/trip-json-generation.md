@@ -194,3 +194,11 @@ Transport.serviceNameとmode=shinkansenを保持できる。予約不要でも�
 対応済みのIDをhandled_instruction_idsへ列挙する。指示文自体を予定本文に転記しない。
 
 Place.officialUrlは確認済み公式リンク、urlsは参考リンク。本文actionは「すし善で夕食」のような自然文を保持し、施設名をPlace.nameと一致させる。レストランの食べログ点数は既存rating（source=食べログ、observedAt付き）へ確認済みの値だけ記す。
+### 実Tripレビューで確認したコメント・時刻の生成ルール（#138）
+
+- 通常コメントと重要コメントを重複させない。同一の重要コメントを複数予定へ複製しない。
+- チェックイン情報は宿泊開始日、チェックアウト情報は出発日の該当予定だけに置く。
+- 予約前の備忘・検討事項・金額は原則として旅程表示用コメントへ入れない。
+- 候補一覧で分かる店名・候補地名をコメントへ重複記載せず、候補一覧では分からない判断条件・補足だけを書く。
+- 時刻不要の予定は無理に未定にせず、`time.mode: "none"`（設定なし）とし、start / end / durationMinutesをnullにする。順序は既存orderで指定する。
+- 予約の重要コメントは元のBooking.notesへ置く。予約に属さない予定固有の重要コメントはScheduleItem / Transportの任意`importantComment`へ置ける。

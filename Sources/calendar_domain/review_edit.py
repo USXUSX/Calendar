@@ -15,7 +15,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
     else:
         paths.update(important='/important', transport_mode='/mode', service_name='/serviceName')
         extra = {'from_place', 'to_place', 'ai_instruction'}
-    extra.add('show_duration')
+    extra.update({'show_duration', 'important_comments'})
     if set(changes) - set(paths) - extra:
         raise ValidationError('編集項目を確認してください。')
     with domain._command() as connection:
@@ -26,7 +26,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
             raise ValidationError('編集対象を確認してください。')
         item = matches[0]
         edits = [(source_item_id, paths[k], v) for k,v in changes.items() if k in paths]
-        for field in extra - {'ai_instruction', 'show_duration', 'adopt_place_id'}:
+        for field in extra - {'ai_instruction', 'show_duration', 'adopt_place_id', 'important_comments'}:
             if field not in changes:
                 continue
             supplied = changes[field]
@@ -69,10 +69,18 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
             votes = changes['candidate_judgments']
             if not isinstance(votes, dict) or set(votes) - set(item['placeSelection']['candidatePlaceIds']) or any(v not in {'ok','ng'} for v in votes.values()):
                 raise ValidationError('候補のOK/NGを確認してください。')
-        if 'show_duration' in changes:
+        if 'important_comments' in changes:
+            from .trip_detail import important_comment_fields
+            allowed = {field['source_id'] for field in important_comment_fields(item, trip['bookings'])}
+            comments = changes['important_comments']
+            if not isinstance(comments, dict) or set(comments) - allowed or any(not isinstance(v, str) for v in comments.values()):
+                raise ValidationError('重要コメントの保存先と文字列を確認してください。')
+            edits.extend((identity, '/importantComment' if identity == source_item_id else '/notes', comment or None)
+                         for identity, comment in comments.items())
+        if 'show_duration' in changes or changes.get('time_mode') in {'none', 'undecided'}:
             from .trip_detail import input_time_spec
             time = input_time_spec(changes.get('start', item['time']['start']),
-                                   changes.get('end', item['time']['end']), changes['show_duration'])
+                                   changes.get('end', item['time']['end']), changes.get('show_duration', False), changes.get('time_mode'))
             edits = [(target, path, value) for target, path, value in edits if not path.startswith('/time/')]
             edits.extend((source_item_id, '/time/' + field, value) for field, value in time.items())
         elif changes.get('time_mode') == 'range':
@@ -89,8 +97,11 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
             edits = [(target,path,value) for target,path,value in edits if path != '/time/end']
             edits.append((source_item_id, '/time/end', end))
         for target,path,value in edits: domain._apply_value(trip,target,path,value)
-        if validate_value(trip, domain._trip_schema) + semantic_errors(trip):
-            raise ValidationError('予定の時刻・場所・状態を確認してください。')
+        errors = validate_value(trip, domain._trip_schema)
+        if not errors:
+            errors = semantic_errors(trip)
+        if errors:
+            raise ValidationError('予定を保存できません: ' + '\n'.join(errors))
         instruction = changes.get('ai_instruction')
         if 'ai_instruction' in changes:
             if not isinstance(instruction, str): raise ValidationError('AI指示は文字列で入力してください。')

@@ -31,10 +31,16 @@ _DIRECT_EDIT_PATHS = {
 }
 
 
-def input_time_spec(start, end, show_duration):
+def input_time_spec(start, end, show_duration, time_mode=None):
     """Map the inline clock pair to the existing TimeSpec, without UI modes."""
     if type(show_duration) is not bool:
         raise ValidationError('滞在時間表示を確認してください。')
+    if time_mode not in {None, "fixed", "range", "undecided", "none"}:
+        raise ValidationError("時刻の設定を確認してください。")
+    if time_mode in {"undecided", "none"}:
+        return dict(mode=time_mode, start=None, end=None, durationMinutes=None)
+    if time_mode == "fixed" and not start:
+        raise ValidationError("具体的時刻には開始時刻を入力してください。")
     if not start:
         return dict(mode='undecided', start=None, end=None, durationMinutes=None)
     duration = None
@@ -52,6 +58,8 @@ def input_time_spec(start, end, show_duration):
 
 
 def _time_label(value: dict[str, Any]) -> str:
+    if value["mode"] == "none":
+        return ""
     if value["mode"] == "undecided":
         return "未定"
     start = value["start"][1:] if value["start"].startswith("0") else value["start"]
@@ -90,18 +98,22 @@ def _candidate_places(
     return result
 
 
-def _important_comments(
-    item: dict[str, Any], bookings: list[dict[str, Any]]
-) -> list[str]:
-    booking_ids = {item.get("bookingId")} if item.get("bookingId") else set()
-    selection = item.get("placeSelection")
-    selected_places = set(selection["selection"]) if selection else set()
-    comments = []
-    for booking in bookings:
-        if booking["id"] in booking_ids or booking.get("placeId") in selected_places:
-            if booking["notes"]:
-                comments.append(booking["notes"])
-    return comments
+def important_comment_fields(item, bookings):
+    selected = set(item.get("placeSelection", {}).get("selection", []))
+    fields = [{"source_id": booking["id"], "comment": booking["notes"] or ""}
+              for booking in bookings
+              if booking["id"] == item.get("bookingId") or booking.get("placeId") in selected]
+    if item.get("importantComment") or not fields:
+        fields.append({"source_id": item["id"], "comment": item.get("importantComment") or ""})
+    return fields
+
+
+def _place_metadata(place):
+    restaurant = place["category"] == "restaurant"
+    return {
+        "tabelog_url": next((url for url in place["urls"] if urlsplit(url).hostname in {"tabelog.com", "www.tabelog.com"}), None) if restaurant else None,
+        "tabelog_rating": place["rating"]["value"] if restaurant and place.get("rating") and place["rating"]["source"] == "食べログ" else None,
+    }
 
 
 def _entry(
@@ -136,7 +148,7 @@ def _entry(
         "title": title,
         "places": [
             {"id": place_id, "name": places[place_id]["name"],
-             "url": places[place_id].get("officialUrl"), "location": copy.deepcopy(places[place_id]["location"])}
+             **_place_metadata(places[place_id]), "url": places[place_id].get("officialUrl"), "location": copy.deepcopy(places[place_id]["location"])}
             for place_id in place_ids
         ],
         "status": item["status"],
@@ -145,7 +157,8 @@ def _entry(
         "candidates": candidates,
         "normal_comment": normal_comment,
         "search_query": item.get("searchQuery"),
-        "important_comments": _important_comments(item, bookings),
+        "important_comments": [field["comment"] for field in important_comment_fields(item, bookings) if field["comment"]],
+        "important_comment_fields": important_comment_fields(item, bookings),
         "supporting_details": supporting_details,
         "direct_edit_paths": copy.deepcopy(_DIRECT_EDIT_PATHS if source_type == "scheduleItem" else {
             "status": "/status", "start": "/time/start", "end": "/time/end", "time_mode": "/time/mode"

@@ -91,6 +91,8 @@ class ChatExchangeMixin:
         path = self._chat_path(trip_id, "candidate.json")
         try:
             return json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as error:
+            raise ValidationError(f"candidate.json {error.lineno}行{error.colno}列: {error.msg}") from error
         except (OSError, UnicodeError, ValueError) as error:
             raise ValidationError("candidate.jsonを読めません。ChatでJSONを修正してください。") from error
 
@@ -117,7 +119,7 @@ class ChatExchangeMixin:
                 raise ValidationError("処理済み指示は現在の未処理指示から指定してください。")
             stage, errors = validation_stage_errors(envelope["trip"], self._trip_schema)
             if errors:
-                return {"status": "invalid", "ready": False, "stage": stage, "errors": errors}
+                return {"status": "invalid", "ready": False, "stage": stage, "errors": errors, "message": "candidateを修正してください: " + "\n".join(errors)}
             candidate, _ = self._validated_candidate(trip_id, envelope["trip"])
             # Check the common Todo/reference constraints against the complete new base.
             # Overrides are absorbed only inside the adoption transaction, never here.
