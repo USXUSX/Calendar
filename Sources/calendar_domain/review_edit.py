@@ -11,7 +11,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
     if source_type == 'scheduleItem':
         paths.update(category='/category', title='/action', normal_comment='/summary', selection='/placeSelection/selection',
                      candidate_judgments='/candidateJudgments')
-        extra = {'place', 'ai_instruction', 'adopt_place_id'}
+        extra = {'place', 'ai_instruction', 'adopt_place_id', 'remove_candidate_place_id'}
     else:
         paths.update(important='/important', transport_mode='/mode', service_name='/serviceName')
         extra = {'from_place', 'to_place', 'ai_instruction'}
@@ -26,7 +26,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
             raise ValidationError('編集対象を確認してください。')
         item = matches[0]
         edits = [(source_item_id, paths[k], v) for k,v in changes.items() if k in paths]
-        for field in extra - {'ai_instruction', 'show_duration', 'adopt_place_id', 'important_comments'}:
+        for field in extra - {'ai_instruction', 'show_duration', 'adopt_place_id', 'remove_candidate_place_id', 'important_comments'}:
             if field not in changes:
                 continue
             supplied = changes[field]
@@ -51,6 +51,16 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
                               (source_item_id, '/placeSelection/selection', [identity])])
             else:
                 edits.append((source_item_id, '/fromPlaceId' if field == 'from_place' else '/toPlaceId', identity))
+        if 'remove_candidate_place_id' in changes:
+            pid = changes['remove_candidate_place_id']
+            selection = item['placeSelection']
+            if not isinstance(pid, str) or pid not in selection['candidatePlaceIds'] or set(changes) != {'remove_candidate_place_id'}:
+                raise ValidationError('この予定から外す候補を確認してください。')
+            edits.extend([
+                (source_item_id, '/placeSelection/candidatePlaceIds', [p for p in selection['candidatePlaceIds'] if p != pid]),
+                (source_item_id, '/placeSelection/selection', [p for p in selection['selection'] if p != pid]),
+                (source_item_id, '/candidateJudgments', {p: v for p, v in item.get('candidateJudgments', {}).items() if p != pid}),
+            ])
         if 'adopt_place_id' in changes:
             pid = changes['adopt_place_id']
             if not isinstance(pid, str) or pid not in item['placeSelection']['candidatePlaceIds'] or set(changes) != {'adopt_place_id'}:

@@ -94,6 +94,25 @@ class ReviewEditTests(unittest.TestCase):
         self.assertEqual(before,self.domain.get_effective_trip(self.tid))
         self.assertFalse(self.domain.get_chat_context(self.tid)['instructions'])
 
+    def test_remove_candidate_only_from_target_and_preserve_other_references(self):
+        item = next(i for d in self.trip['days'] for i in d['scheduleItems'] if len(i['placeSelection']['candidatePlaceIds']) > 1)
+        pid, second = item['placeSelection']['candidatePlaceIds'][:2]
+        other = next(i for d in self.trip['days'] for i in d['scheduleItems'] if i['id'] != item['id'])
+        place = next(p for p in self.trip['places'] if p['id'] == pid)
+        self.edit(other, {'place': {'id': pid, 'name': place['name']}})
+        self.edit(item, {'selection': [pid], 'candidate_judgments': {pid: 'ok', second: 'ng'}})
+        before = self.domain.get_effective_trip(self.tid)
+        saved = self.edit(item, {'remove_candidate_place_id': pid})['trip']
+        expected = copy.deepcopy(before)
+        target = next(i for d in expected['days'] for i in d['scheduleItems'] if i['id'] == item['id'])
+        target['placeSelection']['candidatePlaceIds'].remove(pid)
+        target['placeSelection']['selection'] = []
+        del target['candidateJudgments'][pid]
+        self.assertEqual(saved, expected)
+        for changes in ({'remove_candidate_place_id': pid}, {'remove_candidate_place_id': second, 'title': 'changed'}):
+            with self.assertRaises(ValidationError): self.edit(item, changes)
+            self.assertEqual(self.domain.get_effective_trip(self.tid), expected)
+
     def test_candidate_adoption_updates_body_atomically_and_preserves_status_and_likes(self):
         item = next(i for d in self.trip['days'] for i in d['scheduleItems'] if len(i['placeSelection']['candidatePlaceIds']) > 1)
         pid, second = item['placeSelection']['candidatePlaceIds'][:2]
