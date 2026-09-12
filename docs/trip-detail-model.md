@@ -5,6 +5,14 @@
 > **Status:** Issue #64 Goal 1 / Phase 2で確定。Phase 1の
 > [`trip-detail-ui.md`](trip-detail-ui.md) を構成するCAL側の意味境界である。
 
+## 登録済みTrip一覧（#152）
+
+`CalendarDomain.list_trips()`は登録済みTripだけを`[{trip_id, title, dateRange}]`で返す。
+`title / dateRange`はeffective Tripから導出し、開始日昇順、同日はTrip ID順とする。
+未登録のformalファイル・共有candidateは含めず、0件なら空配列を返す。
+一覧取得は保存・Chat context共有・candidate採用・天気取得を行わない。
+FRMはこの境界を利用し、SQLiteやCalendar_Localを直接読まない。
+
 ## 正本と表示モデル
 
 旅程詳細表示モデルは、formal Trip JSONへactive Direct Overrideを適用した

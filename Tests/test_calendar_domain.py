@@ -31,6 +31,27 @@ class CalendarDomainTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_list_trips_returns_registered_effective_summaries_without_writes(self):
+        trip_id = "trip-setouchi-2027"
+        self.domain.set_direct_override("title-override", trip_id, trip_id, "/title", "一覧用の旅程名")
+        orphan = json.loads(self.trip_path.read_text())
+        orphan["id"] = "trip-orphan"
+        (self.trip_root / "trips" / "trip-orphan.json").write_text(json.dumps(orphan))
+        before = self.trip_path.read_bytes()
+        chat_before = {str(p): p.read_bytes() for p in self.domain.chat_root.rglob("*") if p.is_file()}
+        with sqlite3.connect(self.db_path) as db:
+            database_before = list(db.iterdump())
+        self.assertEqual(self.domain.list_trips(), [{
+            "trip_id": trip_id, "title": "一覧用の旅程名", "dateRange": orphan["dateRange"],
+        }])
+        self.assertEqual(self.trip_path.read_bytes(), before)
+        with sqlite3.connect(self.db_path) as db:
+            self.assertEqual(list(db.iterdump()), database_before)
+        self.assertEqual({str(p): p.read_bytes() for p in self.domain.chat_root.rglob("*") if p.is_file()}, chat_before)
+        empty_db = Path(self.temp.name) / "empty.sqlite3"
+        initialize(empty_db)
+        self.assertEqual(CalendarDomain(empty_db, self.trip_root).list_trips(), [])
+
     def test_unified_events_preserve_source_and_do_not_copy_trip_events(self):
         self.domain.create_event("schedule-port-breakfast", title="Ordinary collision", start_date="2027-05-14")
         events = self.domain.list_events("2027-05-14", "2027-05-14")
