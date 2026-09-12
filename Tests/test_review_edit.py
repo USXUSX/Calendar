@@ -121,6 +121,59 @@ class ReviewEditTests(unittest.TestCase):
             with self.assertRaises(ValidationError): self.edit(item, changes)
             self.assertEqual(self.domain.get_effective_trip(self.tid), expected)
 
+    def test_remove_last_candidate_and_shrink_bounds_survives_reload(self):
+        from Sources.calendar_domain import CalendarDomain
+        added = self.domain.change_trip_schedule('bounded', self.tid, 'add',
+            dict(day_id=self.did, title='候補のある予定', category='other', place_name='合成場所'))
+        item = added['trip']['days'][0]['scheduleItems'][-1]
+        pid = item['placeSelection']['candidatePlaceIds'][0]
+        before = self.domain.get_effective_trip(self.tid)
+        saved = self.edit(item, {'remove_candidate_place_id': pid})['trip']
+        target = self.domain._item_matches(saved, item['id'])[0]
+        self.assertEqual(target['placeSelection'], dict(candidatePlaceIds=[], selection=[], minSelections=None, maxSelections=None))
+        self.assertTrue(target['searchQuery'])
+        self.assertEqual(saved['places'], before['places'])
+        fresh = CalendarDomain(self.root/'db', self.root/'data', chat_root=self.root/'chat')
+        self.assertEqual(fresh.get_effective_trip(self.tid), saved)
+        self.assertEqual(next(e for e in fresh.get_trip_detail_view(self.tid)['days'][0]['entries'] if e['source_item_id']==item['id'])['candidates'], [])
+
+    def test_remove_candidate_reduces_only_incompatible_bounds(self):
+        from Sources.calendar_domain import CalendarDomain
+        trip = copy.deepcopy(self.trip)
+        trip['id'] = 'bounded-candidates'
+        item = next(i for d in trip['days'] for i in d['scheduleItems'] if len(i['placeSelection']['candidatePlaceIds']) > 1)
+        count = len(item['placeSelection']['candidatePlaceIds'])
+        item['placeSelection'].update(minSelections=count, maxSelections=count)
+        domain = CalendarDomain(self.root/'db', self.root/'data', chat_root=self.root/'chat')
+        domain.import_trip_json(trip, confirmed=True)
+        saved = domain.edit_trip_item('shrink', trip['id'], 'scheduleItem', item['id'],
+            {'remove_candidate_place_id': item['placeSelection']['candidatePlaceIds'][0]})['trip']
+        selection = domain._item_matches(saved, item['id'])[0]['placeSelection']
+        self.assertEqual(selection['minSelections'], count-1)
+        self.assertEqual(selection['maxSelections'], count-1)
+        self.assertEqual(domain.get_effective_trip(trip['id']), saved)
+
+    def test_candidate_comment_shared_place_and_atomic_failure(self):
+        item = next(i for d in self.trip['days'] for i in d['scheduleItems'] if len(i['placeSelection']['candidatePlaceIds']) > 1)
+        pid = item['placeSelection']['candidatePlaceIds'][0]
+        place = next(p for p in self.trip['places'] if p['id'] == pid)
+        other = next(i for d in self.trip['days'] for i in d['scheduleItems'] if i['id'] != item['id'])
+        self.edit(other, {'place': {'id': pid, 'name': place['name']}})
+        before = self.domain.get_effective_trip(self.tid)
+        saved = self.edit(item, {'candidate_comments': {pid: '短い補足'}})
+        expected = copy.deepcopy(before)
+        next(p for p in expected['places'] if p['id'] == pid)['summary'] = '短い補足'
+        self.assertEqual(saved['trip'], expected)
+        refs = [c for d in saved['view']['days'] for e in d['entries'] for c in e['candidates'] if c['place_id']==pid]
+        self.assertGreaterEqual(len(refs), 2)
+        self.assertTrue(all(c['comment']=='短い補足' for c in refs))
+        for changes in ({'candidate_comments': {pid: 1}}, {'candidate_comments': {pid: 'changed', 'missing': 'bad'}},
+                        {'candidate_comments': {pid: 'changed'}, 'start': '29:00', 'time_mode': 'fixed'}):
+            with self.assertRaises(ValidationError): self.edit(item, changes)
+            self.assertEqual(self.domain.get_effective_trip(self.tid), expected)
+        cleared = self.edit(item, {'candidate_comments': {pid: ''}})['trip']
+        self.assertIsNone(next(p for p in cleared['places'] if p['id']==pid)['summary'])
+
     def test_candidate_adoption_updates_body_atomically_and_preserves_status_and_likes(self):
         item = next(i for d in self.trip['days'] for i in d['scheduleItems'] if len(i['placeSelection']['candidatePlaceIds']) > 1)
         pid, second = item['placeSelection']['candidatePlaceIds'][:2]
