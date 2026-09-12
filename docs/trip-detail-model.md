@@ -423,3 +423,14 @@ source_id→文字列のobjectを渡す。CALがその予定に紐づくBooking.
 再取得・推測せず、候補一覧を隠しても通常表示で利用できる。
 直接編集・追加とChat candidateのValidation失敗は項目pathと理由を返す。
 JSON構文エラーには行・列を返す。失敗時の部分保存やcandidate自動修復はしない。
+
+### 候補除外と候補コメント（#149）
+
+`edit_trip_item`の`remove_candidate_place_id`は指定予定のcandidatePlaceIdsからだけ除外し、
+同じPlaceのselection・candidateJudgmentsを取り除く。他予定・Place本体は保持する。
+候補減少で選択数の上下限が候補数を超える場合は残件数へ縮め、候補ゼロでは両方nullとする。
+最後の候補を外してsearchQueryが空なら既存の予定本文を使い、場所未定の契約を維持する。
+`candidate_comments: {Place ID: 文字列}`は対象予定の候補Place.summaryを更新する（空文字はnull）。
+Place単位の情報なので同一Placeを参照するすべての箇所で同じコメントになる。
+Schemaと意味整合を確認後、既存transactionでまとめて保存し、失敗時は部分保存しない。
+成功応答は更新後のtrip / view / updated_fields、入力不正は既存ValidationErrorを返す。
