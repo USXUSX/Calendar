@@ -664,6 +664,16 @@ class CalendarDomain(ChatExchangeMixin):
             )
         return {"id": trip_id, "visibility": visibility}
 
+    def list_trips(self) -> list[dict[str, Any]]:
+        """Derive registered Trip summaries without adopting candidates or writing state."""
+        with self._read() as connection:
+            trip_ids = [row["id"] for row in connection.execute("SELECT id FROM trips ORDER BY id")]
+        summaries = []
+        for trip_id in trip_ids:
+            trip = self.get_effective_trip(trip_id)
+            summaries.append({"trip_id": trip_id, "title": trip["title"], "dateRange": trip["dateRange"]})
+        return sorted(summaries, key=lambda item: (item["dateRange"]["start"], item["trip_id"]))
+
     def _candidate_root(self, candidate_root: str | Path | None = None) -> Path:
         return Path(candidate_root) if candidate_root is not None else self.chat_root
 
