@@ -17,6 +17,8 @@ CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb�
 
 完了記録と確認範囲は[Issue #96](https://github.com/USXUSX/Calendar/issues/96)、今後の保留事項は[ロードマップ](docs/development-roadmap.md)を参照してください。全面再構築は行わず、実利用で支障が出た箇所だけ対応します。
 
+Goal 2 Phase 1（[Issue #159](https://github.com/USXUSX/Calendar/issues/159)）の旅程連動地図は実装・合成確認済みで、credential設定後の実API確認を待っています。Goal 1の完了判断は維持します。
+
 ## 責務と保持基盤
 
 正式complete Trip JSONはCALが最後に採用した基礎データ、SQLiteは構造化状態とDirect Overrideを管理します。表示するeffective Tripは両者を合成します。呼出側は`Sources/calendar_domain/`の意味APIへDB・Trip rootを明示し、テーブルや正式JSONの配置を直接扱いません。
