@@ -18,7 +18,7 @@ assert_in_both() {
 }
 
 assert_in_both '/Users/us/Tools/Development/Calendar_Dev'
-assert_in_both '/Users/us/Tools/GoogleDrive/Calendar_GD'
+assert_in_both '/Users/us/マイドライブ/Tools/Calendar_GD'
 assert_in_both '/Users/us/Tools/LocalData/Calendar_Local'
 
 grep -Fq '"development"' "$sample_file"

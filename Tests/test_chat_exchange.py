@@ -60,7 +60,7 @@ class ChatExchangeTests(unittest.TestCase):
 
     def test_default_and_explicit_shared_root(self):
         default = CalendarDomain(self.db, self.root / 'data')
-        self.assertEqual(default.chat_root, Path('/Users/us/Tools/GoogleDrive/Calendar_Chat'))
+        self.assertEqual(default.chat_root, Path('/Users/us/マイドライブ/Tools/Calendar_Chat'))
         self.assertEqual(default._chat_path(self.id, 'context.json'), default.chat_root / self.id / 'context.json')
         self.assertFalse((self.domain.trip_root / 'chat').exists())
         self.assertEqual(self.domain._chat_path(self.id, 'context.json'), self.directory / 'context.json')
