@@ -442,3 +442,18 @@ JSON構文エラーには行・列を返す。失敗時の部分保存やcandida
 Place単位の情報なので同一Placeを参照するすべての箇所で同じコメントになる。
 Schemaと意味整合を確認後、既存transactionでまとめて保存し、失敗時は部分保存しない。
 成功応答は更新後のtrip / view / updated_fields、入力不正は既存ValidationErrorを返す。
+
+
+## Goal 2 Phase 1 地図表示
+
+各entryの`map_points`をeffective Tripから純粋導出する。各地点は`place_id/name/role/location/comment/links/overview`。
+`role`は選択済み地点の`selected`、選択なし予定の`candidate`、移動の`departure/arrival`。
+候補は正式選択があれば隠す。座標なしはnullのまま返し、位置を推測しない。
+リンクはofficialUrlとurlsを重複除去した登録済みリンク、commentはPlace.summary。
+日時・予定コメント・重要コメントは同じentryとdayを利用する。
+全日の主要地点は選択済み地点と重要な移動の両端（`overview`）とし、候補と通常移動の端点は日別だけに表示する。
+全日でもフォーカス中の予定は例外として地点を表示する。日別のPin番号は予定順にFrameが表示する。
+Phase 1は実経路線を描かず、移動予定のフォーカスで両端を収める。
+
+フォーカスはsource_type/source_item_idで識別する画面内一時状態。表示切替では維持し、日付・区分変更で対象が外れれば解除する。
+Frameは座標ありの地点を表示し、欠落数と座標のないフォーカス対象を明示する。地図用DB、保存API、外部取得は追加しない。

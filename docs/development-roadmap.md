@@ -101,3 +101,27 @@ Step 7では、AIGのsafe failure後もWorkingとraw user intentが既存export�
 このロードマップには最終利用像、Goal、Phase、現在PhaseのStepだけを残す。PhaseやStep途中の比較案、仮判断、レビュー結果は、現在PhaseのGitHub Issue等の一時的な作業単位で扱い、恒久文書へ逐次蓄積しない。
 
 Phase終了時に振り返りを行い、今後も必要な確定事項だけを、このロードマップ、仕様、Decision等の適切な正本へ反映する。その際に後続Phaseと、必要ならGoalも見直す。一時Context専用の恒久文書は作らない。
+
+
+## Goal 2: 旅程と連動する地図機能を実用完成する
+
+[Issue #159](https://github.com/USXUSX/Calendar/issues/159)によりPhase 1を開始する。
+日別地図を基本に、確定地点・候補・将来の経由点を区別し、旅程と地図の予定フォーカスを引き継ぐ。
+地図はeffective Tripから導出し、通常予定・日時・訪問順は旅程で編集する。
+
+| Phase | 状態 | 成果・境界 |
+| --- | --- | --- |
+| 1. 旅程連動地図を表示 | 実装・合成確認済み／実API確認待ち | Google Mapsで日別・全日、Pin詳細、旅程フォーカス連動。実経路線・地点編集なし |
+| 2. 地点確認・補正 | 未着手・振り返り後に判断 | 共通位置設定でエリア・施設検索、位置確認、Pin微調整・保存 |
+| 3. 経路表示と経由点 | 未着手・振り返り後に判断 | Google Routes、移動手段別経路、経由点操作と影響区間再計算 |
+
+Phase 1のStepは現行契約確認 → Maps接続・credential境界 → CAL表示モデル →
+Frame切替・Pin詳細 → フォーカス連動 → 合成Tripと代表画面の最小確認 → 成果と未確認事項の振り返り。
+実装契約は[表示・更新契約](trip-detail-model.md)、接続設定はFrame READMEが所有する。
+Phase 1終了後はusの振り返り・判断を待ち、Phase 2へ自動的に進まない。
+
+
+Phase 1の実装と合成検証は完了。CAL標準チェック、FrameのHTTP・CAL連携、744×1133 Chromeでの
+フォーカス／フィルター／既存編集操作を確認した。Maps SDKはtest doubleを使用し、実タイル・credential制限・
+production・物理端末は未確認。ブラウザkeyとMap IDの準備、実表示確認、usのPhase振り返りを残す。
+追加した永続状態・地図保存API・経路providerはない。Phase 2は未着手。

@@ -116,6 +116,24 @@ def _place_metadata(place):
     }
 
 
+def _map_points(item, source_type, places):
+    """Location occurrences retain their itinerary owner; never infer coordinates."""
+    if source_type == "transport":
+        refs = [(item["fromPlaceId"], "departure"), (item["toPlaceId"], "arrival")]
+    else:
+        selection = item["placeSelection"]
+        refs = [(pid, "selected") for pid in selection["selection"]]
+        if not refs:
+            refs = [(pid, "candidate") for pid in selection["candidatePlaceIds"]]
+    return [{
+        "place_id": pid, "name": places[pid]["name"], "role": role,
+        "location": copy.deepcopy(places[pid]["location"]),
+        "comment": places[pid]["summary"],
+        "links": list(dict.fromkeys(filter(None, [places[pid].get("officialUrl"), *places[pid]["urls"]]))),
+        "overview": role == "selected" or (source_type == "transport" and item.get("important", False)),
+    } for pid, role in refs]
+
+
 def _entry(
     item: dict[str, Any], source_type: str, places: dict[str, dict[str, Any]],
     bookings: list[dict[str, Any]], judgments: dict[str, Any],
@@ -155,6 +173,7 @@ def _entry(
         "place_unconfirmed": source_type == "scheduleItem" and not place_ids,
         "has_candidates": len(candidates) > 1,
         "candidates": candidates,
+        "map_points": _map_points(item, source_type, places),
         "normal_comment": normal_comment,
         "search_query": item.get("searchQuery"),
         "important_comments": [field["comment"] for field in important_comment_fields(item, bookings) if field["comment"]],
