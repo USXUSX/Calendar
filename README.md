@@ -114,7 +114,7 @@ confirmation contract.
 | Role | Location | Authority |
 | --- | --- | --- |
 | Development | `/Users/us/Tools/Development/Calendar_Dev` | Git-managed source, confirmed specifications, tests, Issues, and PRs |
-| Shared references | `/Users/us/Tools/GoogleDrive/Calendar_GD` | One-way reference copy of committed Git source |
+| Shared references | `/Users/us/マイドライブ/Tools/Calendar_GD` | One-way reference copy of committed Git source |
 | Private local data | `/Users/us/Tools/LocalData/Calendar_Local` | Non-shared inputs, runtime data, caches, and temporary data |
 
 ## Repository map

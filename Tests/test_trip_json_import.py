@@ -105,7 +105,7 @@ class TripJsonImportTests(unittest.TestCase):
 
     def test_shared_root_and_handoff_contract(self):
         default = CalendarDomain(self.db, self.root / 'unused')
-        self.assertEqual(default._candidate_root(), Path('/Users/us/Tools/GoogleDrive/Calendar_Chat'))
+        self.assertEqual(default._candidate_root(), Path('/Users/us/マイドライブ/Tools/Calendar_Chat'))
         domain = CalendarDomain(self.db, self.domain.trip_root, chat_root=self.handoff)
         (self.file.parent / 'context.json').write_text('{}')
         (self.handoff / 'old.json').write_text('{}')

@@ -12,7 +12,7 @@ Calendar uses one project name across three locations so Codex can resolve sourc
 
 ### Google Drive
 
-`/Users/us/Tools/GoogleDrive/Calendar_GD` is a one-way reference copy of committed Git source. Git remains authoritative. Official synchronization and temporary review material follow `workflow.md`; do not add independent handoff files here.
+`/Users/us/マイドライブ/Tools/Calendar_GD` is a one-way reference copy of committed Git source. Git remains authoritative. Official synchronization and temporary review material follow `workflow.md`; do not add independent handoff files here.
 
 ### Local data
 

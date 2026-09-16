@@ -7,8 +7,8 @@ This repository is the canonical home for Calendar source code, confirmed specif
 ## Project locations
 
 - Repository: `/Users/us/Tools/Development/Calendar_Dev`
-- Shared references: `/Users/us/Tools/GoogleDrive/Calendar_GD`
-- Chat exchange (separate from reference sync): `/Users/us/Tools/GoogleDrive/Calendar_Chat`
+- Shared references: `/Users/us/マイドライブ/Tools/Calendar_GD`
+- Chat exchange (separate from reference sync): `/Users/us/マイドライブ/Tools/Calendar_Chat`
 - Private local data: `/Users/us/Tools/LocalData/Calendar_Local`
 
 Never copy private local data into this repository or the shared-reference folder.
@@ -17,7 +17,7 @@ Never copy private local data into this repository or the shared-reference folde
 
 1. Fetch and read `CODEX_START.md` and its linked rules from the current GitHub `main` of `USXUSX/ToolDevelopmentStandard`, then read `README.md`.
 2. Read only the documents linked from `README.md` that are relevant to the task.
-3. Treat `/Users/us/Tools/GoogleDrive/Calendar_GD` as the one-way reference copy of committed Git source; do not edit it directly or reverse-sync it.
+3. Treat `/Users/us/マイドライブ/Tools/Calendar_GD` as the one-way reference copy of committed Git source; do not edit it directly or reverse-sync it.
 4. Inspect `/Users/us/Tools/LocalData/Calendar_Local` only when the task needs non-shared runtime or sample-input data. Treat its contents as private and do not quote, commit, upload, or log them unless the user explicitly authorizes it.
 5. Check `git status` before editing. Preserve unrelated user changes.
 
@@ -28,7 +28,7 @@ Do not scan either external folder broadly without a task-specific reason. Prefe
 - Code, confirmed specifications, tests, and development history: this Git repository and GitHub.
 - Work requests and acceptance criteria: GitHub Issues.
 - Review and merge history: GitHub Pull Requests.
-- Shared reference copy: `/Users/us/Tools/GoogleDrive/Calendar_GD` (committed Git content only; Git remains authoritative).
+- Shared reference copy: `/Users/us/マイドライブ/Tools/Calendar_GD` (committed Git content only; Git remains authoritative).
 - Private or machine-local data: `/Users/us/Tools/LocalData/Calendar_Local` (never authoritative for shared behavior).
 
 When sources conflict, stop and identify the conflict. Do not silently overwrite a confirmed repository specification with a reference or local-data file.

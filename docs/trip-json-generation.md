@@ -16,7 +16,7 @@ Gitが正本で、`Calendar_GD`はmerge後の公式共有コピー。GitHubを�
 1. 旅行名・日付・希望・確定済みの訪問先や予約を読む。必須の日付等が不明ならusに確認する。実旅行の日時・予約を創作しない。
 2. 希望に合う少数の場所を調べ、同名施設を住所・地域で照合する。公式情報や保存可能な公開データから、確認できるURL・住所・座標・短いコメントを入れる。調べても不明な値は不明のままにする。候補は訪問確定に変えない。
 3. 以下の対応・意味整合と[生成品質の確認](#生成品質の確認)を使って完全JSONを1件生成する。提案した日程と予約済みの事実を区別する。
-4. UTF-8のcomplete JSON本体はチャット本文へ全文展開せず、cloud Chatは接続中のGoogle Drive上の `Calendar_Chat/<trip-id>/candidate.json` へ保存する。local Chatは同じ同期フォルダ `/Users/us/Tools/GoogleDrive/Calendar_Chat/<trip-id>/candidate.json` を使う。ファイル中はJSONオブジェクトだけ。取得元URL・確認日が必要な情報は既存のsummary / details / urls等に短く記し、独自fieldや取得本文を足さない。
+4. UTF-8のcomplete JSON本体はチャット本文へ全文展開せず、cloud Chatは接続中のGoogle Drive上の `Calendar_Chat/<trip-id>/candidate.json` へ保存する。local Chatは同じ同期フォルダ `/Users/us/マイドライブ/Tools/Calendar_Chat/<trip-id>/candidate.json` を使う。ファイル中はJSONオブジェクトだけ。取得元URL・確認日が必要な情報は既存のsummary / details / urls等に短く記し、独自fieldや取得本文を足さない。
 5. Chatは生成したJSONの構造と内容を自己確認するが、CAL正式Validationを実行済みとは扱わない。Schema・semanticの正式ValidationはCALが新規Trip取込時に行い、エラー時はその結果に従って同じ`candidate.json`を修正する。
 6. 日別の行動順・移動・宿泊・候補・未定事項を内容確認し、candidateを渡す。チャット側の最終表示は保存した `Calendar_Chat/<trip-id>/candidate.json` と残る未定事項だけを簡潔に返す。CAL Validation成功前に正式採用済みとは扱わない。
 
@@ -87,7 +87,7 @@ IDはSchemaに従う英数字・ハイフン・アンダースコアを使い、
 | --- | --- |
 | Calendar Git / Calendar_GD | Schema・guideの正本 / 公式参照コピー |
 | Google Drive上の `Calendar_Chat/<trip-id>/candidate.json` | cloud Chatから渡す新規Tripの未採用complete JSON本体（Envelopeなし）。再生成で同じファイルを更新してよく、履歴管理を追加しない |
-| `/Users/us/Tools/GoogleDrive/Calendar_Chat/<trip-id>/candidate.json` | Mac上で同期された同じcandidate。local ChatとCALが参照する |
+| `/Users/us/マイドライブ/Tools/Calendar_Chat/<trip-id>/candidate.json` | Mac上で同期された同じcandidate。local ChatとCALが参照する |
 | Calendar_Local | CALで採用後の正式TripとSQLite等の通常状態。Chatから直接書き換えない |
 | `Calendar_Chat/<trip-id>/` | 新規・既存Trip共通の授受先。既存TripのcontextはCAL所有、candidateはChat所有のEnvelope。Calendar_GDとは分ける |
 
@@ -141,7 +141,7 @@ Trip IDに日付を含めることや、開始日変更時のID変更はSchema�
 既存Tripの調査・候補比較・大きな編集はChatを主に使い、CALは旅程正本、Validation、
 Place同定・URL/住所/座標補完、天気、直接編集、時刻矛盾の確認を引き続き担当する。
 
-授受先は `/Users/us/Tools/GoogleDrive/Calendar_Chat/<trip-id>/`（#114）。
+授受先は `/Users/us/マイドライブ/Tools/Calendar_Chat/<trip-id>/`（#114）。
 GoogleDrive配下の既存同期を使い、cloud ChatはDrive上のCalendar_Chat、local Chatは同じローカル同期フォルダへアクセスする。
 Calendar_LocalはDrive同期対象ではないため、旧 `Calendar_Local/chat` は以後の授受に使わない。
 経路によってEnvelopeを変えず、履歴ファイルは増やさない。Calendar_GDは公式同期の削除対象を含む参照コピーなので、運用授受を混在させない。

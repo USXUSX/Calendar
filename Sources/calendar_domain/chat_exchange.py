@@ -10,7 +10,7 @@ from .trip_detail import build_trip_detail_view
 from scripts.validate_trip import validation_stage_errors
 
 
-DEFAULT_CHAT_ROOT = Path("/Users/us/Tools/GoogleDrive/Calendar_Chat")
+DEFAULT_CHAT_ROOT = Path("/Users/us/マイドライブ/Tools/Calendar_Chat")
 
 
 class ChatExchangeMixin:

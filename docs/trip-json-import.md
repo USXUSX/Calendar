@@ -16,7 +16,7 @@ Frame `/calendar/import` は共有candidateの選択→Validation→内容確認
   共有ファイルの再読込は行わず、確認後の更新を無確認で登録しない。
 
 一覧・読込の`candidate_root`はテスト等の明示指定用。既定は
-domainの`chat_root`（未指定時は`/Users/us/Tools/GoogleDrive/Calendar_Chat`）と共通。HTTPから任意のrootは受け取らない。
+domainの`chat_root`（未指定時は`/Users/us/マイドライブ/Tools/Calendar_Chat`）と共通。HTTPから任意のrootは受け取らない。
 新規candidateはcomplete JSON本体であり、既存Trip用Envelopeは受け付けない。
 親ディレクトリ参照・多段の下位フォルダ・Tripフォルダやcandidateのsymlinkは対象にしない。candidateや確認履歴を恒久保存しない。
 
