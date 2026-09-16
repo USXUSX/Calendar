@@ -38,7 +38,7 @@ grep -F '7. **完了（us確認済み）**: AIG生成失敗、複雑な変更、
 grep -F '8. **完了（us確認済み）**: auto / review、stale、malformed / Validation failure、AIG failure、Working clearを合成データと必要なブラウザ確認でValidationする。' "$roadmap" >/dev/null
 grep -F '9. **完了（us確認済み）**: Phase 6を振り返り、確立した責務・policy・fallbackを確定し、Phase 7を実利用による不足確認のPhaseとする。' "$roadmap" >/dev/null
 grep -F '### 限定付き完了したPhase 7: 候補・特殊ケースを実利用で検証' "$roadmap" >/dev/null
-grep -F '### 現在のPhase 8: 実利用でUI・運用を仕上げる' "$roadmap" >/dev/null
+grep -F '### 完了したPhase 8: 実利用でUI・運用を仕上げる' "$roadmap" >/dev/null
 grep -F '全ケース対応や初期rule検出外の先回り実装は行わない' "$roadmap" >/dev/null
 grep -F 'AIGはworkflow stateを保持せず' "$roadmap" >/dev/null
 grep -F 'candidate受入れ、Schema・semantic Validation、captured revisionに対するstale確認、all-or-nothingのadoption' "$roadmap" >/dev/null

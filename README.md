@@ -13,8 +13,9 @@ CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb�
 
 ## 現在地
 
-#124反映後の物理iPad miniレビューはusが「概ねOK」と判断済み。#126では新規Tripの生成・Validation・取込・表示・編集を合成入力で確認しました。その後の仕上げ・反映記録は各Issueにあります。
-Phase 8振り返りとGoal 1初期リリース判断は[Issue #96](https://github.com/USXUSX/Calendar/issues/96)で扱います。[ロードマップ](docs/development-roadmap.md)を参照してください。
+2026-09-16、usの基本検証完了の申告と全体完了指示に基づき、Goal 1／Phase 8を一旦完了し、実利用・保守へ移行します。Chat生成JSON取込、直接編集、継続Chat往復、候補操作、Place補完・天気を現行の利用範囲とします。
+
+完了記録と確認範囲は[Issue #96](https://github.com/USXUSX/Calendar/issues/96)、今後の保留事項は[ロードマップ](docs/development-roadmap.md)を参照してください。全面再構築は行わず、実利用で支障が出た箇所だけ対応します。
 
 ## 責務と保持基盤
 
