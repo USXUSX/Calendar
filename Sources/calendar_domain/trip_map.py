@@ -43,7 +43,7 @@ def build_map_stops(days, trip):
         groups = {}
         def add(identity, name, ids, candidate, entry, role, display_points=None):
             group = groups.setdefault(identity, dict(stop_id=identity, name=name, candidate=candidate,
-                                                     points=[point(pid) for pid in ids], references=[], categories=[], _visits=[], _departures=[], _orders=[]))
+                                                     points=[point(pid) for pid in ids], references=[], categories=[], _visits=[], _arrivals=[], _departures=[], _orders=[]))
             if display_points is not None:
                 group.update(points=display_points, candidate=candidate)
             ref = dict(entry_key=key(entry), role=role)
@@ -51,6 +51,7 @@ def build_map_stops(days, trip):
             if entry['category'] not in group['categories']: group['categories'].append(entry['category'])
             group['_orders'].append(entry['order'])
             if role == 'visit': group['_visits'].append(entry['order'])
+            if role == 'arrival': group['_arrivals'].append(entry['order'])
             if role == 'departure': group['_departures'].append(entry['order'])
         for entry in day['entries']:
             if day is days[0] and start and entry['order'] < start['order']: continue
@@ -86,11 +87,17 @@ def build_map_stops(days, trip):
                 else:
                     for pid in ids:
                         add('place:'+pid, places[pid]['name'], [pid], False, entry, 'visit')
-        # A visit fixes its position. A transport-only hub is shown at final departure,
-        # so station lunch stays before the station/airport used to leave the region.
+        # Visits fix their position. Before the final day, a hub with a later
+        # departure belongs at first arrival; final-day hubs retain exit order.
         def order(g):
-            return min(g['_visits']) if g['_visits'] else max(g['_departures']) if g['_departures'] else min(g['_orders'])
+            if g['_visits']:
+                return min(g['_visits'])
+            if day is not days[-1] and g['_arrivals'] and g['_departures']:
+                arrival = min(g['_arrivals'])
+                if arrival < max(g['_departures']):
+                    return arrival
+            return max(g['_departures']) if g['_departures'] else min(g['_orders'])
         result = sorted(groups.values(), key=order)
         for g in result:
-            for field in ('_visits', '_departures', '_orders'): del g[field]
+            for field in ('_visits', '_arrivals', '_departures', '_orders'): del g[field]
         day['map_stops'] = result

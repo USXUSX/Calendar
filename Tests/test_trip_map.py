@@ -75,6 +75,46 @@ class TripMapTest(unittest.TestCase):
         self.assertIn('home', [s['name'] for s in stops])
         self.assertIn('home-airport', [s['name'] for s in stops])
 
+    def test_intermediate_hub_uses_first_arrival_but_final_day_uses_departure(self):
+        trip = self.trip
+        prototype = copy.deepcopy(trip['days'][0]['scheduleItems'][0])
+        transport = copy.deepcopy(trip['transports'][0])
+        place = copy.deepcopy(trip['places'][0])
+        ids = ['start', 'hub', 'candidate-a', 'candidate-b', 'candidate-c', 'hotel']
+        trip['places'] = [dict(copy.deepcopy(place), id=pid, name=pid, address='',
+                              location=None if pid in ('candidate-a', 'candidate-c') else
+                              dict(latitude=43, longitude=141)) for pid in ids]
+        for day in trip['days']:
+            day['scheduleItems'] = []
+            day['transportIds'] = []
+        for day_index in (1, len(trip['days']) - 1):
+            with self.subTest(day_index=day_index):
+                day = trip['days'][day_index]
+                item = dict(copy.deepcopy(prototype), id='sightseeing', dayId=day['id'], order=2)
+                item['placeSelection'].update(selection=[], candidatePlaceIds=ids[2:5])
+                day['scheduleItems'] = [item]
+                trip['transports'] = [dict(copy.deepcopy(transport), id=identity, dayId=day['id'],
+                    order=order, fromPlaceId=start, toPlaceId=end, mode='car')
+                    for identity, order, start, end in [('arrival', 1, 'start', 'hub'),
+                                                       ('departure', 3, 'hub', 'hotel')]]
+                day['transportIds'] = [t['id'] for t in trip['transports']]
+                before = copy.deepcopy(trip)
+                stops = build_trip_detail_view(trip)['days'][day_index]['map_stops']
+                candidates = prototype['action'] + '（候補）'
+                expected = ['start', 'hub', candidates, 'hotel'] if day_index == 1 else [
+                    'start', candidates, 'hub', 'hotel']
+                self.assertEqual([s['name'] for s in stops], expected)
+                hub = next(s for s in stops if s['name'] == 'hub')
+                self.assertEqual(hub['references'], [
+                    dict(entry_key='transport:arrival', role='arrival'),
+                    dict(entry_key='transport:departure', role='departure')])
+                group = next(s for s in stops if s['candidate'])
+                self.assertEqual([p['place_id'] for p in group['points']], ids[2:5])
+                self.assertEqual([p['location'] is not None for p in group['points']], [False, True, False])
+                self.assertEqual(trip, before)
+                day['scheduleItems'] = []
+                day['transportIds'] = []
+
     def test_display_target_retains_candidate_names_and_own_positions(self):
         trip = self.trip
         item = trip['days'][0]['scheduleItems'][0]
