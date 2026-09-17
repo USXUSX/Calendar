@@ -210,3 +210,5 @@ Place.officialUrlは確認済み公式リンク、urlsは参考リンク。本�
 
 予定単位の `ai_instruction` はCALの既存 `ai_instructions` に保存する別データである。
 予定本文・summary・details・Booking.notesへ混在させず、complete Trip JSONのコメントとして転記しない。
+
+座標がない地図対象はFrameでの取り込み時に[座標補完契約](map-locations.md)に従って補完する。既存Tripの保存済み座標は保持する。

@@ -35,3 +35,5 @@ SQLite未登録なのにformal Trip JSONだけ残る孤立状態は正式Tripと
 確認必須、不正JSON／Schema／semantic拒否、孤立formal JSONの置換、登録済みID保護、DB失敗時の新規書込み撤回を確認する。
 Frame側は同じCAL commandに対するHTTPとiPad mini相当の代表操作を確認する。
 物理端末の実用性・Phase 8振り返り・初期リリース可否は#96でusが判断する。
+
+座標がない地図対象はFrameでの取り込み時に[座標補完契約](map-locations.md)に従って補完する。既存Tripの保存済み座標は保持する。
