@@ -75,6 +75,27 @@ class TripMapTest(unittest.TestCase):
         self.assertIn('home', [s['name'] for s in stops])
         self.assertIn('home-airport', [s['name'] for s in stops])
 
+    def test_display_target_retains_candidate_names_and_own_positions(self):
+        trip = self.trip
+        item = trip['days'][0]['scheduleItems'][0]
+        target, first, second = trip['places'][:3]
+        item['mapPlaceId'] = target['id']
+        item['placeSelection'].update(selection=[], candidatePlaceIds=[first['id'],second['id']])
+        target['location'] = dict(latitude=43,longitude=141)
+        first['location'] = None
+        second['location'] = dict(latitude=44,longitude=142)
+        before = copy.deepcopy(trip)
+        stop = next(s for s in build_trip_detail_view(trip)['days'][0]['map_stops'] if s['stop_id']=='place:'+target['id'])
+        self.assertTrue(stop['candidate'])
+        self.assertEqual([p['name'] for p in stop['points']], [first['name'],second['name']])
+        self.assertEqual(stop['points'][0]['location'],target['location'])
+        self.assertEqual(stop['points'][1]['location'],second['location'])
+        self.assertEqual(trip,before)
+        item['placeSelection']['selection']=[second['id']]
+        stop = next(s for s in build_trip_detail_view(trip)['days'][0]['map_stops'] if s['stop_id']=='place:'+target['id'])
+        self.assertFalse(stop['candidate'])
+        self.assertEqual([p['place_id'] for p in stop['points']], [second['id']])
+
     def test_outbound_access_and_unlocated_explicit_target(self):
         trip=self.trip
         first=trip['transports'][0]
