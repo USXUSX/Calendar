@@ -11,7 +11,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
     if source_type == 'scheduleItem':
         paths.update(category='/category', title='/action', normal_comment='/summary', supporting_details='/details', selection='/placeSelection/selection',
                      candidate_judgments='/candidateJudgments', map_place_id='/mapPlaceId')
-        extra = {'place', 'ai_instruction', 'adopt_place_id', 'remove_candidate_place_id', 'candidate_comments'}
+        extra = {'candidate_place', 'place', 'ai_instruction', 'adopt_place_id', 'remove_candidate_place_id', 'candidate_comments'}
     else:
         paths.update(important='/important', transport_mode='/mode', service_name='/serviceName')
         extra = {'from_place', 'to_place', 'ai_instruction'}
@@ -38,17 +38,22 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
             identity = supplied.get('id')
             existing = next((p for p in trip['places'] if p['id'] == identity), None)
             if existing and existing['name'] == supplied['name']:
-                pass
+                from .map_locations import fields
+                resolved = fields(supplied)
+                if existing['location'] is None and resolved['location'] is not None:
+                    edits.extend((identity, '/' + key, value) for key, value in resolved.items())
             else:
                 identity = 'place-' + uuid5(NAMESPACE_URL, f'{trip_id}:{command_id}:{field}').hex
                 place = dict(id=identity, name=supplied['name'].strip(), summary=None, category='other',
                              rating=None, address=supplied.get('address'), location=supplied.get('location'), urls=supplied.get('urls', []), officialUrl=supplied.get('officialUrl'))
+                from .map_locations import fields
+                place.update(fields(supplied))
                 edits.append((trip_id, '/places/@' + identity, place))
-            if field == 'place':
+            if field in {'place', 'candidate_place'}:
                 ids = list(item['placeSelection']['candidatePlaceIds'])
                 if identity not in ids: ids.append(identity)
                 edits.extend([(source_item_id, '/placeSelection/candidatePlaceIds', ids),
-                              (source_item_id, '/placeSelection/selection', [identity])])
+                              (source_item_id, '/placeSelection/selection', [identity] if field == 'place' else item['placeSelection']['selection'])])
             else:
                 edits.append((source_item_id, '/fromPlaceId' if field == 'from_place' else '/toPlaceId', identity))
         if 'remove_candidate_place_id' in changes:

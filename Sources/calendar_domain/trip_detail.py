@@ -88,6 +88,7 @@ def _candidate_places(
             "number": index,
             "place_id": place_id,
             "name": place["name"],
+            "location": copy.deepcopy(place["location"]), "googlePlaceId": place.get("googlePlaceId"),
             "url": place.get("officialUrl"),
             "comment": place["summary"],
             "tabelog_url": next((url for url in place["urls"] if urlsplit(url).hostname in {"tabelog.com", "www.tabelog.com"}), None) if place["category"] == "restaurant" else None,
@@ -127,7 +128,7 @@ def _map_points(item, source_type, places):
             refs = [(pid, "candidate") for pid in selection["candidatePlaceIds"]]
     return [{
         "place_id": pid, "name": places[pid]["name"], "role": role,
-        "location": copy.deepcopy(places[pid]["location"]),
+        "location": copy.deepcopy(places[pid]["location"]), "googlePlaceId": places[pid].get("googlePlaceId"),
         "comment": places[pid]["summary"],
         "links": list(dict.fromkeys(filter(None, [places[pid].get("officialUrl"), *places[pid]["urls"]]))),
         "overview": role == "selected" or (source_type == "transport" and item.get("important", False)),
@@ -166,7 +167,7 @@ def _entry(
         "title": title,
         "places": [
             {"id": place_id, "name": places[place_id]["name"],
-             **_place_metadata(places[place_id]), "url": places[place_id].get("officialUrl"), "location": copy.deepcopy(places[place_id]["location"])}
+             **_place_metadata(places[place_id]), "url": places[place_id].get("officialUrl"), "location": copy.deepcopy(places[place_id]["location"]), "googlePlaceId": places[place_id].get("googlePlaceId")}
             for place_id in place_ids
         ],
         "status": item["status"],
@@ -240,7 +241,7 @@ def build_trip_detail_view(
         "trip_id": effective_trip["id"], "title": effective_trip["title"],
         "date_range": copy.deepcopy(effective_trip["dateRange"]), "days": days,
         "temporary_input": {"candidate_judgments": copy.deepcopy(judgments)},
-        "place_choices": [{"id": p["id"], "name": p["name"]} for p in places.values()],
+        "place_choices": [{"id": p["id"], "name": p["name"], "location": copy.deepcopy(p["location"]), "googlePlaceId": p.get("googlePlaceId")} for p in places.values()],
     }
 
 

@@ -60,7 +60,7 @@
         "id": { "$ref": "#/$defs/id" },
         "date": { "$ref": "#/$defs/date" },
         "title": { "type": "string", "minLength": 1 },
-        "areas": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["name", "location"], "properties": { "name": { "type": "string", "minLength": 1 }, "location": { "$ref": "#/$defs/location" } } } },
+        "areas": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["name", "location"], "properties": { "name": { "type": "string", "minLength": 1 }, "googlePlaceId": { "type": ["string", "null"], "minLength": 1 }, "location": { "$ref": "#/$defs/location" } } } },
         "routeSummary": { "$ref": "#/$defs/nullableString" },
         "scheduleItems": { "type": "array", "items": { "$ref": "#/$defs/scheduleItem" } },
         "transportIds": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } }
@@ -114,7 +114,7 @@
         "summary": { "$ref": "#/$defs/nullableString" },
         "category": { "enum": ["restaurant", "hotel", "station", "attraction", "other"] },
         "address": { "$ref": "#/$defs/nullableString" },
-        "location": { "$ref": "#/$defs/location" },
+        "googlePlaceId": { "type": ["string", "null"], "minLength": 1 }, "location": { "$ref": "#/$defs/location" },
         "officialUrl": { "type": ["string", "null"], "pattern": "^https://" },
         "urls": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^https://" } },
         "rating": { "$ref": "#/$defs/rating" }

@@ -59,9 +59,9 @@ class CalendarDomain(_CalendarDomain):
         from .map_locations import target
         return target(self, trip_id, place_id)
 
-    def save_map_location(self, command_id, trip_id, place_id, location, expected_location):
+    def save_map_location(self, command_id, trip_id, place_id, location, expected_location, google_place_id=None, expected_name=None):
         from .map_locations import save
-        return save(self, command_id, trip_id, place_id, location, expected_location)
+        return save(self, command_id, trip_id, place_id, location, expected_location, google_place_id, expected_name)
 
     def load_trip_detail_view(self, trip_id):
         """Ordinary screen load: validate/adopt the latest Chat candidate, then display."""
@@ -89,6 +89,11 @@ class CalendarDomain(_CalendarDomain):
             candidate_judgments=candidate_judgments,
             weather_by_day=weather_by_day,
         )
+
+
+    def prepare_location_inputs(self, trip_id, day_id, points):
+        from .map_locations import inputs
+        return inputs(self, trip_id, day_id, points)
 
 
 __all__ = [

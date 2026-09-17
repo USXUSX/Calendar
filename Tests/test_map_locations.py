@@ -66,3 +66,67 @@ class MapLocationsTest(TestCase):
         self.assertIn('duplicate',point['place_ids'])
         result,counts=complete(trip,{point['place_id']:{'latitude':43,'longitude':141}})
         self.assertEqual([p['location'] for p in result['places'] if p['id'] in point['place_ids']],[{'latitude':43,'longitude':141}]*2)
+
+    def test_google_id_import_area_and_existing_coordinate_pair(self):
+        trip=copy.deepcopy(self.trip)
+        pid=prepare(trip)[1][0]['place_id']
+        target=next(p for p in trip['places'] if p['id']==pid)
+        target['location']=None
+        trip['days'][0]['areas']=[dict(name='新エリア',location=None)]
+        key=f'area:{self.did}:0'
+        resolved=dict(location={'latitude':43,'longitude':141},googlePlaceId='google-facility')
+        filled,counts=complete(trip,{pid:resolved,key:resolved})
+        self.assertEqual(next(p for p in filled['places'] if p['id']==pid)['googlePlaceId'],'google-facility')
+        self.assertEqual(filled['days'][0]['areas'][0]['googlePlaceId'],'google-facility')
+        incoming=copy.deepcopy(filled)
+        next(p for p in incoming['places'] if p['id']==pid).update(location=None,googlePlaceId='wrong')
+        incoming['days'][0]['areas'][0].update(location=None,googlePlaceId='wrong')
+        kept,_=complete(incoming,{},filled)
+        self.assertEqual(kept,filled)
+        self.domain.import_trip_json(dict(filled,id='google-import'),confirmed=True)
+        self.assertEqual(self.domain.get_effective_trip('google-import')['days'][0]['areas'][0]['googlePlaceId'],'google-facility')
+
+    def test_common_inputs_reuse_saved_and_query_priority(self):
+        self.domain.edit_trip_day('area',self.tid,self.did,{'areas':[dict(name='旅行エリア',location=None)]})
+        saved=self.trip['places'][0]
+        plan=self.domain.prepare_location_inputs(self.tid,self.did,[dict(id=saved['id'],name=saved['name'],location={'latitude':0,'longitude':0}),dict(name='新施設',address='住所'),dict(name='新施設'),dict(name='新エリア',area=True)])
+        self.assertTrue(plan[0]['skip_search'])
+        self.assertEqual(plan[0]['location'],saved['location'])
+        self.assertEqual([p['query'] for p in plan[1:]],['新施設 住所','新施設 旅行エリア','新エリア'])
+
+    def test_new_schedule_and_candidate_keep_google_id(self):
+        resolved=dict(location={'latitude':43,'longitude':141},googlePlaceId='google-new')
+        result=self.domain.change_trip_schedule('new-google',self.tid,'add',dict(day_id=self.did,title='新予定',category='food',place_name='新施設',resolved_place=resolved))
+        item=result['trip']['days'][0]['scheduleItems'][-1]
+        pid=item['placeSelection']['selection'][0]
+        self.assertEqual(next(p for p in result['trip']['places'] if p['id']==pid)['googlePlaceId'],'google-new')
+        result=self.domain.edit_trip_item('candidate-google',self.tid,'scheduleItem',item['id'],{'candidate_place':dict(name='別候補',**resolved)})
+        trip=self.domain.get_effective_trip(self.tid)
+        item=next(i for i in trip['days'][0]['scheduleItems'] if i['id']==item['id'])
+        self.assertEqual(item['placeSelection']['selection'],[pid])
+        self.assertEqual(len(item['placeSelection']['candidatePlaceIds']),2)
+        self.assertEqual(next(p for p in trip['places'] if p['id']==item['placeSelection']['candidatePlaceIds'][-1])['googlePlaceId'],'google-new')
+
+    def test_area_correction_and_following_day_edit_preserve_position(self):
+        self.domain.edit_trip_day('area-new',self.tid,self.did,{'areas':[dict(name='エリア',location=None)]})
+        key=f'area:{self.did}:0';location={'latitude':43,'longitude':141}
+        self.domain.save_map_location('area-pin',self.tid,key,location,None,'google-area')
+        self.domain.edit_trip_day('area-again',self.tid,self.did,{'areas':[dict(name='エリア',location=None)]})
+        area=self.domain.get_effective_trip(self.tid)['days'][0]['areas'][0]
+        self.assertEqual(area,dict(name='エリア',location=location,googlePlaceId='google-area'))
+        moved={'latitude':44,'longitude':142}
+        self.domain.save_map_location('area-manual',self.tid,key,moved,location)
+        area=self.domain.get_effective_trip(self.tid)['days'][0]['areas'][0]
+        self.assertEqual(area['location'],moved)
+        self.assertIsNone(area['googlePlaceId'])
+
+    def test_pasted_schedule_uses_same_plan_and_google_result(self):
+        values=dict(day_id=self.did,text='予定: 未定 | 昼食\nカテゴリ: 食事\n候補: 店A\n候補: 店B')
+        plan=self.domain.change_trip_schedule('paste-google',self.tid,'prepare',values)['location_plan']
+        self.assertEqual(len(plan),2)
+        values['coordinate_results']={p['place_id']:dict(location={'latitude':43,'longitude':141},googlePlaceId='google-paste') for p in plan}
+        result=self.domain.change_trip_schedule('paste-google',self.tid,'add',values)
+        item=result['trip']['days'][0]['scheduleItems'][-1]
+        self.assertEqual(item['placeSelection']['selection'],[])
+        for pid in item['placeSelection']['candidatePlaceIds']:
+            self.assertEqual(next(p for p in result['trip']['places'] if p['id']==pid)['googlePlaceId'],'google-paste')

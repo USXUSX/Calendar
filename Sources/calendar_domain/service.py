@@ -910,7 +910,7 @@ class CalendarDomain(ChatExchangeMixin):
         if isinstance(target, dict):
             optional_query = field_path in {"/searchQuery", "/mapPlaceId"} and any(
                 target is item for day in trip["days"] for item in day["scheduleItems"])
-            if leaf not in target and not optional_query and leaf not in {"areas", "candidateJudgments", "serviceName", "important", "importantComment"}:
+            if leaf not in target and not optional_query and leaf not in {"areas", "candidateJudgments", "serviceName", "important", "importantComment", "googlePlaceId"}:
                 raise ValidationError(f"field_path does not exist: {field_path}")
             target[leaf] = copy.deepcopy(value)
         elif isinstance(target, list) and leaf.isdigit() and int(leaf) < len(target):
@@ -2351,6 +2351,14 @@ class CalendarDomain(ChatExchangeMixin):
         effective = self.get_effective_trip(trip_id)
         if not any(day["id"] == day_id for day in effective["days"]):
             raise ValidationError("day edit target does not match a Day stable ID")
+        if isinstance(changes.get('areas'), list):
+            day = next(d for d in effective['days'] if d['id'] == day_id)
+            saved = {a['name']: a for a in day.get('areas', []) if a['location'] is not None}
+            changes = copy.deepcopy(changes)
+            for area in changes['areas']:
+                if isinstance(area, dict) and area.get('name') in saved:
+                    previous = saved[area['name']]
+                    area.update(location=copy.deepcopy(previous['location']), googlePlaceId=previous.get('googlePlaceId'))
         return self._edit_trip_fields(
             command_id, trip_id, day_id, changes, {"title": "/title", "route_summary": "/routeSummary", "areas": "/areas"}, effective,
         )

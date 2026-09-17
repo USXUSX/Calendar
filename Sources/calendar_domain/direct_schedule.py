@@ -1,4 +1,5 @@
 """Small direct schedule operations; no search, AI or Working mutation."""
+from .map_locations import fields, complete
 from uuid import NAMESPACE_URL, uuid5
 from .errors import ConflictError, ValidationError
 from scripts.validate_trip import validate_value, semantic_errors
@@ -8,6 +9,12 @@ def change(domain, command_id, trip_id, action, payload):
     domain._require_text(command_id, 'command_id')
     if not isinstance(payload, dict):
         raise ValidationError('予定の入力を確認してください。')
+    if action == 'prepare':
+        trip = domain.get_effective_trip(trip_id)
+        day = next((d for d in trip['days'] if d['id'] == payload.get('day_id')), None)
+        if day is None: raise ValidationError('対象日を確認してください。')
+        from .map_locations import prepare
+        return dict(location_plan=prepare(pasted_trip(domain, day, payload.get('text'), command_id))[1])
     with domain._command() as connection:
         connection.execute('BEGIN IMMEDIATE')
         if domain._journal_path(trip_id).exists():
@@ -24,16 +31,8 @@ def change(domain, command_id, trip_id, action, payload):
             if domain._item_matches(trip, identity):
                 raise ConflictError('この予定は追加済みです。')
             if 'text' in payload:
-                text = payload['text']
-                if not isinstance(text, str):
-                    raise ValidationError('貼付内容を確認してください。')
-                review = domain.parse_chat_paste('旅行名: 1予定追加\n日付: ' + day['date'] + '\n' + text)
-                from .chat_paste import build_import_trip
-                if review['unresolved']:
-                    raise ValidationError('未解決の行があります。貼付内容を修正してください。')
-                draft = build_import_trip(review['draft'], command_id)
-                if len(draft['days']) != 1 or len(draft['days'][0]['scheduleItems']) != 1 or draft['transports'] or draft['days'][0]['date'] != day['date']:
-                    raise ValidationError('対象日の予定を1件だけ貼り付けてください。')
+                draft = pasted_trip(domain, day, payload['text'], command_id)
+                draft, _ = complete(draft, payload.get('coordinate_results'))
                 item = draft['days'][0]['scheduleItems'][0]
                 for place in draft['places']:
                     changes.append((trip_id, '/places/@' + place['id'], place))
@@ -51,11 +50,16 @@ def change(domain, command_id, trip_id, action, payload):
                 if existing_pid:
                     if not any(p['id'] == existing_pid for p in trip['places']):
                         raise ValidationError('既存地点を確認してください。')
+                    existing = next(p for p in trip['places'] if p['id'] == existing_pid)
+                    resolved = fields(payload.get('resolved_place'))
+                    if existing['location'] is None and resolved['location'] is not None:
+                        changes.extend((existing_pid, '/' + key, value) for key, value in resolved.items())
                     item['placeSelection']['candidatePlaceIds'] = [existing_pid]
                     item['placeSelection']['selection'] = [existing_pid]
                 elif isinstance(name, str) and name.strip():
                     pid = 'place-' + uuid5(NAMESPACE_URL, f'calendar:direct:{trip_id}:{command_id}').hex
                     place = dict(id=pid,name=name,summary=None,category='other',rating=None,address=None,location=None,urls=[])
+                    place.update(fields(payload.get('resolved_place')))
                     changes.append((trip_id, '/places/@' + pid, place))
                     item['placeSelection']['candidatePlaceIds'] = [pid]
                     item['placeSelection']['selection'] = [pid]
@@ -101,3 +105,18 @@ def change(domain, command_id, trip_id, action, payload):
         for target, path, value in changes:
             domain._store_trip_fields(connection, command_id, trip_id, target, {path: value}, {path: path})
     return dict(view=domain.get_trip_detail_view(trip_id), trip=domain.get_effective_trip(trip_id))
+
+
+def pasted_trip(domain, day, text, command_id):
+    if not isinstance(text, str):
+        raise ValidationError('貼付内容を確認してください。')
+    review = domain.parse_chat_paste('旅行名: 1予定追加\n日付: ' + day['date'] + '\n' + text)
+    from .chat_paste import build_import_trip
+    if review['unresolved']:
+        raise ValidationError('未解決の行があります。貼付内容を修正してください。')
+    draft = build_import_trip(review['draft'], command_id)
+    if len(draft['days']) != 1 or len(draft['days'][0]['scheduleItems']) != 1 or draft['transports'] or draft['days'][0]['date'] != day['date']:
+        raise ValidationError('対象日の予定を1件だけ貼り付けてください。')
+    import copy
+    draft['days'][0]['areas'] = copy.deepcopy(day.get('areas', []))
+    return draft
