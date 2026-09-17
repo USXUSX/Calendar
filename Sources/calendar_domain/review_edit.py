@@ -15,7 +15,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
     else:
         paths.update(important='/important', transport_mode='/mode', service_name='/serviceName')
         extra = {'from_place', 'to_place', 'ai_instruction'}
-    extra.update({'show_duration', 'important_comments'})
+    extra.update({'show_duration', 'important_comments', 'map_display_names'})
     if set(changes) - set(paths) - extra:
         raise ValidationError('編集項目を確認してください。')
     with domain._command() as connection:
@@ -26,7 +26,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
             raise ValidationError('編集対象を確認してください。')
         item = matches[0]
         edits = [(source_item_id, paths[k], v) for k,v in changes.items() if k in paths]
-        for field in extra - {'ai_instruction', 'show_duration', 'adopt_place_id', 'remove_candidate_place_id', 'candidate_comments', 'important_comments'}:
+        for field in extra - {'ai_instruction', 'show_duration', 'adopt_place_id', 'remove_candidate_place_id', 'candidate_comments', 'important_comments', 'map_display_names'}:
             if field not in changes:
                 continue
             supplied = changes[field]
@@ -74,6 +74,12 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
                 (source_item_id, '/placeSelection/selection', [p for p in selection['selection'] if p != pid]),
                 (source_item_id, '/candidateJudgments', {p: v for p, v in item.get('candidateJudgments', {}).items() if p != pid}),
             ])
+        if 'map_display_names' in changes:
+            names = changes['map_display_names']
+            allowed = set(item['placeSelection']['candidatePlaceIds']) if source_type == 'scheduleItem' else {item['fromPlaceId'], item['toPlaceId']}
+            if not isinstance(names, dict) or set(names) - allowed or any(not isinstance(v, str) for v in names.values()):
+                raise ValidationError('地図表示名の対象と文字列を確認してください。')
+            edits.extend((pid, '/mapDisplayName', value.strip() or None) for pid, value in names.items())
         if 'candidate_comments' in changes:
             comments = changes['candidate_comments']
             if (not isinstance(comments, dict) or not comments
