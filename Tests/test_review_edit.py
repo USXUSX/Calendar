@@ -9,6 +9,20 @@ class ReviewEditTests(unittest.TestCase):
     def edit(self, item, changes, kind='scheduleItem'):
         return self.domain.edit_trip_item('review-edit', self.tid, kind, item['id'], changes)
 
+    def test_map_display_override_is_optional_and_validated(self):
+        item = self.trip['days'][0]['scheduleItems'][0]
+        pid = self.trip['places'][0]['id']
+        original = copy.deepcopy(item['placeSelection'])
+        self.edit(item, {'map_place_id':pid})
+        saved = self.domain.get_effective_trip(self.tid)['days'][0]['scheduleItems'][0]
+        self.assertEqual(saved['mapPlaceId'], pid)
+        self.assertEqual(saved['placeSelection'], original)
+        before = self.domain.get_effective_trip(self.tid)
+        with self.assertRaises(ValidationError): self.edit(item, {'map_place_id':'missing-place'})
+        self.assertEqual(self.domain.get_effective_trip(self.tid), before)
+        self.edit(item, {'map_place_id':None})
+        self.assertIsNone(self.domain.get_effective_trip(self.tid)['days'][0]['scheduleItems'][0]['mapPlaceId'])
+
     def test_official_links_rating_and_transport_coordinates(self):
         from Sources.calendar_domain import build_trip_detail_view
         trip = copy.deepcopy(self.trip)

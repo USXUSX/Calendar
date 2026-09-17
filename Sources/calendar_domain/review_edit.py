@@ -10,7 +10,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
                  time_mode='/time/mode', duration_minutes='/time/durationMinutes')
     if source_type == 'scheduleItem':
         paths.update(category='/category', title='/action', normal_comment='/summary', supporting_details='/details', selection='/placeSelection/selection',
-                     candidate_judgments='/candidateJudgments')
+                     candidate_judgments='/candidateJudgments', map_place_id='/mapPlaceId')
         extra = {'place', 'ai_instruction', 'adopt_place_id', 'remove_candidate_place_id', 'candidate_comments'}
     else:
         paths.update(important='/important', transport_mode='/mode', service_name='/serviceName')

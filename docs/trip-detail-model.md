@@ -446,14 +446,16 @@ Schemaと意味整合を確認後、既存transactionでまとめて保存し、
 
 ## Goal 2 Phase 1 地図表示
 
-各entryの`map_points`をeffective Tripから純粋導出する。各地点は`place_id/name/role/location/comment/links/overview`。
-`role`は選択済み地点の`selected`、選択なし予定の`candidate`、移動の`departure/arrival`。
-候補は正式選択があれば隠す。座標なしはnullのまま返し、位置を推測しない。
-リンクはofficialUrlとurlsを重複除去した登録済みリンク、commentはPlace.summary。
-日時・予定コメント・重要コメントは同じentryとdayを利用する。
-全日の主要地点は選択済み地点と重要な移動の両端（`overview`）とし、候補と通常移動の端点は日別だけに表示する。
-全日でもフォーカス中の予定は例外として地点を表示する。日別のPin番号は予定順にFrameが表示する。
-Phase 1は実経路線を描かず、移動予定のフォーカスで両端を収める。
+Calendar #162では各dayの`map_stops`をeffective Tripから純粋導出する。各地点群は`stop_id/name/candidate/points/references/categories`。pointsは`place_id/name/location/comment/links`、referencesは関連entryの`entry_key/role`。同じPlace ID、または名前と空でない住所が完全一致するPlaceをまとめる。曖昧な名称・説明文から所属を推測しない。候補は一つの訪問群にし、同じ候補集合はまとめる。
 
-フォーカスはsource_type/source_item_idで識別する画面内一時状態。表示切替では維持し、日付・区分変更で対象が外れれば解除する。
-Frameは座標ありの地点を表示し、欠落数と座標のないフォーカス対象を明示する。地図用DB、保存API、外部取得は追加しない。
+通常の予定はplaceSelectionのselection（なければcandidatePlaceIds）を使用する。任意の`scheduleItem.mapPlaceId`は既存Placeへの地図表示先指定。未指定は通常導出、nullは当該予定を地図対象外、Place IDならその訪問地点へ集約する。予定本文・候補選択・座標を変更せず、CALの`edit_trip_item`の`map_place_id`で検証済みDirect Overrideとして保存できる。未知のPlace IDは拒否する。地図用DBや独立した地点正本は作らない。
+
+初日は最初のflight（なければshinkansen、移動の先頭がtrainならそのtrain）の到着地点から、最終日は最後の同種交通の出発地点までを対象にする。往復が同一移動なら到着側だけを残す。自宅側の前後予定・端点を除外し、車だけの旅程は全行程を残す。移動が一つだけの鉄道旅程は到着側を始点として扱う。経由地を伴う複雑なアクセスの自動推測は行わない。
+
+訪問予定を優先して並べ、移動参照だけの拠点は最後の出発順に置く。これにより市場の食事・駅周辺昼食・帰路の駅・空港を訪問単位で扱う。座標なしもnullのまま返し、番号はFrameが座標あり群だけに詰めて振る。候補群は共通番号と枝番、非対象予定は座標があっても表示しない。
+
+日時・予定コメント・重要コメントは同じentry、リンクはPlaceのofficialUrlとurlsを重複除去して使う。空港の到着・出発など同一地点の複数予定を一つの吹き出しにまとめる。既存entry.map_pointsは互換用に保持する。座標検索・保存、経路生成は行わない。
+
+### Phase 2へ引き継ぐ要件（未着手）
+
+地図対象の位置未登録地点を抽出し、住所＋名称、なければ名称＋エリアで検索する。個別・一括の確認を経て既存CAL地点補完の採用境界へ渡し、既存座標は上書きしない。エリア・観光・宿泊の共通UIを検討する。旅程作成時に確実な位置を含め、取り込み時に不足を補完する流れもこのPhaseで扱う。#162では検索・補完・実データの座標保存を実装しない。

@@ -145,6 +145,8 @@ def semantic_errors(trip: dict[str, Any]) -> list[str]:
             base = f"$.days[{day_index}].scheduleItems[{item_index}]"
             if item["dayId"] != day["id"]:
                 errors.append(f"{base}.dayId: must match parent Day")
+            if item.get("mapPlaceId") is not None and item["mapPlaceId"] not in places:
+                errors.append(f"{base}.mapPlaceId: unknown Place id")
             selection = item["placeSelection"]
             candidates = set(selection["candidatePlaceIds"])
             selected = set(selection["selection"])
