@@ -37,7 +37,7 @@ def build_map_stops(days, trip):
         return entry['source_type'] + ':' + entry['source_item_id']
     def point(pid):
         p = places[pid]
-        return dict(place_id=pid, name=p['name'], location=copy.deepcopy(p['location']),
+        return dict(place_id=pid, name=p['name'], location=copy.deepcopy(p['location']), googlePlaceId=p.get('googlePlaceId'),
                     comment=p['summary'], links=list(dict.fromkeys(filter(None, [p.get('officialUrl'), *p['urls']]))))
     for day in days:
         groups = {}

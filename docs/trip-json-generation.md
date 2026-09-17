@@ -212,3 +212,11 @@ Place.officialUrlは確認済み公式リンク、urlsは参考リンク。本�
 予定本文・summary・details・Booking.notesへ混在させず、complete Trip JSONのコメントとして転記しない。
 
 座標がない地図対象はFrameでの取り込み時に[座標補完契約](map-locations.md)に従って補完する。既存Tripの保存済み座標は保持する。
+
+### 訪問先と内部の食事候補（#167追加修正）
+
+「市場へ行く」と「市場内で食べる」は別の予定にする。市場自体のPlaceを訪問予定のselectionへ設定し、食事予定には店A・店BをcandidatePlaceIds、selection=[]として入れる。概要の訪問先は市場、候補を比較するときの地点は個々の店となる。市場へ行く予定を店候補の集合だけで代用しない。候補名・座標は各店のものを保持する。
+
+同じ考え方を施設内の候補にも使う。地図で曖昧な親子関係を推測したり、候補を自動採用したりしない。現在の旅程をこの規則で自動再構成するものではない。既存のmapPlaceIdは明示された表示先指定として扱う。
+
+PlaceとDay.areasの任意googlePlaceIdは、Google Placesで実際に取得したIDがある場合だけlocationと組にして保持する。創作せず、位置未登録は[共通地点取得](map-locations.md)へ渡す。既存座標・手動補正は自動上書きしない。
