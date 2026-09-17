@@ -87,7 +87,7 @@ def _candidate_places(
         result.append({
             "number": index,
             "place_id": place_id,
-            "name": place["name"],
+            "name": place["name"], "mapDisplayName": place.get("mapDisplayName"),
             "location": copy.deepcopy(place["location"]), "googlePlaceId": place.get("googlePlaceId"),
             "url": place.get("officialUrl"),
             "comment": place["summary"],
@@ -166,7 +166,7 @@ def _entry(
         "category_icon_key": _CATEGORY_ICON_KEYS[category],
         "title": title,
         "places": [
-            {"id": place_id, "name": places[place_id]["name"],
+            {"id": place_id, "name": places[place_id]["name"], "mapDisplayName": places[place_id].get("mapDisplayName"),
              **_place_metadata(places[place_id]), "url": places[place_id].get("officialUrl"), "location": copy.deepcopy(places[place_id]["location"]), "googlePlaceId": places[place_id].get("googlePlaceId")}
             for place_id in place_ids
         ],
@@ -241,7 +241,7 @@ def build_trip_detail_view(
         "trip_id": effective_trip["id"], "title": effective_trip["title"],
         "date_range": copy.deepcopy(effective_trip["dateRange"]), "days": days,
         "temporary_input": {"candidate_judgments": copy.deepcopy(judgments)},
-        "place_choices": [{"id": p["id"], "name": p["name"], "location": copy.deepcopy(p["location"]), "googlePlaceId": p.get("googlePlaceId")} for p in places.values()],
+        "place_choices": [{"id": p["id"], "name": p["name"], "mapDisplayName": p.get("mapDisplayName"), "location": copy.deepcopy(p["location"]), "googlePlaceId": p.get("googlePlaceId")} for p in places.values()],
     }
 
 

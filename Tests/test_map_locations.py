@@ -130,3 +130,14 @@ class MapLocationsTest(TestCase):
         self.assertEqual(item['placeSelection']['selection'],[])
         for pid in item['placeSelection']['candidatePlaceIds']:
             self.assertEqual(next(p for p in result['trip']['places'] if p['id']==pid)['googlePlaceId'],'google-paste')
+
+    def test_map_display_name_changes_only_alias_and_clears(self):
+        item = next(i for d in self.trip['days'] for i in d['scheduleItems'] if i['placeSelection']['candidatePlaceIds'])
+        pid = item['placeSelection']['candidatePlaceIds'][0]
+        before = next(p for p in self.domain.get_effective_trip(self.tid)['places'] if p['id'] == pid)
+        self.domain.edit_trip_item('alias', self.tid, 'scheduleItem', item['id'], {'map_display_names': {pid: '短い表示名'}})
+        after = next(p for p in self.domain.get_effective_trip(self.tid)['places'] if p['id'] == pid)
+        self.assertEqual(after.pop('mapDisplayName'), '短い表示名')
+        self.assertEqual(after, before)
+        self.domain.edit_trip_item('clear-alias', self.tid, 'scheduleItem', item['id'], {'map_display_names': {pid: ''}})
+        self.assertIsNone(next(p for p in self.domain.get_effective_trip(self.tid)['places'] if p['id'] == pid)['mapDisplayName'])
