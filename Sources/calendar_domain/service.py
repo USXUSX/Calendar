@@ -908,7 +908,7 @@ class CalendarDomain(ChatExchangeMixin):
                 raise ValidationError(f"field_path does not exist: {field_path}")
         leaf = parts[-1]
         if isinstance(target, dict):
-            optional_query = field_path == "/searchQuery" and any(
+            optional_query = field_path in {"/searchQuery", "/mapPlaceId"} and any(
                 target is item for day in trip["days"] for item in day["scheduleItems"])
             if leaf not in target and not optional_query and leaf not in {"areas", "candidateJudgments", "serviceName", "important", "importantComment"}:
                 raise ValidationError(f"field_path does not exist: {field_path}")

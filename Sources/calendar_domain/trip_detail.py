@@ -234,6 +234,8 @@ def build_trip_detail_view(
             "route_summary": " → ".join(a["name"] for a in day["areas"]) if "areas" in day else day["routeSummary"], "weather": copy.deepcopy(weather.get(day["id"])),
             "entries": entries,
         })
+    from .trip_map import build_map_stops
+    build_map_stops(days, effective_trip)
     return {
         "trip_id": effective_trip["id"], "title": effective_trip["title"],
         "date_range": copy.deepcopy(effective_trip["dateRange"]), "days": days,

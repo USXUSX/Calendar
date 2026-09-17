@@ -43,6 +43,7 @@
         "action": { "type": "string", "minLength": 1 },
         "candidateJudgments": { "type": "object", "additionalProperties": { "enum": ["ok", "ng"] } },
         "searchQuery": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "mapPlaceId": { "description": "Optional map display target. Omit for normal selection/candidates, null to hide this schedule on map, or reference an existing Place to group the visit there.", "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
         "category": { "enum": ["sightseeing", "food", "accommodation", "other"] },
         "summary": { "$ref": "#/$defs/nullableString" },
         "details": { "type": "array", "items": { "type": "string", "minLength": 1 } },
