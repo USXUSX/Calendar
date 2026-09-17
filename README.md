@@ -17,7 +17,7 @@ CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb�
 
 完了記録と確認範囲は[Issue #96](https://github.com/USXUSX/Calendar/issues/96)、今後の保留事項は[ロードマップ](docs/development-roadmap.md)を参照してください。全面再構築は行わず、実利用で支障が出た箇所だけ対応します。
 
-Goal 2 Phase 1（[Issue #159](https://github.com/USXUSX/Calendar/issues/159)）の旅程連動地図は実装・本番反映・実API確認を完了し、usの振り返りを待っています。Goal 1の完了判断は維持します。
+Goal 2 Phase 1の旅程連動地図は、[Issue #159](https://github.com/USXUSX/Calendar/issues/159)の実装と[Issue #162](https://github.com/USXUSX/Calendar/issues/162)の実用調整を完了しました。2026-09-17のus完了指示に基づき確認待ちを解消し、Phase 2は未着手のまま停止しています。Goal 1の完了判断は維持します。
 
 ## 責務と保持基盤
 
