@@ -41,9 +41,11 @@ def build_map_stops(days, trip):
                     comment=p['summary'], links=list(dict.fromkeys(filter(None, [p.get('officialUrl'), *p['urls']]))))
     for day in days:
         groups = {}
-        def add(identity, name, ids, candidate, entry, role):
+        def add(identity, name, ids, candidate, entry, role, display_points=None):
             group = groups.setdefault(identity, dict(stop_id=identity, name=name, candidate=candidate,
                                                      points=[point(pid) for pid in ids], references=[], categories=[], _visits=[], _departures=[], _orders=[]))
+            if display_points is not None:
+                group.update(points=display_points, candidate=candidate)
             ref = dict(entry_key=key(entry), role=role)
             if ref not in group['references']: group['references'].append(ref)
             if entry['category'] not in group['categories']: group['categories'].append(entry['category'])
@@ -61,13 +63,23 @@ def build_map_stops(days, trip):
                     add('place:'+pid, places[pid]['name'], [pid], False, entry, p['role'])
             else:
                 item = items[entry['source_item_id']]
+                selection = item['placeSelection']
+                ids = selection['selection'] or selection['candidatePlaceIds']
+                candidate = not bool(selection['selection'])
                 if 'mapPlaceId' in item:
-                    ids = [item['mapPlaceId']] if item['mapPlaceId'] else []
-                    candidate = False
-                else:
-                    selection = item['placeSelection']
-                    ids = selection['selection'] or selection['candidatePlaceIds']
-                    candidate = not bool(selection['selection'])
+                    if item['mapPlaceId'] is None:
+                        continue
+                    target = canonical[item['mapPlaceId']]
+                    # The display target groups the visit; it must not erase candidates.
+                    # Use the explicit area's position only when a candidate lacks its own.
+                    display_points = [point(pid) for pid in dict.fromkeys(ids or [target])]
+                    for p in display_points:
+                        if p['location'] is None:
+                            p['location'] = copy.deepcopy(places[target]['location'])
+                            p['location_place_id'] = target
+                    add('place:'+target, places[target]['name'], [target], candidate and bool(ids),
+                        entry, 'visit', display_points)
+                    continue
                 ids = list(dict.fromkeys(canonical[pid] for pid in ids))
                 if candidate and ids:
                     add('candidates:'+':'.join(sorted(ids)), entry['title']+'（候補）', ids, True, entry, 'visit')
