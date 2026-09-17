@@ -240,6 +240,7 @@ def build_trip_detail_view(
         "trip_id": effective_trip["id"], "title": effective_trip["title"],
         "date_range": copy.deepcopy(effective_trip["dateRange"]), "days": days,
         "temporary_input": {"candidate_judgments": copy.deepcopy(judgments)},
+        "place_choices": [{"id": p["id"], "name": p["name"]} for p in places.values()],
     }
 
 

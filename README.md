@@ -17,7 +17,7 @@ CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb�
 
 完了記録と確認範囲は[Issue #96](https://github.com/USXUSX/Calendar/issues/96)、今後の保留事項は[ロードマップ](docs/development-roadmap.md)を参照してください。全面再構築は行わず、実利用で支障が出た箇所だけ対応します。
 
-Goal 2 Phase 1の旅程連動地図は、[Issue #159](https://github.com/USXUSX/Calendar/issues/159)の実装と[Issue #162](https://github.com/USXUSX/Calendar/issues/162)の実用調整を完了しました。2026-09-17のus完了指示に基づき確認待ちを解消し、Phase 2は未着手のまま停止しています。Goal 1の完了判断は維持します。
+Goal 2 Phase 1の旅程連動地図は、[Issue #159](https://github.com/USXUSX/Calendar/issues/159)の実装と[Issue #162](https://github.com/USXUSX/Calendar/issues/162)の実用調整を完了しました。2026-09-17のus完了指示に基づき確認待ちを解消し、その後の[Issue #167](https://github.com/USXUSX/Calendar/issues/167)実行依頼によりPhase 2の座標補完・位置修正へ進みます。本番反映後はusの画面確認待ちで停止します。Goal 1の完了判断は維持します。
 
 ## 責務と保持基盤
 
@@ -51,6 +51,7 @@ Goal 2 Phase 1の旅程連動地図は、[Issue #159](https://github.com/USXUSX/
 - `Schemas/calendar-v2.sql`: retained schema revision for Trip versions and generation requests
 - `Schemas/calendar-v1.sql`: retained initial SQLite schema revision
 - `docs/trip-json-generation.md`: current new-Trip complete-JSON generation and candidate handoff
+- `docs/map-locations.md`: JSON取り込みの座標補完と地図上の位置保存
 - `docs/operation.md`: current Frame operation and retained legacy entry points
 - `Sources/`: CAL semantic domain and retained read-only Web prototype
 - `Tests/`: automated tests and test guidance

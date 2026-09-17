@@ -150,7 +150,7 @@ class ChatExchangeMixin:
         except (DomainError, KeyError, TypeError):
             pass  # A new or incomplete Chat file is not the adopted candidate.
 
-    def adopt_chat_candidate(self, trip_id, candidate, *, confirmed=False):
+    def adopt_chat_candidate(self, trip_id, candidate, *, confirmed=False, coordinate_results=None):
         if confirmed is not True:
             raise ValidationError("Chat candidateの内容確認が必要です。")
         recovered = self.recover_trip_adoption(trip_id)
@@ -162,11 +162,13 @@ class ChatExchangeMixin:
         if candidate != review["candidate"]:
             raise ConflictError("確認後にcandidateが変更されました。再読込して確認してください。")
         context = self.get_chat_context(trip_id)
+        from .map_locations import complete
+        completed, counts = complete(candidate["trip"], coordinate_results, context["trip"])
         result = self._adopt_candidate_atomically(
-            trip_id, candidate["trip"], context["current_revision"]["trip_version"],
+            trip_id, completed, context["current_revision"]["trip_version"],
             context["current_revision"]["trip_hash"], kind="chat", chat_envelope=candidate)
         self.get_chat_context(trip_id)
-        return result
+        return {**result, "coordinates": counts}
 
 
 def _changes(before, after, label="旅程"):

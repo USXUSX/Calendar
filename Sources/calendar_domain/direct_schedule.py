@@ -47,7 +47,13 @@ def change(domain, command_id, trip_id, action, payload):
                             time=input_time_spec(start, end, payload.get('show_duration', False), payload.get('time_mode')),
                             placeSelection=dict(candidatePlaceIds=[], selection=[], minSelections=None, maxSelections=None))
                 name = payload.get('place_name')
-                if isinstance(name, str) and name.strip():
+                existing_pid = payload.get('place_id')
+                if existing_pid:
+                    if not any(p['id'] == existing_pid for p in trip['places']):
+                        raise ValidationError('既存地点を確認してください。')
+                    item['placeSelection']['candidatePlaceIds'] = [existing_pid]
+                    item['placeSelection']['selection'] = [existing_pid]
+                elif isinstance(name, str) and name.strip():
                     pid = 'place-' + uuid5(NAMESPACE_URL, f'calendar:direct:{trip_id}:{command_id}').hex
                     place = dict(id=pid,name=name,summary=None,category='other',rating=None,address=None,location=None,urls=[])
                     changes.append((trip_id, '/places/@' + pid, place))

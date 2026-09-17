@@ -37,16 +37,31 @@ class CalendarDomain(_CalendarDomain):
                 entry["ai_local_update_target"] = None
         return {"ready": True, "errors": [], "view": view, "candidate": candidate}
 
-    def import_trip_json(self, candidate, *, confirmed=False):
+    def import_trip_json(self, candidate, *, confirmed=False, coordinate_results=None):
         """Adopt complete JSON and replace only an unregistered orphan formal file."""
         if confirmed is not True:
             raise ValidationError("JSON取込には内容確認が必要です。")
         result = self.review_trip_json(candidate)
         if not result["ready"]:
             raise ValidationError("candidate Trip JSON is invalid: " + result["errors"][0])
-        trip_id = result["candidate"]["id"]
+        from .map_locations import complete
+        candidate, counts = complete(result["candidate"], coordinate_results)
+        trip_id = candidate["id"]
         self._trip_path(trip_id).unlink(missing_ok=True)
-        return super()._import_new_trip(result["candidate"])
+        return {**super()._import_new_trip(candidate), "coordinates": counts}
+
+    def prepare_import_locations(self, candidate, *, existing_trip_id=None):
+        from .map_locations import prepare
+        existing = self.get_effective_trip(existing_trip_id) if existing_trip_id else None
+        return prepare(candidate, existing)[1]
+
+    def get_map_location(self, trip_id, place_id):
+        from .map_locations import target
+        return target(self, trip_id, place_id)
+
+    def save_map_location(self, command_id, trip_id, place_id, location, expected_location):
+        from .map_locations import save
+        return save(self, command_id, trip_id, place_id, location, expected_location)
 
     def load_trip_detail_view(self, trip_id):
         """Ordinary screen load: validate/adopt the latest Chat candidate, then display."""
