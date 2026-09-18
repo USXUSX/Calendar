@@ -81,9 +81,11 @@ areasがある日はその配列を表示・天気地点の正本とする。旧
 保存済み・候補Placeの不足情報は既存の`get/adopt_place_enrichment`へ委譲する。
 
 天気は順序付きareasの座標付きエリアすべてから取得し、day.weather.locationsへ順番に返す。
-既存day.weather直下の最初の地点も維持する。通常表示はavailableの地点名・天気マークだけを矢印で結び、
-タップで当日の全表示エリアの天気・最高最低気温・降水確率をまとめて展開し、
-末尾にOpen-Meteoと取得時刻（m/d h:mm）を1回だけ表示する。予報対象外・取得不可は通常表示しない。
+既存day.weather直下の最初の地点も維持する。availableの各地点はWMO weather codeと表示用weather_kind、
+日別の天気・最高最低気温・最大降水確率・予想降水量に加え、現地時刻の朝6時・昼12時・夕18時・夜21時について
+天気・気温・降水確率をperiodsへ返す。通常表示は地点名・コード対応の天気マーク・最大降水確率を矢印で結び、
+タップで当日の全表示エリアの日別情報と4時間帯を展開し、末尾にOpen-Meteoと取得時刻（m/d h:mm）を1回だけ表示する。
+予報対象外・取得不可は通常表示しない。
 予定Placeや移動endpointから地点を自動選択しない。
 
 新規Trip作成はbaseを持たないため、完全Trip JSONのcomplete candidate Validationから
