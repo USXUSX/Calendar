@@ -32,5 +32,7 @@ Google接続設定と画面検証はFrame README、実行・確認結果は#167 
 
 ## 選択経路・公式画像の表示契約（#174）
 
-Transportの任意showOnMap=trueだけをday.map_routesへ投影する。route_id、mode、origin/destination（place_id、name、location、googlePlaceId）を渡す。省略時は非表示。日別・全日表示はFRMが絞り込み、経路はFRMのGoogle Routesで取得・描画する。CALは経路形状を保存しない。
+Transportの任意showOnMap=trueだけをday.map_routesへ投影する。route_id、mode、origin/destination（place_id、name、location、googlePlaceId）を渡す。省略時は非表示。日別・全日表示はFRMが絞り込み、車の経路はFRMのGoogle Routesで取得・描画する。鉄道は日本の公共交通API非対応のためGoogle Maps経路検索リンクを表示する（#174 us承認）。CALは経路形状を保存しない。
 map_stops.pointsにはcategoryとofficial_urlも渡す。FRMはattractionかつ公式URLありの地点に限り、フォーカス時の公式og:imageを1枚表示できる。画像URLや画像本体はCALへ書き戻さない。
+
+画像取得元はCALのget_place_image_source(trip_id, place_id)から取得する。これはeffective TripのattractionかつofficialUrlのみを返す読み取りで、Chat candidateの採用を起動しない。
