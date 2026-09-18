@@ -38,7 +38,7 @@ def build_map_stops(days, trip):
     def point(pid):
         p = places[pid]
         return dict(place_id=pid, name=p['name'], mapDisplayName=p.get('mapDisplayName'), location=copy.deepcopy(p['location']), googlePlaceId=p.get('googlePlaceId'),
-                    comment=p['summary'], links=list(dict.fromkeys(filter(None, [p.get('officialUrl'), *p['urls']]))))
+                    category=p['category'], official_url=p.get('officialUrl'), comment=p['summary'], links=list(dict.fromkeys(filter(None, [p.get('officialUrl'), *p['urls']]))))
     for day in days:
         groups = {}
         def add(identity, name, ids, candidate, entry, role, display_points=None):
@@ -101,3 +101,7 @@ def build_map_stops(days, trip):
         for g in result:
             for field in ('_visits', '_arrivals', '_departures', '_orders'): del g[field]
         day['map_stops'] = result
+        day['map_routes'] = [dict(route_id=t['id'], mode=t['mode'],
+                                  origin=point(t['fromPlaceId']), destination=point(t['toPlaceId']))
+                             for t in sorted(trip['transports'], key=lambda t: t['order'])
+                             if t['dayId'] == day['day_id'] and t.get('showOnMap', False)]

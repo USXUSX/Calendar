@@ -76,6 +76,7 @@
         "order": { "type": "integer", "minimum": 0 },
         "status": { "enum": ["confirmed", "tentative", "undecided"] },
         "important": { "type": "boolean" },
+        "showOnMap": { "type": "boolean", "description": "Explicitly selected inter-area route; omitted means false. No route geometry is stored." },
         "mode": { "enum": ["walk", "train", "shinkansen", "bus", "car", "ferry", "flight", "other"] },
         "serviceName": { "$ref": "#/$defs/nullableString" },
         "fromPlaceId": { "$ref": "#/$defs/id" },
