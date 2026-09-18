@@ -146,7 +146,7 @@ class WeatherContextTests(unittest.TestCase):
         self.assertEqual(result["status"], "available")
         self.assertFalse(result["cached"])
         self.assertEqual(result["weather_label"], "晴れ")
-        self.assertEqual(result["weather_kind"], "partly_cloudy")
+        self.assertEqual(result["weather_kind"], "clear")
         self.assertEqual(result["temperature_max"], 29.5)
         self.assertEqual(result["temperature_min"], 21.0)
         self.assertEqual(result["precipitation_probability_max"], 60)
@@ -155,7 +155,7 @@ class WeatherContextTests(unittest.TestCase):
         self.assertEqual(
             [(period["label"], period["weather_kind"]) for period in result["periods"]],
             [
-                ("朝", "partly_cloudy"),
+                ("朝", "clear"),
                 ("昼", "partly_cloudy"),
                 ("夕", "rain"),
                 ("夜", "thunderstorm"),
