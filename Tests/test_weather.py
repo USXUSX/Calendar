@@ -31,8 +31,8 @@ def open_meteo_payload():
             "weather_code": [1],
             "temperature_2m_max": [29.5],
             "temperature_2m_min": [21.0],
-            "precipitation_probability_max": [20],
-            "precipitation_sum": [0.4],
+            "precipitation_probability_max": [60],
+            "precipitation_sum": [2.4],
         },
         "daily_units": {
             "weather_code": "wmo code",
@@ -40,6 +40,22 @@ def open_meteo_payload():
             "temperature_2m_min": "°C",
             "precipitation_probability_max": "%",
             "precipitation_sum": "mm",
+        },
+        "hourly": {
+            "time": [
+                "2026-09-08T06:00",
+                "2026-09-08T12:00",
+                "2026-09-08T18:00",
+                "2026-09-08T21:00",
+            ],
+            "weather_code": [1, 2, 61, 95],
+            "temperature_2m": [21.5, 28.0, 24.0, 22.0],
+            "precipitation_probability": [10, 20, 60, 40],
+        },
+        "hourly_units": {
+            "weather_code": "wmo code",
+            "temperature_2m": "°C",
+            "precipitation_probability": "%",
         },
     }
 
@@ -120,17 +136,33 @@ class WeatherContextTests(unittest.TestCase):
         def transport(params):
             self.assertEqual(params["forecast_days"], 16)
             self.assertEqual(params["timezone"], "auto")
+            self.assertEqual(
+                params["hourly"],
+                "weather_code,temperature_2m,precipitation_probability",
+            )
             return open_meteo_payload()
         adapter = OpenMeteoAdapter(transport=transport)
         result = adapter.forecast({"latitude": 35.0, "longitude": 139.0}, date(2026, 9, 8))
         self.assertEqual(result["status"], "available")
         self.assertFalse(result["cached"])
         self.assertEqual(result["weather_label"], "晴れ")
+        self.assertEqual(result["weather_kind"], "partly_cloudy")
         self.assertEqual(result["temperature_max"], 29.5)
         self.assertEqual(result["temperature_min"], 21.0)
-        self.assertEqual(result["precipitation_probability_max"], 20)
-        self.assertEqual(result["precipitation_sum"], 0.4)
+        self.assertEqual(result["precipitation_probability_max"], 60)
+        self.assertEqual(result["precipitation_sum"], 2.4)
         self.assertEqual(result["units"]["temperature_max"], "°C")
+        self.assertEqual(
+            [(period["label"], period["weather_kind"]) for period in result["periods"]],
+            [
+                ("朝", "partly_cloudy"),
+                ("昼", "partly_cloudy"),
+                ("夕", "rain"),
+                ("夜", "thunderstorm"),
+            ],
+        )
+        self.assertEqual(result["periods"][2]["temperature"], 24.0)
+        self.assertEqual(result["periods"][2]["precipitation_probability"], 60)
 
     def test_expired_cache_is_never_returned_as_current(self):
         now = [0.0]
