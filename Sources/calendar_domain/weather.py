@@ -62,9 +62,9 @@ _WEATHER_LABELS = {
 
 
 def _weather_kind(code):
-    if code == 0:
+    if code in (0, 1):
         return "clear"
-    if code in (1, 2):
+    if code == 2:
         return "partly_cloudy"
     if code == 3:
         return "cloudy"
