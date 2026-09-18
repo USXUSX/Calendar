@@ -17,7 +17,9 @@ CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb�
 
 完了記録と確認範囲は[Issue #96](https://github.com/USXUSX/Calendar/issues/96)、今後の保留事項は[ロードマップ](docs/development-roadmap.md)を参照してください。全面再構築は行わず、実利用で支障が出た箇所だけ対応します。
 
-Goal 2 Phase 1の旅程連動地図と実用調整、およびPhase 2の座標補完・位置修正を完了しました。2026-09-18、usからMac・iPadとも問題なしとの確認と完了指示を受け、[Calendar #167](https://github.com/USXUSX/Calendar/issues/167)・[Frame #114](https://github.com/USXUSX/Frame/issues/114)の確認待ちを解消しました。[Calendar #174](https://github.com/USXUSX/Calendar/issues/174)でPhase 3の選択経路表示、新Goal 3の地点情報充実・公式画像表示を順に実施します。車は実経路、鉄道はGoogle Maps経路検索リンクを表示する方針を採用しました。新Goal 3終了後に開発を区切り、全体を振り返ります。Goal 1の完了判断は維持します。
+Goal 2と新Goal 3を[Calendar #174](https://github.com/USXUSX/Calendar/issues/174)で完了しました（2026-09-18）。地図・位置補正に加え、明示した車区間の実経路と鉄道のGoogle Maps経路検索リンクを表示できます。新規Chat生成は地点情報を可能な範囲で充実し、地図で観光地点を選ぶと取得可能な公式画像を1枚表示します。画像がない場合は非表示です。
+
+Mac・iPad相当幅の公開画面、車の実経路と公式画像の実取得を確認し、本番反映・公式同期を完了しました。今回の物理iPad操作は未実施です。Goal 1の完了判断を維持し、ここでCAL開発を一区切りとします。次Goalへは進まず、実利用で必要な保守を行います。
 
 ## 責務と保持基盤
 
