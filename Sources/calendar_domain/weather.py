@@ -18,6 +18,17 @@ _DAILY_FIELDS = (
     "precipitation_probability_max",
     "precipitation_sum",
 )
+_HOURLY_FIELDS = (
+    "weather_code",
+    "temperature_2m",
+    "precipitation_probability",
+)
+_DAYPARTS = (
+    ("morning", "朝", "06:00"),
+    ("noon", "昼", "12:00"),
+    ("evening", "夕", "18:00"),
+    ("night", "夜", "21:00"),
+)
 _WEATHER_LABELS = {
     0: "快晴",
     1: "晴れ",
@@ -48,6 +59,28 @@ _WEATHER_LABELS = {
     96: "雹を伴う雷雨",
     99: "強い雹を伴う雷雨",
 }
+
+
+def _weather_kind(code):
+    if code == 0:
+        return "clear"
+    if code in (1, 2):
+        return "partly_cloudy"
+    if code == 3:
+        return "cloudy"
+    if code in (45, 48):
+        return "fog"
+    if code in (51, 53, 55, 56, 57):
+        return "drizzle"
+    if code in (61, 63, 65, 66, 67):
+        return "rain"
+    if code in (71, 73, 75, 77, 85, 86):
+        return "snow"
+    if code in (80, 81, 82):
+        return "shower"
+    if code in (95, 96, 99):
+        return "thunderstorm"
+    return "unknown"
 
 
 def _local_today() -> date:
@@ -111,6 +144,7 @@ class OpenMeteoAdapter:
             "latitude": location["latitude"],
             "longitude": location["longitude"],
             "daily": ",".join(_DAILY_FIELDS),
+            "hourly": ",".join(_HOURLY_FIELDS),
             "timezone": "auto",
             "forecast_days": 16,
         }
@@ -130,30 +164,69 @@ class OpenMeteoAdapter:
         try:
             payload, retrieved_at, cached = self._payload(location)
             daily = payload["daily"]
-            units = payload["daily_units"]
+            daily_units = payload["daily_units"]
             dates = daily["time"]
             index = dates.index(target_date.isoformat())
             values = {field: daily[field][index] for field in _DAILY_FIELDS}
-            if any(field not in units for field in _DAILY_FIELDS):
-                raise ValueError("weather units missing")
+            if any(field not in daily_units for field in _DAILY_FIELDS):
+                raise ValueError("daily weather units missing")
             code = values["weather_code"]
             if type(code) not in (int, float):
                 raise ValueError("invalid weather code")
+
+            hourly = payload["hourly"]
+            hourly_units = payload["hourly_units"]
+            if any(field not in hourly_units for field in _HOURLY_FIELDS):
+                raise ValueError("hourly weather units missing")
+            periods = []
+            for key, label, local_time in _DAYPARTS:
+                hourly_index = hourly["time"].index(
+                    f"{target_date.isoformat()}T{local_time}"
+                )
+                hourly_values = {
+                    field: hourly[field][hourly_index] for field in _HOURLY_FIELDS
+                }
+                hourly_code = hourly_values["weather_code"]
+                if type(hourly_code) not in (int, float):
+                    raise ValueError("invalid hourly weather code")
+                hourly_code = int(hourly_code)
+                periods.append({
+                    "key": key,
+                    "label": label,
+                    "time": local_time,
+                    "weather_code": hourly_code,
+                    "weather_kind": _weather_kind(hourly_code),
+                    "weather_label": _WEATHER_LABELS.get(hourly_code, "不明"),
+                    "temperature": hourly_values["temperature_2m"],
+                    "precipitation_probability": hourly_values[
+                        "precipitation_probability"
+                    ],
+                })
+
+            code = int(code)
             return {
                 "status": "available",
                 "retrieved_at": retrieved_at,
                 "cached": cached,
-                "weather_code": int(code),
-                "weather_label": _WEATHER_LABELS.get(int(code), "不明"),
+                "weather_code": code,
+                "weather_kind": _weather_kind(code),
+                "weather_label": _WEATHER_LABELS.get(code, "不明"),
                 "temperature_max": values["temperature_2m_max"],
                 "temperature_min": values["temperature_2m_min"],
                 "precipitation_probability_max": values["precipitation_probability_max"],
                 "precipitation_sum": values["precipitation_sum"],
+                "periods": periods,
                 "units": {
-                    "temperature_max": units["temperature_2m_max"],
-                    "temperature_min": units["temperature_2m_min"],
-                    "precipitation_probability_max": units["precipitation_probability_max"],
-                    "precipitation_sum": units["precipitation_sum"],
+                    "temperature_max": daily_units["temperature_2m_max"],
+                    "temperature_min": daily_units["temperature_2m_min"],
+                    "precipitation_probability_max": daily_units[
+                        "precipitation_probability_max"
+                    ],
+                    "precipitation_sum": daily_units["precipitation_sum"],
+                    "temperature": hourly_units["temperature_2m"],
+                    "precipitation_probability": hourly_units[
+                        "precipitation_probability"
+                    ],
                 },
             }
         except Exception:
