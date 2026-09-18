@@ -29,3 +29,10 @@ Google接続設定と画面検証はFrame README、実行・確認結果は#167 
 [#167のMacレビュー](https://github.com/USXUSX/Calendar/issues/167#issuecomment-5721841774)により、Placeの任意`mapDisplayName`を追加する。`edit_trip_item`の`map_display_names`（対象Place IDから文字列への辞書）で、その予定の確定地点・候補の表示名だけをDirect Overrideへ保存できる。空欄はnullとし正式名称へ戻る。正式名称・URL・施設ID・座標を変更せず、位置の再検索も行わない。Chat contextとeffective Tripにも保持する。表示名を使用する範囲は地図ラベルと地図下の一覧に限り、旅程・詳細・検索文字列は正式名称を使う。
 
 位置補正を旅程編集から開始した場合は、保存・取消とも元の予定または日別情報の編集状態・スクロールへ戻る。未保存編集がある場合は先に保存を促す。地図から直接開始した場合は地図に残る。
+
+## 選択経路・公式画像の表示契約（#174）
+
+Transportの任意showOnMap=trueだけをday.map_routesへ投影する。route_id、mode、origin/destination（place_id、name、location、googlePlaceId）を渡す。省略時は非表示。日別・全日表示はFRMが絞り込み、車の経路はFRMのGoogle Routesで取得・描画する。鉄道は日本の公共交通API非対応のためGoogle Maps経路検索リンクを表示する（#174 us承認）。CALは経路形状を保存しない。
+map_stops.pointsにはcategoryとofficial_urlも渡す。FRMはattractionかつ公式URLありの地点に限り、フォーカス時の公式og:imageを1枚表示できる。画像URLや画像本体はCALへ書き戻さない。
+
+画像取得元はCALのget_place_image_source(trip_id, place_id)から取得する。これはeffective TripのattractionかつofficialUrlのみを返す読み取りで、Chat candidateの採用を起動しない。

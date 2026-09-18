@@ -10,6 +10,22 @@ class TripMapTest(unittest.TestCase):
     def setUp(self):
         self.trip = json.loads(Path('Samples/hokkaido-4days-candidate.json').read_text())
 
+    def test_only_explicit_routes_and_original_endpoints(self):
+        trip = self.trip
+        self.assertTrue(all(not d['map_routes'] for d in build_trip_detail_view(trip)['days']))
+        t = trip['transports'][0]
+        t['showOnMap'] = True
+        before = copy.deepcopy(trip)
+        routes = [r for d in build_trip_detail_view(trip)['days'] for r in d['map_routes']]
+        self.assertEqual(len(routes), 1)
+        self.assertEqual(routes[0]['route_id'], t['id'])
+        self.assertEqual(routes[0]['mode'], t['mode'])
+        self.assertEqual(routes[0]['origin']['place_id'], t['fromPlaceId'])
+        self.assertEqual(routes[0]['destination']['place_id'], t['toPlaceId'])
+        self.assertEqual(trip, before)
+        t['showOnMap'] = False
+        self.assertTrue(all(not d['map_routes'] for d in build_trip_detail_view(trip)['days']))
+
     def test_occurrences_candidates_links_and_no_mutation(self):
         item = self.trip['days'][0]['scheduleItems'][0]
         places = self.trip['places'][:2]

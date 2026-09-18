@@ -910,7 +910,7 @@ class CalendarDomain(ChatExchangeMixin):
         if isinstance(target, dict):
             optional_query = field_path in {"/searchQuery", "/mapPlaceId"} and any(
                 target is item for day in trip["days"] for item in day["scheduleItems"])
-            if leaf not in target and not optional_query and leaf not in {"areas", "candidateJudgments", "serviceName", "important", "importantComment", "googlePlaceId", "mapDisplayName"}:
+            if leaf not in target and not optional_query and leaf not in {"areas", "candidateJudgments", "serviceName", "important", "importantComment", "googlePlaceId", "mapDisplayName", "showOnMap"}:
                 raise ValidationError(f"field_path does not exist: {field_path}")
             target[leaf] = copy.deepcopy(value)
         elif isinstance(target, list) and leaf.isdigit() and int(leaf) < len(target):
@@ -2317,6 +2317,12 @@ class CalendarDomain(ChatExchangeMixin):
         result = self._get_override(override_id)
         self.get_chat_context(result["trip_id"])
         return result
+
+    def get_place_image_source(self, trip_id: str, place_id: str) -> str | None:
+        """Read only the official URL of an attraction; never adopt a Chat candidate."""
+        trip = self.get_effective_trip(trip_id)
+        place = next((p for p in trip['places'] if p['id'] == place_id), None)
+        return place.get('officialUrl') if place and place['category'] == 'attraction' else None
 
     def lookup_place(self, name, adapter):
         from Sources.place_acquisition import FacilityQuery, valid_field
