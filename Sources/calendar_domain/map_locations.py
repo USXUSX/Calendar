@@ -1,6 +1,7 @@
 """Location import and edit rules. Search runs in the Maps browser client."""
 import copy
 from .errors import ConflictError, NotFoundError, ValidationError
+from .home import apply_place, read_home
 from .trip_detail import build_trip_detail_view
 from Sources.place_acquisition import valid_field
 
@@ -108,6 +109,8 @@ def save(domain, command_id, trip_id, place_id, location, expected_location, goo
         if domain._journal_path(trip_id).exists():
             raise ConflictError('pending Trip adoption')
         point = target(domain, trip_id, place_id)
+        if point['name'].strip() == '自宅' and read_home(domain.trip_root):
+            raise ValidationError('自宅は共通設定の固定位置です。住所変更はCALの共通設定で行ってください。')
         if point['location'] != expected_location or (expected_name is not None and point['name'] != expected_name):
             raise ConflictError('位置が変更されています。再読み込みしてください。')
         values = fields(dict(location=location, googlePlaceId=google_place_id))
@@ -140,6 +143,7 @@ def inputs(domain, trip_id, day_id, points):
     if day is None or not isinstance(points, list):
         raise ValidationError('日付と地点を確認してください。')
     places = {p['id']: p for p in trip['places']}
+    home = read_home(domain.trip_root)
     plan = []
     for index, supplied in enumerate(points):
         if not isinstance(supplied, dict) or not isinstance(supplied.get('name'), str) or not supplied['name'].strip():
@@ -147,9 +151,9 @@ def inputs(domain, trip_id, day_id, points):
         saved = places.get(supplied.get('id'))
         if not saved or saved['name'] != supplied['name']:
             saved = next((a for a in day.get('areas', []) if supplied.get('area') and a['name'] == supplied['name']), None)
-        source = saved or supplied
+        source = apply_place(saved or supplied, home) if not supplied.get('area') else saved or supplied
         query = source['name'].strip() if supplied.get('area') else search_query(source, ' '.join(a['name'] for a in day.get('areas', [])))
-        plan.append(dict(place_id=str(index), name=source['name'], query=query, skip_search=saved is not None or not query, **fields(source)))
+        plan.append(dict(place_id=str(index), name=source['name'], query=query, skip_search=saved is not None or not query or source.get('location') is not None, **fields(source)))
     return plan
 
 

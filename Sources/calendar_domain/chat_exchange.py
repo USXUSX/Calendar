@@ -163,7 +163,7 @@ class ChatExchangeMixin:
             raise ConflictError("確認後にcandidateが変更されました。再読込して確認してください。")
         context = self.get_chat_context(trip_id)
         from .map_locations import complete
-        completed, counts = complete(candidate["trip"], coordinate_results, context["trip"])
+        completed, counts = complete(self._with_home(candidate["trip"]), coordinate_results, context["trip"])
         result = self._adopt_candidate_atomically(
             trip_id, completed, context["current_revision"]["trip_version"],
             context["current_revision"]["trip_hash"], kind="chat", chat_envelope=candidate)

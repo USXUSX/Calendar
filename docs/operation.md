@@ -12,6 +12,10 @@
 
 正式Trip／SQLiteをGitや参照コピーへ入れません。Chatは正式保存先を直接変更せず、運用授受先だけを使います。
 
+## 自宅の共通設定
+
+固定の住所と座標は`Calendar_Local/settings/home.json`で管理する。各旅行の「自宅」はこの値を共通利用し、旅行ごとの位置修正は行わない。詳細は[固定の自宅](map-locations.md#固定の自宅)を参照する。
+
 ## 新規Tripと通常操作
 
 1. Chatに現行Schemaと生成ガイドを渡し、complete Trip JSONを作成する。

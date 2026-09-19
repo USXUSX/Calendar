@@ -64,6 +64,10 @@ class CalendarDomain(ChatExchangeMixin):
         except (OSError, json.JSONDecodeError) as error:
             raise ValidationError("Trip Schema is unavailable or invalid") from error
 
+    def _with_home(self, trip):
+        from .home import apply_home, read_home
+        return apply_home(trip, read_home(self.trip_root))
+
     def _connect(self) -> sqlite3.Connection:
         try:
             connection = sqlite3.connect(self.db_path)
@@ -150,6 +154,10 @@ class CalendarDomain(ChatExchangeMixin):
             if diagnostic is not None:
                 diagnostic("constraint")
             raise ValidationError("candidate Trip JSON id does not match trip_id")
+        configured = self._with_home(value)
+        if configured != value:
+            value = configured
+            payload = (json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + "\n").encode("utf-8")
         return value, payload
 
     def _adoption_directory(self) -> Path:
@@ -935,6 +943,7 @@ class CalendarDomain(ChatExchangeMixin):
             except json.JSONDecodeError as error:
                 raise ValidationError("stored Direct Override value is invalid") from error
             self._apply_value(effective, row["source_item_id"], row["field_path"], value)
+        effective = self._with_home(effective)
         errors = validate_value(effective, self._trip_schema) + semantic_errors(effective)
         if errors:
             raise ValidationError(f"effective Trip is invalid: {errors[0]}")

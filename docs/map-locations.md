@@ -36,3 +36,9 @@ Transportの任意showOnMap=trueだけをday.map_routesへ投影する。route_i
 map_stops.pointsにはcategoryとofficial_urlも渡す。FRMはattractionかつ公式URLありの地点に限り、フォーカス時の公式og:imageを1枚表示できる。画像URLや画像本体はCALへ書き戻さない。
 
 画像取得元はCALのget_place_image_source(trip_id, place_id)から取得する。これはeffective TripのattractionかつofficialUrlのみを返す読み取りで、Chat candidateの採用を起動しない。
+
+## 固定の自宅
+
+CAL LocalDataの`settings/home.json`に`address`、`location:{latitude,longitude}`、任意`googlePlaceId`を登録できる。個人の値はGit・共有参照コピーへ入れない。設定ありの場合は名称（前後空白を除く）が「自宅」のPlaceに設定を優先し、Trip内の住所・座標・施設IDやDirect Overrideより優先する。地点IDや名称、その他の項目は変更しない。
+
+新規取込・Chat採用・既存effective Trip・context・地点入力で共通利用する。既存の正式JSONは読込だけでは書き換えない。自宅の地図編集による個別位置保存は受け付けず、住所変更は共通設定で行う。設定更新は次回読込から反映され、Chatのeffective revisionにも含まれる。設定がない環境は従来動作で、壊れた設定はエラーとして通知する。

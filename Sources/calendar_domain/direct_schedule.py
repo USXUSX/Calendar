@@ -14,7 +14,7 @@ def change(domain, command_id, trip_id, action, payload):
         day = next((d for d in trip['days'] if d['id'] == payload.get('day_id')), None)
         if day is None: raise ValidationError('対象日を確認してください。')
         from .map_locations import prepare
-        return dict(location_plan=prepare(pasted_trip(domain, day, payload.get('text'), command_id))[1])
+        return dict(location_plan=prepare(domain._with_home(pasted_trip(domain, day, payload.get('text'), command_id)))[1])
     with domain._command() as connection:
         connection.execute('BEGIN IMMEDIATE')
         if domain._journal_path(trip_id).exists():
@@ -32,7 +32,7 @@ def change(domain, command_id, trip_id, action, payload):
                 raise ConflictError('この予定は追加済みです。')
             if 'text' in payload:
                 draft = pasted_trip(domain, day, payload['text'], command_id)
-                draft, _ = complete(draft, payload.get('coordinate_results'))
+                draft, _ = complete(domain._with_home(draft), payload.get('coordinate_results'))
                 item = draft['days'][0]['scheduleItems'][0]
                 for place in draft['places']:
                     changes.append((trip_id, '/places/@' + place['id'], place))
