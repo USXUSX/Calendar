@@ -21,7 +21,7 @@ class CalendarDomain(_CalendarDomain):
 
     def review_trip_json(self, candidate):
         """Validate a complete-JSON new candidate; only a registered Trip conflicts."""
-        candidate = copy.deepcopy(candidate)
+        candidate = self._with_home(candidate)
         stage, errors = validation_stage_errors(candidate, self._trip_schema)
         if errors:
             return {"ready": False, "stage": stage, "errors": errors, "view": None}
@@ -53,7 +53,7 @@ class CalendarDomain(_CalendarDomain):
     def prepare_import_locations(self, candidate, *, existing_trip_id=None):
         from .map_locations import prepare
         existing = self.get_effective_trip(existing_trip_id) if existing_trip_id else None
-        return prepare(candidate, existing)[1]
+        return prepare(self._with_home(candidate), existing)[1]
 
     def get_map_location(self, trip_id, place_id):
         from .map_locations import target
