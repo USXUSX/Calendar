@@ -13,7 +13,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
                      candidate_judgments='/candidateJudgments', map_place_id='/mapPlaceId')
         extra = {'candidate_place', 'place', 'ai_instruction', 'adopt_place_id', 'remove_candidate_place_id', 'candidate_comments'}
     else:
-        paths.update(important='/important', transport_mode='/mode', service_name='/serviceName')
+        paths.update(important='/important', show_on_map='/showOnMap', transport_mode='/mode', service_name='/serviceName')
         extra = {'from_place', 'to_place', 'ai_instruction'}
     extra.update({'show_duration', 'important_comments', 'map_display_names'})
     if set(changes) - set(paths) - extra:

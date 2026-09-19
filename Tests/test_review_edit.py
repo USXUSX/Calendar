@@ -311,3 +311,21 @@ class TripReview138Tests(unittest.TestCase):
         candidate = next(p for p in entry['candidates'] if p['place_id']==pid)
         for key in ('tabelog_url','tabelog_rating'):
             self.assertEqual(entry['places'][0][key], candidate[key])
+
+    def test_route_display_toggle_is_independent_and_persisted(self):
+        item = self.trip['transports'][0]
+        for selected in [True, False]:
+            saved = self.edit(item, {'show_on_map': selected}, 'transport')
+            entry = next(e for d in saved['view']['days'] for e in d['entries'] if e['source_item_id'] == item['id'])
+            self.assertEqual(entry['show_on_map'], selected)
+            self.assertEqual(entry['important'], item.get('important', False))
+            routes = [r['route_id'] for d in saved['view']['days'] for r in d['map_routes']]
+            self.assertEqual(item['id'] in routes, selected)
+            context = self.domain.get_chat_context(self.tid)
+            self.assertEqual(next(t for t in context['trip']['transports'] if t['id'] == item['id'])['showOnMap'], selected)
+        before = self.domain.get_effective_trip(self.tid)
+        with self.assertRaises(ValidationError):
+            self.edit(item, {'show_on_map': 'true'}, 'transport')
+        self.assertEqual(self.domain.get_effective_trip(self.tid), before)
+        with self.assertRaises(ValidationError):
+            self.edit(self.trip['days'][0]['scheduleItems'][0], {'show_on_map': True})
