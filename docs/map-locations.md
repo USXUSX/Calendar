@@ -4,7 +4,7 @@ Goal 2 Phase 2（Calendar #167 / Frame #114）。追加修正は [#167 の追加
 
 ## 取り込み
 
-Frameの新規complete JSON登録と、既存TripのChat candidate自動採用で補完する。CALの`prepare_import_locations`が現行地図対象から検索planを生成し、Frameは既存ブラウザ用Maps SDKのPlaces API (New) Text Searchを使う。名称＋住所、住所なしなら名称＋その日の旅行エリア、両方なしなら名称を、一度だけ検索する。これは検索文字列の選択順であり、結果なしで条件を変えて再検索するものではない。
+Frameの新規complete JSON登録と、既存TripのChat candidate自動採用で補完する。CALの`prepare_import_locations`が現行地図対象から検索planを生成し、Frameは既存ブラウザ用Maps SDKのPlaces API (New) Text Searchを使う。名称＋住所、住所なしなら名称＋その日の旅行エリア、両方なしなら名称を、一度だけ検索する。ただし名称が「自宅」の地点は旅行エリアを使わず、住所があれば住所だけで検索する。住所なしは`skip_search=true`として検索せず、未登録のまま保持する（返却された検索結果も採用しない）。保存済み座標と地図での手動設定は従来どおり使える。この規則は地点入力と地図編集にも適用する。これは検索文字列の選択順であり、結果なしで条件を変えて再検索するものではない。
 
 検索対象は実際のPlace座標がない地図表示対象とDay.areas。エリアは自身の名称を使う。既存座標は検索・上書きしない。既存Tripは同じ安定Place IDのeffective座標（Direct Overrideを含む）を入力JSONより優先する。名称＋住所が完全一致する別IDは同一点として一度検索し、同じ座標と施設IDを未登録IDへ保存する。Day.areasは同じDay ID・名称の保存済み位置を保持する。あいまいな名称一致やTrip間のグローバルPlace統合はしない。
 

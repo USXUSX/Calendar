@@ -34,6 +34,7 @@ Gitが正本で、`Calendar_GD`はmerge後の公式共有コピー。GitHubを�
 - 住所 → Place.address、確認できた公式URL → officialUrl、短い地点説明 → summary。
 - 飲食店は食べログの該当店舗URL → urls。取得できた点数だけrating.valueへ入れ、source=食べログ、observedAt=実際の確認日とする。
 - 見つからない項目はSchemaどおりnull／空配列。推測で埋めず、取得本文や独自fieldを追加しない。
+- 自宅はユーザーから確認できた住所・座標だけを設定する。不明ならnullを保ち、旅行先の住所や座標で代用しない。住所のない「自宅」は自動検索せず、位置未登録となる。
 - 取り込み時は従来どおりCALの座標・Google Place ID補完を使う。CAL内に汎用Web検索やクローラーを作らない。
 - 既存Tripへの一括遡及適用は行わない。
 

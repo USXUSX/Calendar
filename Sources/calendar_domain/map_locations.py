@@ -10,6 +10,14 @@ def identity(place):
     return (place['name'].strip(), address) if address else place['id']
 
 
+def search_query(place, area=''):
+    name = place['name'].strip()
+    address = (place.get('address') or '').strip()
+    if name == '自宅':
+        return address  # A travel area cannot identify the owner's home.
+    return ' '.join(filter(None, [name, address or area]))
+
+
 def prepare(trip, existing=None):
     candidate = copy.deepcopy(trip)
     saved = {p['id']: p for p in (existing or {}).get('places', []) if p['location'] is not None}
@@ -39,8 +47,8 @@ def prepare(trip, existing=None):
             for x in places:
                 if x['location'] is None:
                     copy_location(x, source)
-        hint = (p.get('address') or '').strip() or targets[p['id']]
-        plan.append(dict(place_id=p['id'], name=p['name'], query=' '.join(filter(None, [p['name'].strip(), hint])),
+        query = search_query(p, targets[p['id']])
+        plan.append(dict(place_id=p['id'], name=p['name'], query=query, skip_search=not query,
                          location=copy.deepcopy(location), googlePlaceId=source.get('googlePlaceId'), place_ids=[x['id'] for x in places]))
     saved_days = {d['id']: d for d in (existing or {}).get('days', [])}
     for day in candidate['days']:
@@ -65,7 +73,7 @@ def complete(trip, results=None, existing=None):
         if point['location'] is not None:
             counts['existing'] += 1
             continue
-        resolved = fields(results.get(point['place_id']))
+        resolved = fields(None if point.get('skip_search') else results.get(point['place_id']))
         if resolved['location'] is not None:
             for pid in point['place_ids']:
                 if places[pid]['location'] is None:
@@ -140,8 +148,8 @@ def inputs(domain, trip_id, day_id, points):
         if not saved or saved['name'] != supplied['name']:
             saved = next((a for a in day.get('areas', []) if supplied.get('area') and a['name'] == supplied['name']), None)
         source = saved or supplied
-        hint = (source.get('address') or '').strip() or ('' if supplied.get('area') else ' '.join(a['name'] for a in day.get('areas', [])))
-        plan.append(dict(place_id=str(index), name=source['name'], query=' '.join(filter(None, [source['name'].strip(), hint])), skip_search=saved is not None, **fields(source)))
+        query = source['name'].strip() if supplied.get('area') else search_query(source, ' '.join(a['name'] for a in day.get('areas', [])))
+        plan.append(dict(place_id=str(index), name=source['name'], query=query, skip_search=saved is not None or not query, **fields(source)))
     return plan
 
 
