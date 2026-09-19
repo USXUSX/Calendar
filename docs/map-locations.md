@@ -32,6 +32,7 @@ Google接続設定と画面検証はFrame README、実行・確認結果は#167 
 
 ## 選択経路・公式画像の表示契約（#174）
 
+移動編集の「地図に経路を表示」は`edit_trip_item`の`show_on_map`でTransport.showOnMapを保存する。重要な移動とは独立し、表示モデルの`show_on_map`で再編集時の状態を返す。
 Transportの任意showOnMap=trueだけをday.map_routesへ投影する。route_id、mode、origin/destination（place_id、name、location、googlePlaceId）を渡す。省略時は非表示。日別・全日表示はFRMが絞り込み、車の経路はFRMのGoogle Routesで取得・描画する。鉄道は日本の公共交通API非対応のためGoogle Maps経路検索リンクを表示する（#174 us承認）。CALは経路形状を保存しない。
 map_stops.pointsにはcategoryとofficial_urlも渡す。FRMはattractionかつ公式URLありの地点に限り、フォーカス時の公式og:imageを1枚表示できる。画像URLや画像本体はCALへ書き戻さない。
 

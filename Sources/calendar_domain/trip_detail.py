@@ -159,6 +159,7 @@ def _entry(
         "source_item_id": item["id"],
         "order": item["order"],
         "important": item.get("important", False),
+        "show_on_map": item.get("showOnMap", False),
         "booking_status": next((b["status"] for b in bookings if b["id"] == item.get("bookingId")), None),
         "transport_mode": item.get("mode"), "service_name": item.get("serviceName"),
         "time": {"label": _time_label(item["time"]), **copy.deepcopy(item["time"])},
