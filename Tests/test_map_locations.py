@@ -141,3 +141,45 @@ class MapLocationsTest(TestCase):
         self.assertEqual(after, before)
         self.domain.edit_trip_item('clear-alias', self.tid, 'scheduleItem', item['id'], {'map_display_names': {pid: ''}})
         self.assertIsNone(next(p for p in self.domain.get_effective_trip(self.tid)['places'] if p['id'] == pid)['mapDisplayName'])
+
+    def test_home_without_address_stays_unlocated_on_import(self):
+        trip = copy.deepcopy(self.trip)
+        pid = prepare(trip)[1][0]['place_id']
+        home = next(p for p in trip['places'] if p['id'] == pid)
+        home.update(name='自宅', address=None, location=None)
+        home.pop('googlePlaceId', None)
+        trip['days'][0]['areas'] = [dict(name='旅行先エリア', location=None)]
+        point = next(p for p in prepare(trip)[1] if p['place_id'] == pid)
+        self.assertTrue(point['skip_search'])
+        self.assertEqual(point['query'], '')
+        unrelated = dict(location={'latitude':43,'longitude':141}, googlePlaceId='travel-facility')
+        filled, counts = complete(trip, {pid: unrelated})
+        self.assertIsNone(next(p for p in filled['places'] if p['id'] == pid)['location'])
+        self.assertGreaterEqual(counts['missing'], 1)
+        home['address'] = '合成県合成市1-2-3'
+        point = next(p for p in prepare(trip)[1] if p['place_id'] == pid)
+        self.assertFalse(point['skip_search'])
+        self.assertEqual(point['query'], home['address'])
+        filled, _ = complete(trip, {pid: unrelated})
+        self.assertEqual(next(p for p in filled['places'] if p['id'] == pid)['location'], unrelated['location'])
+        incoming = copy.deepcopy(filled)
+        next(p for p in incoming['places'] if p['id'] == pid).update(address=None, location=None)
+        kept, _ = complete(incoming, {}, filled)
+        self.assertEqual(next(p for p in kept['places'] if p['id'] == pid)['location'], unrelated['location'])
+
+    def test_home_input_and_manual_location_remain_available(self):
+        plan = self.domain.prepare_location_inputs(self.tid, self.did, [
+            dict(name='自宅', address='  '), dict(name='自宅', address='合成県合成市1-2-3')])
+        self.assertTrue(plan[0]['skip_search'])
+        self.assertEqual(plan[0]['query'], '')
+        self.assertFalse(plan[1]['skip_search'])
+        self.assertEqual(plan[1]['query'], '合成県合成市1-2-3')
+        result = self.domain.change_trip_schedule('home-add', self.tid, 'add',
+            dict(day_id=self.did, title='帰宅', category='other', place_name='自宅'))
+        home = next(p for p in result['trip']['places'] if p['name'] == '自宅')
+        self.assertIsNone(home['location'])
+        point = self.domain.get_map_location(self.tid, home['id'])
+        self.assertTrue(point['skip_search'])
+        moved = {'latitude':35, 'longitude':139}
+        self.domain.save_map_location('home-pin', self.tid, home['id'], moved, None)
+        self.assertEqual(self.domain.get_map_location(self.tid, home['id'])['location'], moved)
