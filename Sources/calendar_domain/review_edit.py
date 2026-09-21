@@ -107,7 +107,7 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
                 raise ValidationError('候補のOK/NGを確認してください。')
         if 'important_comments' in changes:
             from .trip_detail import important_comment_fields
-            allowed = {field['source_id'] for field in important_comment_fields(item, trip['bookings'])}
+            allowed = {field['source_id'] for field in important_comment_fields(item, trip['bookings'], source_type)}
             comments = changes['important_comments']
             if not isinstance(comments, dict) or set(comments) - allowed or any(not isinstance(v, str) for v in comments.values()):
                 raise ValidationError('重要コメントの保存先と文字列を確認してください。')

@@ -99,7 +99,9 @@ def _candidate_places(
     return result
 
 
-def important_comment_fields(item, bookings):
+def important_comment_fields(item, bookings, source_type):
+    if source_type == "scheduleItem":
+        return [{"source_id": item["id"], "comment": item.get("importantComment") or ""}]
     selected = set(item.get("placeSelection", {}).get("selection", []))
     fields = [{"source_id": booking["id"], "comment": booking["notes"] or ""}
               for booking in bookings
@@ -178,8 +180,8 @@ def _entry(
         "map_points": _map_points(item, source_type, places),
         "normal_comment": normal_comment,
         "search_query": item.get("searchQuery"),
-        "important_comments": [field["comment"] for field in important_comment_fields(item, bookings) if field["comment"]],
-        "important_comment_fields": important_comment_fields(item, bookings),
+        "important_comments": [field["comment"] for field in important_comment_fields(item, bookings, source_type) if field["comment"]],
+        "important_comment_fields": important_comment_fields(item, bookings, source_type),
         "supporting_details": supporting_details,
         "direct_edit_paths": copy.deepcopy(_DIRECT_EDIT_PATHS if source_type == "scheduleItem" else {
             "status": "/status", "start": "/time/start", "end": "/time/end", "time_mode": "/time/mode"

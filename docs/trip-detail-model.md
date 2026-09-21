@@ -27,7 +27,7 @@ FRMはこの境界を利用し、SQLiteやCalendar_Localを直接読まない。
 | カテゴリー | `ScheduleItem.category`。移動は`transport`として派生 |
 | 本文、場所link | `action`と`Place`参照。移動は出発地・到着地から派生 |
 | 通常コメント | `ScheduleItem.summary` |
-| 重要コメント | 対象PlaceまたはTransportに紐づく`Booking.notes`。重要性を推測して`details`を昇格しない |
+| 重要コメント | `ScheduleItem.importantComment`を予定単位で表示。Transportは既存の`Booking.notes`と任意`importantComment`を維持。重要性を推測して`details`を昇格しない |
 | 補足事実 | `ScheduleItem.details`。重要コメントとは別に保持する |
 | 天気 | Trip正本にはない。取得側が日ID単位のContextとして明示的に渡し、未取得・失敗時は`null` |
 | カテゴリーicon | categoryから安定した意味keyへ変換する。具体iconはUI実装時に決める |
@@ -423,10 +423,12 @@ durationMinutesをnullへ揃える。noneのview.time.labelは空文字、配置
 直接追加も同じtime_modeを受け取る。省略時は既存の開始空欄→undecidedを維持する。
 
 entry.important_comment_fieldsは`{source_id, comment}`配列。編集時は`important_comments`に
-source_id→文字列のobjectを渡す。CALがその予定に紐づくBooking.notesへ保存する。
-予約がない場合は予定自身をsource_idとして任意importantCommentへ保存する。
-既存の予定固有コメントも保持する。空文字はnullへ変換する。別予定・別予約のIDは拒否し、
-通常コメント等と同じtransactionで検証・保存する。共有Bookingを編集するとそのBookingを参照する表示にも反映される。
+source_id→文字列のobjectを渡す。ScheduleItemは予約の有無によらず予定自身だけをsource_idとし、
+任意importantCommentへ保存する。同じPlace・Bookingを参照する別予定へ共有しない。
+Booking.notesは予約情報として保持し、ScheduleItemの重要コメントへ自動展開・複製しない。
+Transportは既存のBooking.notesと任意importantCommentの表示・編集を維持する。
+空文字はnullへ変換する。対象外のID（ScheduleItemではBookingのIDも含む）は拒否し、
+通常コメント等と同じtransactionで検証・保存する。
 既存important_commentsは表示用文字列配列を維持する。
 
 採用後のentry.placesにもtabelog_url / tabelog_ratingを返す。元Placeのurls / ratingをそのまま使い、

@@ -56,7 +56,9 @@ class TripJsonImportTests(unittest.TestCase):
         trip_id = candidate['id']
         self.assertEqual(self.domain.get_effective_trip(trip_id), candidate)
         entries = {e['source_item_id']: e for d in review['view']['days'] for e in d['entries']}
-        self.assertIn(candidate['bookings'][0]['notes'], entries['stay-1']['important_comments'])
+        self.assertEqual(entries['stay-1']['important_comments'], [])
+        self.assertEqual(entries['stay-1']['important_comment_fields'],
+                         [{'source_id': 'stay-1', 'comment': ''}])
         self.assertEqual(entries['departure']['booking_status'], 'pending')
         self.assertTrue(entries['arrival']['important'])
         self.assertFalse(entries['walk-museum']['important'])

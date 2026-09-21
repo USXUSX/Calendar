@@ -278,6 +278,43 @@ if __name__=='__main__':unittest.main()
 class TripReview138Tests(unittest.TestCase):
     setUp = ReviewEditTests.setUp
     edit = ReviewEditTests.edit
+    def test_schedule_comments_are_independent_of_shared_hotel_and_booking(self):
+        trip = copy.deepcopy(self.trip)
+        trip['id'] = 'independent-comments'
+        hotel = next(p for p in trip['places'] if p['category'] == 'hotel')
+        booking = next(b for b in trip['bookings'] if b.get('placeId') == hotel['id'])
+        items = [item for day in trip['days'] for item in day['scheduleItems']][:3]
+        self.assertEqual(len(items), 3)
+        for item in items:
+            item['placeSelection'].update(candidatePlaceIds=[hotel['id']], selection=[hotel['id']])
+            item.pop('importantComment', None)
+        items[1]['importantComment'] = 'Dinner only'
+        self.domain.import_trip_json(trip, confirmed=True)
+        self.tid = trip['id']
+
+        def fields(view):
+            return {e['source_item_id']: e['important_comment_fields']
+                    for d in view['days'] for e in d['entries']}
+
+        initial = fields(self.domain.get_trip_detail_view(self.tid))
+        for item, comment in zip(items, ['', 'Dinner only', '']):
+            self.assertEqual(initial[item['id']], [{'source_id': item['id'], 'comment': comment}])
+        for item, comment in zip(items, ['Check-in only', 'Dinner updated', 'Check-out only']):
+            saved = self.edit(item, {'important_comments': {item['id']: comment}})
+            initial[item['id']][0]['comment'] = comment
+            self.assertEqual(fields(saved['view']), initial)
+            self.assertEqual(saved['trip']['bookings'], trip['bookings'])
+        before = self.domain.get_effective_trip(self.tid)
+        for invalid_id in [booking['id'], items[1]['id']]:
+            with self.assertRaises(ValidationError):
+                self.edit(items[0], {'title': 'Must roll back', 'important_comments': {invalid_id: 'Invalid'}})
+            self.assertEqual(self.domain.get_effective_trip(self.tid), before)
+        saved = self.edit(items[0], {'important_comments': {items[0]['id']: ''}})
+        initial[items[0]['id']][0]['comment'] = ''
+        self.assertEqual(fields(self.domain.get_trip_detail_view(self.tid)), initial)
+        self.assertIsNone(saved['trip']['days'][0]['scheduleItems'][0]['importantComment'])
+        self.assertEqual(saved['trip']['bookings'], trip['bookings'])
+
     def test_none_time_and_comment_destinations(self):
         item = self.trip['days'][0]['scheduleItems'][0]
         saved = self.edit(item, {'time_mode':'none', 'start':'09:00', 'show_duration':True})
