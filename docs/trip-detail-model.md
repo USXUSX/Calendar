@@ -463,3 +463,16 @@ Calendar #162では各dayの`map_stops`をeffective Tripから純粋導出する
 ### Phase 2の地点取得・位置補正
 
 Calendar #167で[共通地点取得・位置保存](map-locations.md)を実装。検索先頭結果を自動保存し、取得不能でも保存を続ける。確認画面は設けず、修正は地図編集で行う。既存の座標と施設IDは保持する。
+
+## 終了済みTripと写真参照（#188）
+
+CAL実行ホストのローカル日付が`dateRange.end`を超えた日から終了済みとする。
+終了フラグや実績版を保存せず、effective Tripから毎回導出する。
+`list_trips`は`is_completed`と日付が最も早いDayの`first_day_id`を返す。
+Frameは終了済みを一覧下部「過去の旅行」へまとめ、初日を選択した旅程へ遷移する。
+
+詳細viewにも`is_completed`を返す。終了済みでは天気取得を行わず、すべてのDayの
+`weather`をnullにする。編集境界は維持し、Frameは`route_summary`をエリア移動として表示する。
+各Dayの`photo_url`はTrip名とそのDayの日付から作る端末ショートカットURL。
+通常アルバム名の対応と端末設定は[写真参照](trip-photos.md)を参照する。
+Trip JSON / SQLiteの構造は変更しない。

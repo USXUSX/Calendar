@@ -18,6 +18,7 @@ from scripts.validate_trip import DEFAULT_SCHEMA, semantic_errors, validate_valu
 
 from .errors import ConflictError, GenerationWriteError, NotFoundError, ValidationError
 from .models import UnifiedEvent
+from .trip_lifecycle import is_trip_completed
 from .chat_exchange import ChatExchangeMixin, DEFAULT_CHAT_ROOT
 from .trip_detail import _mark_time_conflicts, build_trip_detail_view
 from .chat_paste import parse_chat_paste, draft_requirements, build_import_trip, check_draft_shape
@@ -672,14 +673,16 @@ class CalendarDomain(ChatExchangeMixin):
             )
         return {"id": trip_id, "visibility": visibility}
 
-    def list_trips(self) -> list[dict[str, Any]]:
+    def list_trips(self, *, today=None) -> list[dict[str, Any]]:
         """Derive registered Trip summaries without adopting candidates or writing state."""
         with self._read() as connection:
             trip_ids = [row["id"] for row in connection.execute("SELECT id FROM trips ORDER BY id")]
         summaries = []
         for trip_id in trip_ids:
             trip = self.get_effective_trip(trip_id)
-            summaries.append({"trip_id": trip_id, "title": trip["title"], "dateRange": trip["dateRange"]})
+            summaries.append({"trip_id": trip_id, "title": trip["title"], "dateRange": trip["dateRange"],
+                              "is_completed": is_trip_completed(trip, today=today),
+                              "first_day_id": min(trip["days"], key=lambda day: day["date"])["id"]})
         return sorted(summaries, key=lambda item: (item["dateRange"]["start"], item["trip_id"]))
 
     def _candidate_root(self, candidate_root: str | Path | None = None) -> Path:
@@ -1593,14 +1596,14 @@ class CalendarDomain(ChatExchangeMixin):
 
     def get_trip_detail_view(
         self, trip_id: str, *, candidate_judgments: dict[str, Any] | None = None,
-        weather_by_day: dict[str, Any] | None = None,
+        weather_by_day: dict[str, Any] | None = None, today=None,
     ) -> dict[str, Any]:
         """Return the Phase 1 Trip-detail model derived from the effective Trip."""
         context = self.get_chat_context(trip_id)
         result = build_trip_detail_view(
             context["trip"],
             candidate_judgments=candidate_judgments,
-            weather_by_day=weather_by_day,
+            weather_by_day=weather_by_day, today=today,
         )
         result["instructions"] = context["instructions"]
         for day in result["days"]:

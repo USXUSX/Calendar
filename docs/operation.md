@@ -42,3 +42,6 @@ Place補完は対象施設と保存値を確認して採用します。取得で
 - **AI Instruction Patch worker**: `scripts/run_generation_worker.py`が明示DB・Trip root・generatorを使うone-shot経路。`scripts/generate_openai_patch.py`は保持adapterであり、通常のChat往復の必須構成ではない。実API・定期実行の有効化は別の運用判断とする。
 
 採用中断時の復旧もCALが所有します。`.adoption/`のstaging／journalやSQLiteを手作業で変更せず、`recover_trip_adoption()`等の既存契約に従います。自動収束できない不一致はConflictとして扱います。
+
+終了済みTripは一覧下部「過去の旅行」から初日の旅程を開ける。編集操作は継続できる。
+日別の「写真」リンクは[Appleショートカットの初回設定](trip-photos.md)後に利用する。

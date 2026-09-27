@@ -8,6 +8,7 @@ from .errors import ConflictError, DomainError, GenerationWriteError, NotFoundEr
 from .models import UnifiedEvent
 from .service import CalendarDomain as _CalendarDomain
 from .trip_detail import build_local_ai_update_request, build_trip_detail_view
+from .trip_lifecycle import is_trip_completed
 from .weather import OpenMeteoAdapter, build_weather_by_day
 
 
@@ -80,14 +81,16 @@ class CalendarDomain(_CalendarDomain):
 
     def get_trip_detail_view(self, trip_id, *, candidate_judgments=None, weather_by_day=None):
         effective = self.get_chat_context(trip_id)["trip"]
-        if weather_by_day is None:
+        if is_trip_completed(effective, today=self._weather_today):
+            weather_by_day = {}
+        elif weather_by_day is None:
             weather_by_day = build_weather_by_day(
                 effective, self._weather_adapter, today=self._weather_today,
             )
         return super().get_trip_detail_view(
             trip_id,
             candidate_judgments=candidate_judgments,
-            weather_by_day=weather_by_day,
+            weather_by_day=weather_by_day, today=self._weather_today,
         )
 
 
