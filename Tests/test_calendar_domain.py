@@ -64,7 +64,8 @@ class CalendarDomainTests(unittest.TestCase):
             self.assertEqual(self.domain.list_trips(today=today)[0]["is_completed"], completed)
         self.domain._weather_today = last + timedelta(days=1)
         self.domain._weather_adapter = Mock()
-        self.domain.set_direct_override("album-name", trip_id, trip_id, "/title", "海 & 山 #1 + 写真")
+        self.assertTrue(all(day["photo_url"] is None for day in self.domain.get_trip_detail_view(trip_id)["days"]))
+        self.domain.set_direct_override("album-name", trip_id, trip_id, "/photoAlbumName", "2027-05-14_海 & 山 #1 + 写真")
         view = self.domain.get_trip_detail_view(trip_id)
         self.assertTrue(view["is_completed"])
         self.domain._weather_adapter.forecast.assert_not_called()
@@ -73,7 +74,7 @@ class CalendarDomainTests(unittest.TestCase):
             self.assertIn("route_summary", day)
             query = parse_qs(urlsplit(day["photo_url"]).query)
             self.assertEqual(query["name"], ["CAL Trip Photos"])
-            self.assertEqual(json.loads(query["text"][0]), {"album": "海 & 山 #1 + 写真", "date": day["date"]})
+            self.assertEqual(json.loads(query["text"][0]), {"album": "2027-05-14_海 & 山 #1 + 写真", "date": day["date"]})
         # Even supplied/stale forecasts must disappear after completion.
         supplied = {day["day_id"]: {"status": "available"} for day in view["days"]}
         self.assertTrue(all(day["weather"] is None for day in self.domain.get_trip_detail_view(trip_id, weather_by_day=supplied)["days"]))

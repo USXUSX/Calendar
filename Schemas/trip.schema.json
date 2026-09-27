@@ -193,6 +193,7 @@
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "title": { "type": "string", "minLength": 1 },
+        "photoAlbumName": { "type": "string", "minLength": 1 },
         "dateRange": {
           "type": "object",
           "additionalProperties": false,

@@ -473,6 +473,7 @@ Frameは終了済みを一覧下部「過去の旅行」へまとめ、初日を
 
 詳細viewにも`is_completed`を返す。終了済みでは天気取得を行わず、すべてのDayの
 `weather`をnullにする。編集境界は維持し、Frameは`route_summary`をエリア移動として表示する。
-各Dayの`photo_url`はTrip名とそのDayの日付から作る端末ショートカットURL。
+各Dayの`photo_url`は任意項目`photoAlbumName`とそのDayの日付から作る端末ショートカットURL。
+`photoAlbumName`未設定時はnull。Trip表示名からアルバム名を推測しない。
 通常アルバム名の対応と端末設定は[写真参照](trip-photos.md)を参照する。
-Trip JSON / SQLiteの構造は変更しない。
+Trip JSONには任意の文字列`photoAlbumName`を追加する。SQLiteの構造は変更しない。
