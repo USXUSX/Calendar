@@ -239,8 +239,8 @@ def build_trip_detail_view(
             "day_id": day["id"], "date": day["date"], "title": day["title"],
             "photo_url": "shortcuts://run-shortcut?" + urlencode({
                 "name": "CAL Trip Photos", "input": "text",
-                "text": json.dumps({"album": effective_trip["title"], "date": day["date"]}, ensure_ascii=False),
-            }, quote_via=quote),
+                "text": json.dumps({"album": effective_trip.get("photoAlbumName"), "date": day["date"]}, ensure_ascii=False),
+            }, quote_via=quote) if effective_trip.get("photoAlbumName") else None,
             "areas": copy.deepcopy(day.get("areas", [])),
             "route_summary": " → ".join(a["name"] for a in day["areas"]) if "areas" in day else day["routeSummary"], "weather": copy.deepcopy(weather.get(day["id"])),
             "entries": entries,
