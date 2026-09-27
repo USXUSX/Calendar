@@ -19,6 +19,7 @@ from scripts.validate_trip import DEFAULT_SCHEMA, semantic_errors, validate_valu
 from .errors import ConflictError, GenerationWriteError, NotFoundError, ValidationError
 from .models import UnifiedEvent
 from .trip_lifecycle import is_trip_completed
+from .trip_photos import photo_search_url
 from .chat_exchange import ChatExchangeMixin, DEFAULT_CHAT_ROOT
 from .trip_detail import _mark_time_conflicts, build_trip_detail_view
 from .chat_paste import parse_chat_paste, draft_requirements, build_import_trip, check_draft_shape
@@ -682,6 +683,7 @@ class CalendarDomain(ChatExchangeMixin):
             trip = self.get_effective_trip(trip_id)
             summaries.append({"trip_id": trip_id, "title": trip["title"], "dateRange": trip["dateRange"],
                               "is_completed": is_trip_completed(trip, today=today),
+                              "photo_url": photo_search_url(trip),
                               "first_day_id": min(trip["days"], key=lambda day: day["date"])["id"]})
         return sorted(summaries, key=lambda item: (item["dateRange"]["start"], item["trip_id"]))
 

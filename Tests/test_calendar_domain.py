@@ -46,7 +46,7 @@ class CalendarDomainTests(unittest.TestCase):
             database_before = list(db.iterdump())
         self.assertEqual(self.domain.list_trips(today=date(2027, 5, 14)), [{
             "trip_id": trip_id, "title": "一覧用の旅程名", "dateRange": orphan["dateRange"],
-            "is_completed": False, "first_day_id": orphan["days"][0]["id"],
+            "photo_url": None, "is_completed": False, "first_day_id": orphan["days"][0]["id"],
         }])
         self.assertEqual(self.trip_path.read_bytes(), before)
         with sqlite3.connect(self.db_path) as db:
@@ -66,6 +66,10 @@ class CalendarDomainTests(unittest.TestCase):
         self.domain._weather_adapter = Mock()
         self.assertTrue(all(day["photo_url"] is None for day in self.domain.get_trip_detail_view(trip_id)["days"]))
         self.domain.set_direct_override("album-name", trip_id, trip_id, "/photoAlbumName", "2027-05-14_海 & 山 #1 + 写真")
+        query = parse_qs(urlsplit(self.domain.list_trips()[0]["photo_url"]).query)
+        self.assertEqual(query["name"], ["CAL Trip Photos"])
+        self.assertEqual(query["input"], ["text"])
+        self.assertEqual(json.loads(query["text"][0]), {"album": "2027-05-14_海 & 山 #1 + 写真"})
         view = self.domain.get_trip_detail_view(trip_id)
         self.assertTrue(view["is_completed"])
         self.domain._weather_adapter.forecast.assert_not_called()

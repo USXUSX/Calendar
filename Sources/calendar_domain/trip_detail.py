@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import copy
 import json
-from urllib.parse import urlsplit, urlencode, quote
+from urllib.parse import urlsplit
 from typing import Any
 
 from .errors import ValidationError
 from .trip_lifecycle import is_trip_completed
+from .trip_photos import photo_search_url
 
 
 _CATEGORY_ICON_KEYS = {
@@ -237,10 +238,7 @@ def build_trip_detail_view(
         _mark_time_conflicts(entries)
         days.append({
             "day_id": day["id"], "date": day["date"], "title": day["title"],
-            "photo_url": "shortcuts://run-shortcut?" + urlencode({
-                "name": "CAL Trip Photos", "input": "text",
-                "text": json.dumps({"album": effective_trip.get("photoAlbumName"), "date": day["date"]}, ensure_ascii=False),
-            }, quote_via=quote) if effective_trip.get("photoAlbumName") else None,
+            "photo_url": photo_search_url(effective_trip, day=day["date"]),
             "areas": copy.deepcopy(day.get("areas", [])),
             "route_summary": " → ".join(a["name"] for a in day["areas"]) if "areas" in day else day["routeSummary"], "weather": copy.deepcopy(weather.get(day["id"])),
             "entries": entries,
