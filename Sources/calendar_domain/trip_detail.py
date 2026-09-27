@@ -8,10 +8,12 @@ required by the confirmed Phase 1 UI.
 from __future__ import annotations
 
 import copy
-from urllib.parse import urlsplit
+import json
+from urllib.parse import urlsplit, urlencode, quote
 from typing import Any
 
 from .errors import ValidationError
+from .trip_lifecycle import is_trip_completed
 
 
 _CATEGORY_ICON_KEYS = {
@@ -213,11 +215,12 @@ def _mark_time_conflicts(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def build_trip_detail_view(
     effective_trip: dict[str, Any], *, candidate_judgments: dict[str, Any] | None = None,
-    weather_by_day: dict[str, Any] | None = None,
+    weather_by_day: dict[str, Any] | None = None, today=None,
 ) -> dict[str, Any]:
     """Build the confirmed compact-timeline model without creating a new authority."""
     judgments = candidate_judgments or {}
-    weather = weather_by_day or {}
+    completed = is_trip_completed(effective_trip, today=today)
+    weather = {} if completed else (weather_by_day or {})
     places = {item["id"]: item for item in effective_trip["places"]}
     transports = {item["id"]: item for item in effective_trip["transports"]}
     days = []
@@ -234,6 +237,10 @@ def build_trip_detail_view(
         _mark_time_conflicts(entries)
         days.append({
             "day_id": day["id"], "date": day["date"], "title": day["title"],
+            "photo_url": "shortcuts://run-shortcut?" + urlencode({
+                "name": "CAL Trip Photos", "input": "text",
+                "text": json.dumps({"album": effective_trip["title"], "date": day["date"]}, ensure_ascii=False),
+            }, quote_via=quote),
             "areas": copy.deepcopy(day.get("areas", [])),
             "route_summary": " → ".join(a["name"] for a in day["areas"]) if "areas" in day else day["routeSummary"], "weather": copy.deepcopy(weather.get(day["id"])),
             "entries": entries,
@@ -243,6 +250,7 @@ def build_trip_detail_view(
     return {
         "trip_id": effective_trip["id"], "title": effective_trip["title"],
         "date_range": copy.deepcopy(effective_trip["dateRange"]), "days": days,
+        "is_completed": completed,
         "temporary_input": {"candidate_judgments": copy.deepcopy(judgments)},
         "place_choices": [{"id": p["id"], "name": p["name"], "mapDisplayName": p.get("mapDisplayName"), "location": copy.deepcopy(p["location"]), "googlePlaceId": p.get("googlePlaceId")} for p in places.values()],
     }

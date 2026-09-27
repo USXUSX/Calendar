@@ -1,4 +1,7 @@
 import json
+from datetime import date, timedelta
+from unittest.mock import Mock
+from urllib.parse import urlsplit, parse_qs
 import shutil
 import sqlite3
 import tempfile
@@ -41,8 +44,9 @@ class CalendarDomainTests(unittest.TestCase):
         chat_before = {str(p): p.read_bytes() for p in self.domain.chat_root.rglob("*") if p.is_file()}
         with sqlite3.connect(self.db_path) as db:
             database_before = list(db.iterdump())
-        self.assertEqual(self.domain.list_trips(), [{
+        self.assertEqual(self.domain.list_trips(today=date(2027, 5, 14)), [{
             "trip_id": trip_id, "title": "一覧用の旅程名", "dateRange": orphan["dateRange"],
+            "is_completed": False, "first_day_id": orphan["days"][0]["id"],
         }])
         self.assertEqual(self.trip_path.read_bytes(), before)
         with sqlite3.connect(self.db_path) as db:
@@ -51,6 +55,31 @@ class CalendarDomainTests(unittest.TestCase):
         empty_db = Path(self.temp.name) / "empty.sqlite3"
         initialize(empty_db)
         self.assertEqual(CalendarDomain(empty_db, self.trip_root).list_trips(), [])
+
+    def test_completed_trip_boundary_photos_weather_and_edit(self):
+        trip_id = "trip-setouchi-2027"
+        trip = self.domain.get_effective_trip(trip_id)
+        last = date.fromisoformat(trip["dateRange"]["end"])
+        for today, completed in [(last - timedelta(days=1), False), (last, False), (last + timedelta(days=1), True)]:
+            self.assertEqual(self.domain.list_trips(today=today)[0]["is_completed"], completed)
+        self.domain._weather_today = last + timedelta(days=1)
+        self.domain._weather_adapter = Mock()
+        self.domain.set_direct_override("album-name", trip_id, trip_id, "/title", "海 & 山 #1 + 写真")
+        view = self.domain.get_trip_detail_view(trip_id)
+        self.assertTrue(view["is_completed"])
+        self.domain._weather_adapter.forecast.assert_not_called()
+        for day in view["days"]:
+            self.assertIsNone(day["weather"])
+            self.assertIn("route_summary", day)
+            query = parse_qs(urlsplit(day["photo_url"]).query)
+            self.assertEqual(query["name"], ["CAL Trip Photos"])
+            self.assertEqual(json.loads(query["text"][0]), {"album": "海 & 山 #1 + 写真", "date": day["date"]})
+        # Even supplied/stale forecasts must disappear after completion.
+        supplied = {day["day_id"]: {"status": "available"} for day in view["days"]}
+        self.assertTrue(all(day["weather"] is None for day in self.domain.get_trip_detail_view(trip_id, weather_by_day=supplied)["days"]))
+        day_id = trip["days"][0]["id"]
+        self.domain.edit_trip_day("past-edit", trip_id, day_id, {"title": "旅行後の追記"})
+        self.assertEqual(self.domain.get_trip_detail_view(trip_id)["days"][0]["title"], "旅行後の追記")
 
     def test_unified_events_preserve_source_and_do_not_copy_trip_events(self):
         self.domain.create_event("schedule-port-breakfast", title="Ordinary collision", start_date="2027-05-14")
