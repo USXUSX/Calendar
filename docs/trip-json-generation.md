@@ -16,7 +16,7 @@ Gitが正本で、`Calendar_GD`はmerge後の公式共有コピー。GitHubを�
 1. 旅行名・日付・希望・確定済みの訪問先や予約を読む。必須の日付等が不明ならusに確認する。実旅行の日時・予約を創作しない。
 2. 希望に合う少数の場所を調べ、同名施設を住所・地域で照合する。公式情報や保存可能な公開データから、確認できるURL・住所・座標・短いコメントを入れる。調べても不明な値は不明のままにする。候補は訪問確定に変えない。
 3. 以下の対応・意味整合と[生成品質の確認](#生成品質の確認)を使って完全JSONを1件生成する。提案した日程と予約済みの事実を区別する。
-4. UTF-8のcomplete JSON本体はチャット本文へ全文展開せず、cloud Chatは接続中のGoogle Drive上の `Calendar_Chat/<trip-id>/candidate.json` へ保存する。local Chatは同じ同期フォルダ `/Users/us/マイドライブ/Tools/Calendar_Chat/<trip-id>/candidate.json` を使う。ファイル中はJSONオブジェクトだけ。取得元URL・確認日が必要な情報は既存のsummary / details / urls等に短く記し、独自fieldや取得本文を足さない。
+4. UTF-8のcomplete JSON本体はチャット本文へ全文展開せず、[受渡しとCAL採用の境界](#受渡しとcal採用の境界)に従って `Calendar_Chat/<trip-id>/candidate.json` へ保存する。ファイル中はJSONオブジェクトだけ。取得元URL・確認日が必要な情報は既存のsummary / details / urls等に短く記し、独自fieldや取得本文を足さない。
 5. Chatは生成したJSONの構造と内容を自己確認するが、CAL正式Validationを実行済みとは扱わない。Schema・semanticの正式ValidationはCALが新規Trip取込時に行い、エラー時はその結果に従って同じ`candidate.json`を修正する。
 6. 日別の行動順・移動・宿泊・候補・未定事項を内容確認し、candidateを渡す。チャット側の最終表示は保存した `Calendar_Chat/<trip-id>/candidate.json` と残る未定事項だけを簡潔に返す。CAL Validation成功前に正式採用済みとは扱わない。
 
@@ -103,12 +103,17 @@ IDはSchemaに従う英数字・ハイフン・アンダースコアを使い、
 | 場所 | 役割 |
 | --- | --- |
 | Calendar Git / Calendar_GD | Schema・guideの正本 / 公式参照コピー |
-| Google Drive上の `Calendar_Chat/<trip-id>/candidate.json` | cloud Chatから渡す新規Tripの未採用complete JSON本体（Envelopeなし）。再生成で同じファイルを更新してよく、履歴管理を追加しない |
-| `/Users/us/マイドライブ/Tools/Calendar_Chat/<trip-id>/candidate.json` | Mac上で同期された同じcandidate。local ChatとCALが参照する |
+| Google Drive上の `Calendar_Chat/<trip-id>/` | ChatとCALの授受先。新規Tripのcandidateは未採用complete JSON本体（Envelopeなし）、既存Tripのcandidateは[継続するChat往復](#継続するchat往復112)のEnvelope。既存TripのcontextはCAL所有。再生成で同じcandidateを更新してよく、履歴管理を追加しない |
+| `/Users/us/マイドライブ/Tools/Calendar_Chat/<trip-id>/` | Mac上で同期された同じ授受先。CALとローカル処理で利用する |
 | Calendar_Local | CALで採用後の正式TripとSQLite等の通常状態。Chatから直接書き換えない |
-| `Calendar_Chat/<trip-id>/` | 新規・既存Trip共通の授受先。既存TripのcontextはCAL所有、candidateはChat所有のEnvelope。Calendar_GDとは分ける |
 
-cloud Chatが接続中のGoogle Drive上の受渡しフォルダへ保存できない場合のみ、その旨を示して`candidate.json`を添付し、対象の`<trip-id>/`への配置をusに依頼する。Macローカルパスへ保存できたと主張したり、Calendar_GDやCalendar_Localを代わりに使ったりしない。新規Tripは明示的な取込操作で採用する。
+保存・取得はcloud / localの固定分類だけで決めず、現在の実行環境から利用可能な最短で直接的な共有経路を優先する。
+
+- Google Drive上のcontextを直接取得でき、同じフォルダへcandidateを直接保存できるcloud Chatでは、**Drive → Chat → Drive**を第一選択とする。直接保存できる場合は、原則としてRemote Desktop → Mac filesystem → Drive同期という余分な経路を挟まない。
+- Mac上でCAL開発・Validation・ローカルファイル処理などが必要なlocal Chatでは、上表の同期済みローカルフォルダを利用してよい。直接経路が利用不能、またはローカル処理が必要な場合は、利用可能な適切な代替経路を選べる。
+- 利用可能な経路で保存できなければ、その旨を示して`candidate.json`を添付し、対象の`<trip-id>/`への配置をusに依頼する。実際に保存していない場所へ保存できたと主張したり、Calendar_GDやCalendar_Localを代わりに使ったりしない。
+
+経路を変えてもcandidate形式、revision、Validation、CALによる正式採用の契約は変えない。新規Tripは明示的な取込操作で採用する。
 
 正式なSchema・semantic ValidationはCALの新規Trip取込が担当する。Frame `/calendar/import` で共有candidateを選ぶとCALが読込・Validationし、エラーならcandidateを修正して再確認する。Chat側の自己確認や別環境での検証をCAL Validation PASSの代わりにしない。
 
@@ -158,8 +163,7 @@ Trip IDに日付を含めることや、開始日変更時のID変更はSchema�
 既存Tripの調査・候補比較・大きな編集はChatを主に使い、CALは旅程正本、Validation、
 Place同定・URL/住所/座標補完、天気、直接編集、時刻矛盾の確認を引き続き担当する。
 
-授受先は `/Users/us/マイドライブ/Tools/Calendar_Chat/<trip-id>/`（#114）。
-GoogleDrive配下の既存同期を使い、cloud ChatはDrive上のCalendar_Chat、local Chatは同じローカル同期フォルダへアクセスする。
+授受先と経路の選び方は[受渡しとCAL採用の境界](#受渡しとcal採用の境界)に従う（#114）。
 Calendar_LocalはDrive同期対象ではないため、旧 `Calendar_Local/chat` は以後の授受に使わない。
 経路によってEnvelopeを変えず、履歴ファイルは増やさない。Calendar_GDは公式同期の削除対象を含む参照コピーなので、運用授受を混在させない。
 同じ `<trip-id>/candidate.json` でも、新規Tripは初回登録専用のcomplete JSON本体、既存Tripは以下のEnvelopeを使う。新規取込ではEnvelopeを採用せず、既存Tripの継続往復ではcomplete JSON本体だけを採用しない。
@@ -181,9 +185,9 @@ Calendar_LocalはDrive同期対象ではないため、旧 `Calendar_Local/chat`
 ```
 
 これはEnvelope形状の説明であり、`trip: {}` は有効な旅程ではない。
-Chatは作業開始時に最新contextを読み、`trip`を出発点に既存ID・予約事実・未変更部分を保持して編集する。
+Chatは作業開始時に最新の`context.json`を読み、`context.trip`を出発点に既存ID・予約事実・未変更部分を保持してcomplete Tripを生成し、上記Envelopeとして同じ`Calendar_Chat/<trip-id>/candidate.json`へ返す。
 対応した指示だけを`handled_instruction_ids`へ入れ、新しい指示や未対応指示は残す。
-候補を自動選択せず、不明情報を創作しない。共有先へアクセスできなければcandidateを添付し配置を依頼する。
+候補を自動選択せず、不明情報を創作しない。
 Chatが書いてよいのはこのcandidateだけで、正式 `trips/`・SQLite・contextを直接更新しない。
 
 CALの通常編集、Place補完、指示追加、正式採用後にcontextを自動更新し、Trip表示・再読込時にも更新する。
