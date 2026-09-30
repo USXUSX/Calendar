@@ -6,12 +6,20 @@ This repository is the canonical home for Calendar source code, confirmed specif
 
 ## Project locations
 
+These are Local placements on Mac. Cloud tasks use the GitHub repository checkout and do not require these paths.
+
 - Repository: `/Users/us/Tools/Development/Calendar_Dev`
 - Shared references: `/Users/us/マイドライブ/Tools/Calendar_GD`
 - Chat exchange (separate from reference sync): `/Users/us/マイドライブ/Tools/Calendar_Chat`
 - Private local data: `/Users/us/Tools/LocalData/Calendar_Local`
 
 Never copy private local data into this repository or the shared-reference folder.
+
+## Cloud / Local boundary
+
+- Work on GitHub-managed code, confirmed specifications, and ordinary tests using synthetic data can be completed in Cloud with access to the required repositories and tools.
+- Official synchronization to `Calendar_GD`, `Calendar_Local` and real Trip operations, Mac production updates, and physical-device checks are Local work. Do not copy these resources or credentials into Cloud.
+- Keep the existing Mac operation in place and report Cloud validation separately from any remaining Local work. Common procedures continue to follow the current GitHub TDS.
 
 ## Start every task here
 
