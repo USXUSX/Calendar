@@ -80,13 +80,45 @@ areasがある日はその配列を表示・天気地点の正本とする。旧
 位置を確認して使う。この読取境界は新規Placeにも共用し、保存前はsheet内だけの値とする。
 保存済み・候補Placeの不足情報は既存の`get/adopt_place_enrichment`へ委譲する。
 
-天気は順序付きareasの座標付きエリアすべてから取得し、day.weather.locationsへ順番に返す。
-既存day.weather直下の最初の地点も維持する。availableの各地点はWMO weather codeと表示用weather_kind、
-日別の天気・最高最低気温・最大降水確率・予想降水量に加え、現地時刻の朝6時・昼12時・夕18時・夜21時について
-天気・気温・降水確率をperiodsへ返す。通常表示は地点名・コード対応の天気マーク・最大降水確率を矢印で結び、
-タップで当日の全表示エリアの日別情報と4時間帯を展開し、末尾にOpen-Meteoと取得時刻（m/d h:mm）を1回だけ表示する。
-予報対象外・取得不可は通常表示しない。
-予定Placeや移動endpointから地点を自動選択しない。
+### 気象庁の表示用天気Context（#196）
+
+`JmaAdapter`で気象庁だけを使用する。順序付きDay.areasの保存座標を気象庁の一次細分区域GeoJSONに包含判定し、
+公式対応表から予報区域・代表気温地点を選ぶ。同一予報区域は最初の出現を残して省き、
+`day.weather.locations`へ旅程順で返す。直下には最初の結果を保持する。
+`place_name`は元のarea名、表示の正本は実際の予報対象`area_code / area_name`。
+予定Placeや移動endpointから取得地点を増やさず、施設のピンポイント予報とは扱わない。
+
+- 今日・明日は`forecast_type=short`。`weather_label`は発表された日別天気、
+  `temperature_max / temperature_min`は`temperature_location`の代表地点値。
+  当日00時欄の重複最高気温を最低気温に読み替えない。未提供値はnull。
+- `precipitation_periods`は`start_hour / end_hour / probability`。0–6／6–12／12–18／18–24時の
+  発表済み区間のみを返す。欠測はnull、0%と区別する。区間の最大値や独自の日確率を作らない。
+- `periods`は地域時系列の朝06:00／昼12:00／夕18:00／夜21:00の提供された天気・気温。
+  天気はその時刻からの3時間予報、気温はその時刻の値。降水確率は含めず、6時間区間と別表示する。
+  未提供の時間を推測・補間しない。`details_temperature_location`と`details_issued_at`を添え、
+  詳細だけ失敗した場合は日別値を残して`details_status=unavailable`とする。
+- 明後日以降は`forecast_type=weekly`。週間の実際の区域と代表地点に切り替え、
+  日別天気・最高最低気温・`precipitation_probability`（0–24時）を返す。朝昼夕夜の詳細は返さない。
+- 今日から7日先までを上限とし、範囲外・その日の予報未発表は`outside_forecast`。
+  座標未登録・国内予報区域に対応しない場合は`location_unknown`、取得・形式エラーは`unavailable`。
+  Frameは「予報未発表」「地域対応不能（国内予報対象外を含む）」「天気取得失敗」を区別する。
+- `issued_at`は取得時刻ではなく予報発表時刻。出典は「気象庁」、時刻は日本時間で表示する。
+  気温の欠測は「—」、降水確率の欠測は「欠測」。一日降水量は取得・表示しない。
+
+取得は公式サイトの`forecast/data/forecast/<office>.json`と、短期詳細だけ
+`jmatile/data/wdist/VPFD/<class10>.json`を使用する。公式の
+`common/const/geojson/class10s.json`、`common/const/area.json`、
+`forecast/const/forecast_area.json`、`week_area05.json`、`week_area.json`、`week_area_name.json`を
+対応に用いる。週間コードの日本語天気と表示種別は公式forecastページのTELOPSから抽出した
+`Sources/calendar_domain/jma_weather_codes.json`（2026-10-02時点）を参照する。
+代表地点が複数ある短期区域では公式対応表の先頭を使用し、地点名を必ず明示する。
+
+[公式の短期・地域時系列説明](https://www.data.jma.go.jp/developer/weatherdataguide/appendix/2-1-c.html)と
+[XML配信](https://xml.kishou.go.jp/xmlpull.html)を比較し、フィード探索・XML電文解析を要さず
+必要項目が揃うサイトJSONを選んだ。JSONの形式保証は確認できていないため、形式変更は取得失敗として扱う。
+別ソースへのfallback、常駐取得、永続予報DBは設けない。
+予報は15分、区域対応メタデータは24時間のプロセス内cacheのみ。期限切れ値は失敗時に返さない。
+予報値を正式Trip JSON・SQLite・Chat contextへ保存せず、終了済みTripでは取得しない。
 
 新規Trip作成はbaseを持たないため、完全Trip JSONのcomplete candidate Validationから
 初回採用する独立経路とする。既存Tripの大きな変更もChat candidateをCALが通常load / reload時に検証・自動採用する。

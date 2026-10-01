@@ -9,7 +9,7 @@ from .models import UnifiedEvent
 from .service import CalendarDomain as _CalendarDomain
 from .trip_detail import build_local_ai_update_request, build_trip_detail_view
 from .trip_lifecycle import is_trip_completed
-from .weather import OpenMeteoAdapter, build_weather_by_day
+from .weather import JmaAdapter, build_weather_by_day
 
 
 class CalendarDomain(_CalendarDomain):
@@ -17,7 +17,7 @@ class CalendarDomain(_CalendarDomain):
 
     def __init__(self, db_path, trip_root, *, chat_root=None, weather_adapter=None, weather_today=None):
         super().__init__(db_path, trip_root, chat_root=chat_root)
-        self._weather_adapter = weather_adapter or OpenMeteoAdapter()
+        self._weather_adapter = weather_adapter or JmaAdapter()
         self._weather_today = weather_today
 
     def review_trip_json(self, candidate):
@@ -105,7 +105,7 @@ __all__ = [
     "DomainError",
     "GenerationWriteError",
     "NotFoundError",
-    "OpenMeteoAdapter",
+    "JmaAdapter",
     "UnifiedEvent",
     "ValidationError",
     "build_local_ai_update_request",

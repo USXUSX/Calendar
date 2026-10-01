@@ -1,5 +1,7 @@
 # Architecture decisions
 
+- 2026-10-02, Issue #196: 国内旅行の天気は気象庁に一本化する。Day.areasから公式区域・代表地点へ対応し、短期6時間／週間24時間の降水確率を区別する。Open-Meteo採用を置換する。現行契約は[表示・更新契約](trip-detail-model.md)を参照。
+
 - 2026-09-06, Issue #86: us承認によりGoal 1をChatで作る旅程の新規Trip一括貼付とCALでの細部仕上げへ更新する。日本語定型文を確認・補正して登録し、日別代表エリアを扱う。他予定は自動変更しない。保存可能な採用値と一時取得・天気を分け、公開データ優先・Wikidata候補・Open-Meteo第一候補とする。既存OpenAI生成・再生成は保持するがGoal 1の完成条件から外す。[初期リリース仕様](initial-release.md)と[ロードマップ](development-roadmap.md)を正本とし、下記の過去Phaseの記録は実施履歴として残す。
 
 - 2026-09-05, Issue #77: Phase 7を限定付き完了とし、Phase 8を現在とする。代表ケースから既存経路の適用範囲と保持性の不足を区別し、Issue #80の限定差分検査・既存review昇格で対応した。専用schema / command / UIやparticipant scopeは追加しない。検出外の残余リスクを受け入れ、実利用で反復する領域だけ将来scope指定／固定rule化を検討する。生成安定性、全ケースのadoption成功、過去candidateの原因復元を追加追跡せず、完了範囲は[roadmap](development-roadmap.md)に保持する。
