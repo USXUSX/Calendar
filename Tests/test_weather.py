@@ -1,197 +1,178 @@
+import copy
 import unittest
 from datetime import date
+from Sources.calendar_domain.weather import JmaAdapter, build_weather_by_day, _contains
 
-from Sources.calendar_domain.weather import OpenMeteoAdapter, build_weather_by_day
+TODAY = date(2026, 10, 2)
+LOCATION = {'latitude': 35.6, 'longitude': 140.1}
 
 
-def place(place_id, name, latitude=None, longitude=None):
+def series(times, code, name, **values):
+    return {'timeDefines': ['2026-10-' + t + ':00+09:00' for t in times],
+            'areas': [{'area': {'code': code, 'name': name}, **values}]}
+
+
+def fixtures():
     return {
-        "id": place_id,
-        "name": name,
-        "location": None if latitude is None else {"latitude": latitude, "longitude": longitude},
-    }
+        'common/const/geojson/class10s.json': {'features': [
+            {'properties': {'code': '120010'}, 'geometry': {'type': 'Polygon', 'coordinates': [
+                [[140, 35], [141, 35], [141, 36], [140, 36], [140, 35]]]}},
+            {'properties': {'code': '120030'}, 'geometry': {'type': 'MultiPolygon', 'coordinates': [[
+                [[140, 34], [141, 34], [141, 35], [140, 35], [140, 34]]]]}}]},
+        'common/const/area.json': {'class10s': {
+            '120010': {'name': '北西部', 'parent': '120000'},
+            '120030': {'name': '南部', 'parent': '120000'}}, 'offices': {'120000': {'name': '千葉県'}}},
+        'forecast/const/forecast_area.json': {'120000': [
+            {'class10': '120010', 'amedas': ['45212']}, {'class10': '120030', 'amedas': ['45401']}]},
+        'forecast/const/week_area05.json': {'120010': ['120000'], '120030': ['120000']},
+        'forecast/const/week_area.json': {'120000': [{'week': '120000', 'amedas': '45148'}]},
+        'forecast/const/week_area_name.json': {'120000': {'jp': '千葉県'}},
+        'forecast/data/forecast/120000.json': [
+            {'reportDatetime': '2026-10-02T05:00:00+09:00', 'timeSeries': [
+                series(['02T05:00', '03T00:00'], '120010', '北西部', weatherCodes=['203', '101'], weathers=['くもり　時々　雨', '晴れ　朝晩　くもり']),
+                series(['02T05:00', '03T00:00'], '120030', '南部', weatherCodes=['203', '101'], weathers=['くもり　時々　雨', '晴れ　朝晩　くもり']),
+                series(['02T06:00', '02T12:00', '02T18:00', '03T00:00', '03T06:00', '03T12:00', '03T18:00'],
+                       '120010', '北西部', pops=['50', '', '0', '10', '0', '0', '10']),
+                series(['02T09:00', '02T00:00', '03T00:00', '03T09:00'], '45212', '千葉', temps=['22', '23', '19', '24'])]},
+            {'reportDatetime': '2026-10-01T17:00:00+09:00', 'timeSeries': [
+                series(['04T00:00', '05T00:00'], '120000', '千葉県', weatherCodes=['201', '200'], pops=['30', '']),
+                series(['04T00:00', '05T00:00'], '45148', '銚子', tempsMin=['19', ''], tempsMax=['23', ''])]}],
+        'jmatile/data/wdist/VPFD/120010.json': {
+            'firstAreaCode': '120010', 'reportDateTime': '2026-10-02T05:00:00+09:00',
+            'areaTimeSeries': {'timeDefines': [
+                {'dateTime': '2026-10-02T06:00:00+09:00', 'duration': 'PT3H'},
+                {'dateTime': '2026-10-02T12:00:00+09:00', 'duration': 'PT3H'},
+                {'dateTime': '2026-10-02T18:00:00+09:00', 'duration': 'PT3H'}], 'weather': ['くもり', '雨', '']},
+            'pointTimeSeries': {'pointNameJP': '千葉', 'timeDefines': [
+                {'dateTime': '2026-10-02T06:00:00+09:00'}, {'dateTime': '2026-10-02T12:00:00+09:00'},
+                {'dateTime': '2026-10-02T18:00:00+09:00'}], 'temperature': [22, '', 20]}}}
 
 
-def schedule(item_id, day_id, order, selected):
-    return {
-        "id": item_id,
-        "order": order,
-        "placeSelection": {"selection": selected},
-    }
-
-
-def trip(days, places):
-    return {"days": days, "places": places, "transports": []}
-
-
-def open_meteo_payload():
-    return {
-        "daily": {
-            "time": ["2026-09-08"],
-            "weather_code": [1],
-            "temperature_2m_max": [29.5],
-            "temperature_2m_min": [21.0],
-            "precipitation_probability_max": [60],
-            "precipitation_sum": [2.4],
-        },
-        "daily_units": {
-            "weather_code": "wmo code",
-            "temperature_2m_max": "°C",
-            "temperature_2m_min": "°C",
-            "precipitation_probability_max": "%",
-            "precipitation_sum": "mm",
-        },
-        "hourly": {
-            "time": [
-                "2026-09-08T06:00",
-                "2026-09-08T12:00",
-                "2026-09-08T18:00",
-                "2026-09-08T21:00",
-            ],
-            "weather_code": [1, 2, 61, 95],
-            "temperature_2m": [21.5, 28.0, 24.0, 22.0],
-            "precipitation_probability": [10, 20, 60, 40],
-        },
-        "hourly_units": {
-            "weather_code": "wmo code",
-            "temperature_2m": "°C",
-            "precipitation_probability": "%",
-        },
-    }
-
-
-class FakeAdapter:
-    def __init__(self, value=None):
-        self.value = value or {"status": "available", "weather_label": "晴れ"}
+class WeatherTests(unittest.TestCase):
+    def setUp(self):
+        self.data = fixtures()
         self.calls = []
+        self.clock = [0]
+        def transport(path):
+            self.calls.append(path)
+            return copy.deepcopy(self.data[path])
+        self.adapter = JmaAdapter(transport=transport, today=lambda: TODAY, clock=lambda: self.clock[0])
 
-    def forecast(self, location, target_date):
-        self.calls.append((location, target_date))
-        return dict(self.value)
+    def forecast(self, target=TODAY):
+        return self.adapter.forecast(LOCATION, target)
 
+    def test_short_pop_intervals_missing_zero_and_today_maximum(self):
+        result = self.forecast()
+        self.assertEqual(result['status'], 'available')
+        self.assertEqual(result['area_name'], '千葉県 北西部')
+        self.assertEqual(result['weather_label'], 'くもり 時々 雨')
+        self.assertEqual(result['temperature_location'], '千葉')
+        self.assertEqual(result['temperature_max'], 22)
+        self.assertIsNone(result['temperature_min'])  # 23 in 00:00 is not a minimum
+        self.assertEqual(result['precipitation_periods'], [
+            {'start_hour': 6, 'end_hour': 12, 'probability': 50},
+            {'start_hour': 12, 'end_hour': 18, 'probability': None},
+            {'start_hour': 18, 'end_hour': 24, 'probability': 0}])
+        self.assertNotIn('precipitation_probability_max', result)
+        self.assertNotIn('precipitation_sum', result)
+        self.assertEqual(result['issued_at'], '2026-10-02T05:00:00+09:00')
 
-class WeatherContextTests(unittest.TestCase):
-    def test_available_uses_ordered_day_area_not_selected_place(self):
-        data = trip([
-            {"id": "day-1", "date": "2026-09-10", "scheduleItems": [
-                schedule("first", "day-1", 10, ["missing-location"]),
-                schedule("second", "day-1", 20, ["known"]),
-            ], "transportIds": []},
-        ], [place("missing-location", "No coords"), place("known", "Known", 35.0, 139.0)])
-        data['days'][0]['areas'] = [{'name':'Known', 'location':{'latitude':36.0,'longitude':140.0}}]
-        adapter = FakeAdapter()
-        result = build_weather_by_day(data, adapter, today=date(2026, 9, 7))["day-1"]
-        self.assertEqual(result["status"], "available")
-        self.assertEqual(result["place_id"], "day-1-area-0")
-        self.assertEqual(adapter.calls[0][0], {"latitude":36.0,"longitude":140.0})
-        self.assertEqual(result["place_name"], "Known")
-        self.assertEqual(result["forecast_date"], "2026-09-10")
-        self.assertEqual(result["attribution"], "Weather data by Open-Meteo.com")
-        self.assertEqual(len(adapter.calls), 1)
+    def test_three_hour_details_no_interpolation_or_probability(self):
+        result = self.forecast()
+        self.assertEqual([p['time'] for p in result['periods']], ['06:00', '12:00', '18:00'])
+        self.assertIsNone(result['periods'][1]['temperature'])
+        self.assertEqual(result['periods'][2]['weather_label'], '天気欠測')
+        self.assertTrue(all('precipitation_probability' not in p for p in result['periods']))
+        self.assertEqual(result['details_temperature_location'], '千葉')
 
-    def test_outside_forecast_does_not_call_provider(self):
-        data = trip([
-            {"id": "day-1", "date": "2026-09-23", "scheduleItems": [
-                schedule("one", "day-1", 10, ["known"]),
-            ], "transportIds": []},
-        ], [place("known", "Known", 35.0, 139.0)])
-        adapter = FakeAdapter()
-        result = build_weather_by_day(data, adapter, today=date(2026, 9, 7))["day-1"]
-        self.assertEqual(result["status"], "outside_forecast")
-        self.assertEqual(adapter.calls, [])
+    def test_tomorrow_and_17_hour_temperature_slots(self):
+        tomorrow = date(2026, 10, 3)
+        result = self.forecast(tomorrow)
+        self.assertEqual((result['temperature_min'], result['temperature_max']), (19, 24))
+        product = self.data['forecast/data/forecast/120000.json'][0]
+        product['reportDatetime'] = '2026-10-02T17:00:00+09:00'
+        product['timeSeries'][-1] = series(['03T00:00', '03T09:00'], '45212', '千葉', temps=['19', '24'])
+        self.clock[0] = 901
+        self.assertIsNone(self.forecast()['temperature_max'])
+        result = self.forecast(tomorrow)
+        self.assertEqual((result['temperature_min'], result['temperature_max']), (19, 24))
 
-    def test_in_range_without_coordinates_is_location_unknown(self):
-        data = trip([
-            {"id": "day-1", "date": "2026-09-08", "scheduleItems": [
-                schedule("one", "day-1", 10, ["unknown"]),
-            ], "transportIds": []},
-        ], [place("unknown", "Unknown")])
-        adapter = FakeAdapter()
-        result = build_weather_by_day(data, adapter, today=date(2026, 9, 7))["day-1"]
-        self.assertEqual(result["status"], "location_unknown")
-        self.assertEqual(adapter.calls, [])
+    def test_weekly_region_station_pop_and_no_detail_fetch(self):
+        result = self.forecast(date(2026, 10, 4))
+        self.assertEqual((result['area_code'], result['area_name']), ('120000', '千葉県'))
+        self.assertEqual(result['temperature_location'], '銚子')
+        self.assertEqual((result['temperature_min'], result['temperature_max']), (19, 23))
+        self.assertEqual(result['precipitation_probability'], 30)
+        self.assertEqual(result['weather_label'], '曇時々晴')
+        self.assertEqual(result['periods'], [])
+        self.assertFalse(any('VPFD' in p for p in self.calls))
+        result = self.forecast(date(2026, 10, 5))
+        self.assertIsNone(result['precipitation_probability'])
+        self.assertIsNone(result['temperature_max'])
 
-    def test_all_area_forecasts_keep_route_order(self):
-        data = trip([{'id':'day-1', 'date':'2026-09-08', 'scheduleItems':[], 'transportIds':[],
-                      'areas':[{'name':'札幌市','location':{'latitude':43.06,'longitude':141.35}},
-                               {'name':'小樽市','location':{'latitude':43.19,'longitude':140.99}}]}], [])
-        adapter = FakeAdapter()
-        forecasts = build_weather_by_day(data, adapter, today=date(2026,9,7))['day-1']['locations']
-        self.assertEqual([w['place_name'] for w in forecasts], ['札幌市','小樽市'])
-        self.assertEqual(len(adapter.calls), 2)
+    def test_weekly_uses_available_regional_split_and_its_station(self):
+        self.data['forecast/const/week_area05.json']['120010'] = ['120000', '120100']
+        self.data['forecast/const/week_area_name.json']['120100'] = {'jp': '合成県北部'}
+        self.data['forecast/const/week_area.json']['120000'].append({'week': '120100', 'amedas': '99999'})
+        self.data['forecast/data/forecast/120000.json'][1]['timeSeries'] = [
+            series(['04T00:00'], '120100', '合成県北部', weatherCodes=['203'], pops=['70']),
+            series(['04T00:00'], '99999', '合成代表地点', tempsMin=['10'], tempsMax=['20'])]
+        result = self.forecast(date(2026, 10, 4))
+        self.assertEqual((result['area_code'], result['area_name']), ('120100', '合成県北部'))
+        self.assertEqual(result['temperature_location'], '合成代表地点')
+        self.assertEqual(result['precipitation_probability'], 70)
 
-    def test_provider_failure_remains_distinct(self):
-        data = trip([
-            {"id": "day-1", "date": "2026-09-08", "scheduleItems": [
-                schedule("one", "day-1", 10, ["known"]),
-            ], "transportIds": []},
-        ], [place("known", "Known", 35.0, 139.0)])
-        data["days"][0]["areas"] = [{"name":"Known", "location":{"latitude":35.0,"longitude":139.0}}]
-        adapter = FakeAdapter({"status": "unavailable"})
-        result = build_weather_by_day(data, adapter, today=date(2026, 9, 7))["day-1"]
-        self.assertEqual(result["status"], "unavailable")
-        self.assertEqual(result["place_name"], "Known")
+    def test_forecast_horizon_unpublished_and_failure_distinct(self):
+        self.assertEqual(self.forecast(date(2026, 10, 10))['status'], 'outside_forecast')
+        self.assertEqual(self.calls, [])
+        self.assertEqual(self.forecast(date(2026, 10, 9))['status'], 'outside_forecast')
+        self.assertEqual(self.adapter.forecast({'latitude': 48, 'longitude': 2}, TODAY)['status'], 'location_unknown')
+        del self.data['forecast/data/forecast/120000.json']
+        self.clock[0] = 901
+        self.assertEqual(self.forecast()['status'], 'unavailable')
 
-    def test_open_meteo_adapter_maps_daily_values_and_units(self):
-        def transport(params):
-            self.assertEqual(params["forecast_days"], 16)
-            self.assertEqual(params["timezone"], "auto")
-            self.assertEqual(
-                params["hourly"],
-                "weather_code,temperature_2m,precipitation_probability",
-            )
-            return open_meteo_payload()
-        adapter = OpenMeteoAdapter(transport=transport)
-        result = adapter.forecast({"latitude": 35.0, "longitude": 139.0}, date(2026, 9, 8))
-        self.assertEqual(result["status"], "available")
-        self.assertFalse(result["cached"])
-        self.assertEqual(result["weather_label"], "晴れ")
-        self.assertEqual(result["weather_kind"], "clear")
-        self.assertEqual(result["temperature_max"], 29.5)
-        self.assertEqual(result["temperature_min"], 21.0)
-        self.assertEqual(result["precipitation_probability_max"], 60)
-        self.assertEqual(result["precipitation_sum"], 2.4)
-        self.assertEqual(result["units"]["temperature_max"], "°C")
-        self.assertEqual(
-            [(period["label"], period["weather_kind"]) for period in result["periods"]],
-            [
-                ("朝", "clear"),
-                ("昼", "partly_cloudy"),
-                ("夕", "rain"),
-                ("夜", "thunderstorm"),
-            ],
-        )
-        self.assertEqual(result["periods"][2]["temperature"], 24.0)
-        self.assertEqual(result["periods"][2]["precipitation_probability"], 60)
+    def test_detail_failure_keeps_daily_but_reports_failure(self):
+        del self.data['jmatile/data/wdist/VPFD/120010.json']
+        result = self.forecast()
+        self.assertEqual(result['status'], 'available')
+        self.assertEqual(result['details_status'], 'unavailable')
 
-    def test_expired_cache_is_never_returned_as_current(self):
-        now = [0.0]
-        calls = []
+    def test_expired_cache_does_not_serve_stale_forecasts(self):
+        self.forecast()
+        self.forecast()
+        self.assertEqual(self.calls.count('forecast/data/forecast/120000.json'), 1)
+        self.clock[0] = 901
+        del self.data['forecast/data/forecast/120000.json']
+        self.assertEqual(self.forecast()['status'], 'unavailable')
+        self.assertEqual(self.calls.count('forecast/data/forecast/120000.json'), 2)
 
-        def transport(_params):
-            calls.append(now[0])
-            if len(calls) == 1:
-                return open_meteo_payload()
-            raise OSError("provider unavailable")
+    def test_only_day_areas_deduplicated_in_order_and_no_mutation(self):
+        areas = [{'name': '施設A', 'location': LOCATION}, {'name': '施設B', 'location': LOCATION},
+                 {'name': '南の地点', 'location': {'latitude': 34.5, 'longitude': 140.1}},
+                 {'name': '位置なし', 'location': None}]
+        trip = {'days': [{'id': 'day-1', 'date': TODAY.isoformat(), 'areas': areas}],
+                'places': [{'name': 'not used', 'location': {'latitude': 30, 'longitude': 130}}]}
+        original = copy.deepcopy(trip)
+        result = build_weather_by_day(trip, self.adapter, today=TODAY)['day-1']
+        self.assertEqual([r.get('area_code') for r in result['locations']], ['120010', '120030', None])
+        self.assertEqual(result['locations'][-1]['status'], 'location_unknown')
+        trip['days'][0]['date'] = '2026-10-04'
+        result = build_weather_by_day(trip, self.adapter, today=TODAY)['day-1']
+        self.assertEqual([r.get('area_code') for r in result['locations']], ['120000', None])
+        trip['days'][0]['date'] = TODAY.isoformat()
+        self.assertEqual(trip, original)
+        trip['days'][0]['areas'] = []
+        before = len(self.calls)
+        self.assertEqual(build_weather_by_day(trip, self.adapter, today=TODAY)['day-1']['status'], 'location_unknown')
+        self.assertEqual(len(self.calls), before)
 
-        adapter = OpenMeteoAdapter(
-            transport=transport, cache_seconds=10, clock=lambda: now[0],
-        )
-        location = {"latitude": 35.0, "longitude": 139.0}
-        target = date(2026, 9, 8)
-        first = adapter.forecast(location, target)
-        now[0] = 5.0
-        cached = adapter.forecast(location, target)
-        now[0] = 11.0
-        expired = adapter.forecast(location, target)
-
-        self.assertEqual(first["status"], "available")
-        self.assertFalse(first["cached"])
-        self.assertEqual(cached["status"], "available")
-        self.assertTrue(cached["cached"])
-        self.assertEqual(expired, {"status": "unavailable"})
-        self.assertEqual(calls, [0.0, 11.0])
+    def test_polygon_holes_and_border(self):
+        geometry = {'type': 'Polygon', 'coordinates': [
+            [[0,0],[4,0],[4,4],[0,4],[0,0]], [[1,1],[2,1],[2,2],[1,2],[1,1]]]}
+        self.assertTrue(_contains(geometry, {'latitude': 3, 'longitude': 3}))
+        self.assertFalse(_contains(geometry, {'latitude': 1.5, 'longitude': 1.5}))
+        self.assertTrue(_contains(geometry, {'latitude': 0, 'longitude': 2}))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

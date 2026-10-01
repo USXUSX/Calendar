@@ -1,0 +1,474 @@
+{
+  "100": {
+    "label": "晴",
+    "kind": "clear"
+  },
+  "101": {
+    "label": "晴時々曇",
+    "kind": "clear"
+  },
+  "102": {
+    "label": "晴一時雨",
+    "kind": "rain"
+  },
+  "103": {
+    "label": "晴時々雨",
+    "kind": "rain"
+  },
+  "104": {
+    "label": "晴一時雪",
+    "kind": "snow"
+  },
+  "105": {
+    "label": "晴時々雪",
+    "kind": "snow"
+  },
+  "106": {
+    "label": "晴一時雨か雪",
+    "kind": "rain"
+  },
+  "107": {
+    "label": "晴時々雨か雪",
+    "kind": "rain"
+  },
+  "108": {
+    "label": "晴一時雨か雷雨",
+    "kind": "rain"
+  },
+  "110": {
+    "label": "晴後時々曇",
+    "kind": "clear"
+  },
+  "111": {
+    "label": "晴後曇",
+    "kind": "clear"
+  },
+  "112": {
+    "label": "晴後一時雨",
+    "kind": "rain"
+  },
+  "113": {
+    "label": "晴後時々雨",
+    "kind": "rain"
+  },
+  "114": {
+    "label": "晴後雨",
+    "kind": "rain"
+  },
+  "115": {
+    "label": "晴後一時雪",
+    "kind": "snow"
+  },
+  "116": {
+    "label": "晴後時々雪",
+    "kind": "snow"
+  },
+  "117": {
+    "label": "晴後雪",
+    "kind": "snow"
+  },
+  "118": {
+    "label": "晴後雨か雪",
+    "kind": "rain"
+  },
+  "119": {
+    "label": "晴後雨か雷雨",
+    "kind": "rain"
+  },
+  "120": {
+    "label": "晴朝夕一時雨",
+    "kind": "rain"
+  },
+  "121": {
+    "label": "晴朝の内一時雨",
+    "kind": "rain"
+  },
+  "122": {
+    "label": "晴夕方一時雨",
+    "kind": "rain"
+  },
+  "123": {
+    "label": "晴山沿い雷雨",
+    "kind": "clear"
+  },
+  "124": {
+    "label": "晴山沿い雪",
+    "kind": "clear"
+  },
+  "125": {
+    "label": "晴午後は雷雨",
+    "kind": "rain"
+  },
+  "126": {
+    "label": "晴昼頃から雨",
+    "kind": "rain"
+  },
+  "127": {
+    "label": "晴夕方から雨",
+    "kind": "rain"
+  },
+  "128": {
+    "label": "晴夜は雨",
+    "kind": "rain"
+  },
+  "130": {
+    "label": "朝の内霧後晴",
+    "kind": "clear"
+  },
+  "131": {
+    "label": "晴明け方霧",
+    "kind": "clear"
+  },
+  "132": {
+    "label": "晴朝夕曇",
+    "kind": "clear"
+  },
+  "140": {
+    "label": "晴時々雨で雷を伴う",
+    "kind": "rain"
+  },
+  "160": {
+    "label": "晴一時雪か雨",
+    "kind": "snow"
+  },
+  "170": {
+    "label": "晴時々雪か雨",
+    "kind": "snow"
+  },
+  "181": {
+    "label": "晴後雪か雨",
+    "kind": "snow"
+  },
+  "200": {
+    "label": "曇",
+    "kind": "cloudy"
+  },
+  "201": {
+    "label": "曇時々晴",
+    "kind": "cloudy"
+  },
+  "202": {
+    "label": "曇一時雨",
+    "kind": "rain"
+  },
+  "203": {
+    "label": "曇時々雨",
+    "kind": "rain"
+  },
+  "204": {
+    "label": "曇一時雪",
+    "kind": "snow"
+  },
+  "205": {
+    "label": "曇時々雪",
+    "kind": "snow"
+  },
+  "206": {
+    "label": "曇一時雨か雪",
+    "kind": "rain"
+  },
+  "207": {
+    "label": "曇時々雨か雪",
+    "kind": "rain"
+  },
+  "208": {
+    "label": "曇一時雨か雷雨",
+    "kind": "rain"
+  },
+  "209": {
+    "label": "霧",
+    "kind": "cloudy"
+  },
+  "210": {
+    "label": "曇後時々晴",
+    "kind": "cloudy"
+  },
+  "211": {
+    "label": "曇後晴",
+    "kind": "cloudy"
+  },
+  "212": {
+    "label": "曇後一時雨",
+    "kind": "rain"
+  },
+  "213": {
+    "label": "曇後時々雨",
+    "kind": "rain"
+  },
+  "214": {
+    "label": "曇後雨",
+    "kind": "rain"
+  },
+  "215": {
+    "label": "曇後一時雪",
+    "kind": "snow"
+  },
+  "216": {
+    "label": "曇後時々雪",
+    "kind": "snow"
+  },
+  "217": {
+    "label": "曇後雪",
+    "kind": "snow"
+  },
+  "218": {
+    "label": "曇後雨か雪",
+    "kind": "rain"
+  },
+  "219": {
+    "label": "曇後雨か雷雨",
+    "kind": "rain"
+  },
+  "220": {
+    "label": "曇朝夕一時雨",
+    "kind": "rain"
+  },
+  "221": {
+    "label": "曇朝の内一時雨",
+    "kind": "rain"
+  },
+  "222": {
+    "label": "曇夕方一時雨",
+    "kind": "rain"
+  },
+  "223": {
+    "label": "曇日中時々晴",
+    "kind": "cloudy"
+  },
+  "224": {
+    "label": "曇昼頃から雨",
+    "kind": "rain"
+  },
+  "225": {
+    "label": "曇夕方から雨",
+    "kind": "rain"
+  },
+  "226": {
+    "label": "曇夜は雨",
+    "kind": "rain"
+  },
+  "228": {
+    "label": "曇昼頃から雪",
+    "kind": "snow"
+  },
+  "229": {
+    "label": "曇夕方から雪",
+    "kind": "snow"
+  },
+  "230": {
+    "label": "曇夜は雪",
+    "kind": "snow"
+  },
+  "231": {
+    "label": "曇海上海岸は霧か霧雨",
+    "kind": "cloudy"
+  },
+  "240": {
+    "label": "曇時々雨で雷を伴う",
+    "kind": "rain"
+  },
+  "250": {
+    "label": "曇時々雪で雷を伴う",
+    "kind": "snow"
+  },
+  "260": {
+    "label": "曇一時雪か雨",
+    "kind": "snow"
+  },
+  "270": {
+    "label": "曇時々雪か雨",
+    "kind": "snow"
+  },
+  "281": {
+    "label": "曇後雪か雨",
+    "kind": "snow"
+  },
+  "300": {
+    "label": "雨",
+    "kind": "rain"
+  },
+  "301": {
+    "label": "雨時々晴",
+    "kind": "rain"
+  },
+  "302": {
+    "label": "雨時々止む",
+    "kind": "rain"
+  },
+  "303": {
+    "label": "雨時々雪",
+    "kind": "snow"
+  },
+  "304": {
+    "label": "雨か雪",
+    "kind": "rain"
+  },
+  "306": {
+    "label": "大雨",
+    "kind": "rain"
+  },
+  "308": {
+    "label": "雨で暴風を伴う",
+    "kind": "rain"
+  },
+  "309": {
+    "label": "雨一時雪",
+    "kind": "snow"
+  },
+  "311": {
+    "label": "雨後晴",
+    "kind": "rain"
+  },
+  "313": {
+    "label": "雨後曇",
+    "kind": "rain"
+  },
+  "314": {
+    "label": "雨後時々雪",
+    "kind": "snow"
+  },
+  "315": {
+    "label": "雨後雪",
+    "kind": "snow"
+  },
+  "316": {
+    "label": "雨か雪後晴",
+    "kind": "rain"
+  },
+  "317": {
+    "label": "雨か雪後曇",
+    "kind": "rain"
+  },
+  "320": {
+    "label": "朝の内雨後晴",
+    "kind": "rain"
+  },
+  "321": {
+    "label": "朝の内雨後曇",
+    "kind": "rain"
+  },
+  "322": {
+    "label": "雨朝晩一時雪",
+    "kind": "snow"
+  },
+  "323": {
+    "label": "雨昼頃から晴",
+    "kind": "rain"
+  },
+  "324": {
+    "label": "雨夕方から晴",
+    "kind": "rain"
+  },
+  "325": {
+    "label": "雨夜は晴",
+    "kind": "rain"
+  },
+  "326": {
+    "label": "雨夕方から雪",
+    "kind": "snow"
+  },
+  "327": {
+    "label": "雨夜は雪",
+    "kind": "snow"
+  },
+  "328": {
+    "label": "雨一時強く降る",
+    "kind": "rain"
+  },
+  "329": {
+    "label": "雨一時みぞれ",
+    "kind": "rain"
+  },
+  "340": {
+    "label": "雪か雨",
+    "kind": "snow"
+  },
+  "350": {
+    "label": "雨で雷を伴う",
+    "kind": "rain"
+  },
+  "361": {
+    "label": "雪か雨後晴",
+    "kind": "snow"
+  },
+  "371": {
+    "label": "雪か雨後曇",
+    "kind": "snow"
+  },
+  "400": {
+    "label": "雪",
+    "kind": "snow"
+  },
+  "401": {
+    "label": "雪時々晴",
+    "kind": "snow"
+  },
+  "402": {
+    "label": "雪時々止む",
+    "kind": "snow"
+  },
+  "403": {
+    "label": "雪時々雨",
+    "kind": "snow"
+  },
+  "405": {
+    "label": "大雪",
+    "kind": "snow"
+  },
+  "406": {
+    "label": "風雪強い",
+    "kind": "snow"
+  },
+  "407": {
+    "label": "暴風雪",
+    "kind": "snow"
+  },
+  "409": {
+    "label": "雪一時雨",
+    "kind": "snow"
+  },
+  "411": {
+    "label": "雪後晴",
+    "kind": "snow"
+  },
+  "413": {
+    "label": "雪後曇",
+    "kind": "snow"
+  },
+  "414": {
+    "label": "雪後雨",
+    "kind": "snow"
+  },
+  "420": {
+    "label": "朝の内雪後晴",
+    "kind": "snow"
+  },
+  "421": {
+    "label": "朝の内雪後曇",
+    "kind": "snow"
+  },
+  "422": {
+    "label": "雪昼頃から雨",
+    "kind": "snow"
+  },
+  "423": {
+    "label": "雪夕方から雨",
+    "kind": "snow"
+  },
+  "425": {
+    "label": "雪一時強く降る",
+    "kind": "snow"
+  },
+  "426": {
+    "label": "雪後みぞれ",
+    "kind": "snow"
+  },
+  "427": {
+    "label": "雪一時みぞれ",
+    "kind": "snow"
+  },
+  "450": {
+    "label": "雪で雷を伴う",
+    "kind": "snow"
+  }
+}

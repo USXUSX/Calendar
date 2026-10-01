@@ -134,7 +134,7 @@ adapterに認証、利用上限、timeout、取得先ID、出典、取得時刻�
 
 - **永続補完**：保存可能な公開データを優先し、[Wikidataの構造化データ](https://www.wikidata.org/wiki/Wikidata:Data_access)を候補とする（CC0）。公式サイト等は掲載されているだけで自由な取得・転載が許されるとはせず、取得・保存可能な情報に限定する。Wikidataだけで飲食店網羅や最新営業情報を満たすとは想定せず、見つからない情報は手入力・未補完を許容する。
 - **制限のある施設検索サービス**：[Google Places](https://developers.google.com/maps/documentation/places/web-service/policies)等の値を一律にformal Tripへ永久コピーしない。Googleのplace ID保存例外を他fieldへ広げない。Apple Mapsや飲食店API等を追加候補にする場合も、検索品質だけでなく必要fieldの保存・表示条件を後続Issueで確認してから接続する。Goal 2の地図providerを暗黙に決めない。
-- **天気**：[Open-Meteo](https://open-meteo.com/en/docs)を第一候補とする。APIの予報範囲内（既定7日、最大16日）だけ取得し、それより先は予報対象外とする。[非商用利用条件とCC BY 4.0](https://open-meteo.com/en/terms)に従い出典を表示する。無料枠の利用上限・稼働保証のない条件もadapter設計時に確認する。
+- **天気**：国内旅行は気象庁へ一本化する（#196）。7日先までの表示用Contextとし、取得経路・区域対応・欠測と出典の扱いは[表示・更新契約](trip-detail-model.md#気象庁の表示用天気context196)を正本とする。海外対応・別ソースfallbackは行わない。
 - 食べログ点数順等の網羅的ランキング取得、自動スクレイピングを必須能力にしない。人が入力した参照リンクは自動取得基盤と切り分ける。
 
 ## 4. 後続実装の小さな単位
