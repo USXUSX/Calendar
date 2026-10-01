@@ -11,6 +11,10 @@ CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb�
 
 新規JSONと既存Trip用Envelopeは形式が異なります。生成・受渡しは[生成ガイド](docs/trip-json-generation.md)、新規採用は[JSON取込契約](docs/trip-json-import.md)、日常操作は[運用入口](docs/operation.md)を参照してください。
 
+## 予定画面の直接操作
+
+Frame #177 Phase 2の月間・一覧・複数月と通常Event/Todo操作は[期間表示・保存契約](docs/schedule.md)を使う。Eventの任意TripリンクとTodoメモを追加し、既存DBには明示した追加migrationを適用する。Chat/RDC用コマンドとGoogle反映はPhase 3であり未実装。
+
 ## 現在地
 
 2026-09-16、usの基本検証完了の申告と全体完了指示に基づき、Goal 1／Phase 8を一旦完了し、実利用・保守へ移行します。Chat生成JSON取込、直接編集、継続Chat往復、候補操作、Place補完・天気を現行の利用範囲とします。

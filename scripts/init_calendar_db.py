@@ -9,6 +9,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = REPO_ROOT / "Schemas" / "calendar-v3.sql"
 
 
+def extend_schedule(connection):
+    if 'trip_id' not in {r[1] for r in connection.execute('PRAGMA table_info(events)')}:
+        connection.execute('ALTER TABLE events ADD COLUMN trip_id TEXT REFERENCES trips(id)')
+    if 'notes' not in {r[1] for r in connection.execute('PRAGMA table_info(todos)')}:
+        connection.execute('ALTER TABLE todos ADD COLUMN notes TEXT')
+
+
 def initialize(database_path: Path) -> None:
     if database_path.exists() and database_path.stat().st_size != 0:
         raise FileExistsError(f"refusing to initialize non-empty file: {database_path}")
@@ -19,6 +26,7 @@ def initialize(database_path: Path) -> None:
         connection.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
         if connection.execute("SELECT version FROM schema_meta").fetchone() != (3,):
             raise RuntimeError("schema version verification failed")
+        extend_schedule(connection)
         connection.commit()
     except Exception:
         connection.close()
@@ -38,4 +46,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(REPO_ROOT))
     raise SystemExit(main())
