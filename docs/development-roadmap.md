@@ -2,6 +2,10 @@
 
 この文書は、CALの最終利用像と開発の階層を示す短い正本である。先の計画は粗く保ち、現在のPhaseだけをStepへ分解する。
 
+## 現在の追加開発
+
+Frame #177 Phase 2 / Calendar #198で、旅行期間・通常予定・TodoをFrameの予定画面へ接続する。[予定の意味境界と追加schema](schedule.md)を実装し、Chatは採用済みRDC＋CAL専用コマンド、Google反映とともにPhase 3へ残す。Phase 2のiPhone実画面調整・振り返りを経て以降をusが判断する。既存旅程context/candidateは維持する。
+
 ## 最終利用像
 
 CALは、次の3領域を内部機能としては十分に分離しつつ、表示上は関連付けて扱う。

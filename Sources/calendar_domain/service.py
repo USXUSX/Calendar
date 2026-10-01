@@ -16,6 +16,7 @@ from typing import Any, Callable, Iterator
 
 from scripts.validate_trip import DEFAULT_SCHEMA, semantic_errors, validate_value, validation_stage_errors
 
+from .schedule import ScheduleMixin
 from .errors import ConflictError, GenerationWriteError, NotFoundError, ValidationError
 from .models import UnifiedEvent
 from .trip_lifecycle import is_trip_completed
@@ -51,7 +52,7 @@ def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-class CalendarDomain(ChatExchangeMixin):
+class CalendarDomain(ScheduleMixin, ChatExchangeMixin):
     """Semantic CAL interface; formal storage paths are explicit, Chat root is separate."""
 
     def __init__(self, db_path: str | Path, trip_root: str | Path, *, chat_root: str | Path | None = None):
@@ -1905,7 +1906,7 @@ class CalendarDomain(ChatExchangeMixin):
             if connection.execute("SELECT 1 FROM events WHERE id = ?", (event_id,)).fetchone():
                 raise ConflictError(f"Event already exists: {event_id}")
             connection.execute(
-                "INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO events (id,title,start_date,start_time,end_date,end_time,time_zone,notes,visibility,created_at,updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (event_id, title, start_date, start_time, end_date, end_time, time_zone, notes,
                  visibility, timestamp, timestamp),
             )

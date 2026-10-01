@@ -1,6 +1,7 @@
 # Architecture decisions
 
 - 2026-10-02, Issue #196: 国内旅行の天気は気象庁に一本化する。Day.areasから公式区域・代表地点へ対応し、短期6時間／週間24時間の降水確率を区別する。Open-Meteo採用を置換する。現行契約は[表示・更新契約](trip-detail-model.md)を参照。
+- 2026-10-02, #198 / Frame #177 Phase 2: 通常予定/Todoと旅行期間の表示・直接保存を既存CALへ追加する。業務処理と正本はCAL、表示・操作はFRM。新しい常駐接続を作らず、Chatは採用済みRDC方式をPhase 3で実装する。旅程context/candidateは維持。[予定契約](schedule.md)。
 
 - 2026-09-06, Issue #86: us承認によりGoal 1をChatで作る旅程の新規Trip一括貼付とCALでの細部仕上げへ更新する。日本語定型文を確認・補正して登録し、日別代表エリアを扱う。他予定は自動変更しない。保存可能な採用値と一時取得・天気を分け、公開データ優先・Wikidata候補・Open-Meteo第一候補とする。既存OpenAI生成・再生成は保持するがGoal 1の完成条件から外す。[初期リリース仕様](initial-release.md)と[ロードマップ](development-roadmap.md)を正本とし、下記の過去Phaseの記録は実施履歴として残す。
 
