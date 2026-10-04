@@ -28,6 +28,10 @@ class TripChatMixin:
             "SELECT id,instruction FROM ai_instructions WHERE trip_id=? AND state='pending' ORDER BY created_at,id", (trip_id,))]
         revision = dict(trip_version=version, effective_hash=self._digest(self._canonical_json(trip)),
                         instructions_hash=self._digest(self._canonical_json(instructions)))
+        for instruction in instructions:
+            prefix = f'item:{trip_id}:'
+            if instruction['id'].startswith(prefix):
+                instruction['source_item_id'] = instruction['id'][len(prefix):].split(':', 1)[0]
         return dict(trip_id=trip_id, trip=trip, instructions=instructions, revision=revision)
 
     def lookup_chat_request(self, identity):
