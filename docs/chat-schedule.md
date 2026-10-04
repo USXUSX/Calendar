@@ -1,6 +1,6 @@
 # Chatからの日程保存（Frame #177 Phase 3 Step 1・2）
 
-既存Remote Desktop Commander（RDC）でMacのCAL専用CLIを呼ぶ。CALの既存SQLiteと正式Trip JSONが正本。Frameを開く／再読込することは保存条件ではない。旅程も本書の専用コマンドで正式保存する。通常予定・タスクの定期日程も扱う。Google反映は対象外。
+既存Remote Desktop Commander（RDC）でMacのCAL専用CLIを呼ぶ。CALの既存SQLiteと正式Trip JSONが正本。Frameを開く／再読込することは保存条件ではない。旅程も本書の専用コマンドで正式保存する。通常予定・タスクの定期日程も扱う。保存後は[専用Google一方向連携](google-calendar.md)を使い、CAL receiptとGoogle反映結果を区別する。
 
 ## Chatで使う
 
@@ -85,7 +85,7 @@ CAL_SCHEDULE_REQUEST
 
 revisionは正本行全値（更新日時を含む）のSHA-256。連番ではなく内容fingerprintで、Frameや既存CRUDによる内容変更も検出する。読み取り後に値が変わって元の値・日時まで完全に戻った履歴の検出を保証するものではない。同時再送はSQLiteの書込みlockとrequest_id主キーで直列化する。
 
-receiptは既存CAL DBの`schedule_receipts`に保持し、自動削除しない。元データとreceiptは同じbackup対象。別サービス・別DB・公開HTTP更新入口・Google連携は追加しない。CLIのreadは旅程loadを呼ばず、context/candidateに触れない。
+receiptは既存CAL DBの`schedule_receipts`に保持し、自動削除しない。元データとreceiptは同じbackup対象。別サービス・別DB・公開HTTP更新入口は追加しない。Googleの未反映・再試行・認証は[所有契約](google-calendar.md)へ集約する。CLIのreadは旅程loadを呼ばず、context/candidateに触れない。
 
 ## 配置・初回反映
 

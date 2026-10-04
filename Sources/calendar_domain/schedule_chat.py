@@ -1,4 +1,5 @@
 """Request/receipt boundary for the existing RDC transport; CAL remains authoritative."""
+from .google_calendar import after_save
 import hashlib
 import json
 import re
@@ -45,6 +46,7 @@ class ScheduleChatMixin:
             return dict(status='not_found', request_id=identity)
         return dict(status='committed', resolution='lookup', receipt=json.loads(prior[0]))
 
+    @after_save
     def apply_schedule_request(self, request):
         if not isinstance(request, dict) or set(request) - {'request_id', 'kind', 'action', 'id', 'expected_revision', 'values'}:
             raise ValidationError('invalid_request')

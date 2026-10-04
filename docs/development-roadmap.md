@@ -4,7 +4,7 @@
 
 ## 現在の追加開発
 
-Frame #177 Phase 2 / Calendar #198で、旅行期間・通常予定・TodoをFrameの予定画面へ接続する。[予定の意味境界と追加schema](schedule.md)を実装し、Chatは採用済みRDC＋CAL専用コマンド、Google反映とともにPhase 3へ残す。Phase 2のiPhone実画面調整・振り返りを経て以降をusが判断する。既存旅程context/candidateは維持する。
+Frame #177 Phase 3 Step 1・2の正式Chat保存/定期日程に続き、Step 3（CAL #213 → Frame #197）で[Google一方向連携](google-calendar.md)を実装する。通常画面/Chatの共通保存後に専用CALへ反映し、認証・初回Google反映・実機受入を区別して親Issueへ記録する。親はus受入までOpen。
 
 ## 最終利用像
 

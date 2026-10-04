@@ -64,7 +64,7 @@ class ScheduleTest(unittest.TestCase):
         item=same_day
         for changes in ({'end_date':'2027-01-01'},{'end_time':'09:00'},{'start_time':'25:00'},{'trip_id':'missing'},{'start_date':'2027-02-30'},{'title':''}):
             with self.assertRaises(ValidationError):self.cal.change_schedule('event','save',item['id'],changes)
-            self.assertEqual(self.cal.get_event(item['id']),item)
+            self.assertEqual(self.cal.get_event(item['id']),{k:v for k,v in item.items() if k!='google'})
         with self.assertRaises(NotFoundError):self.cal.change_schedule('event','save','missing',{'title':'new'})
         with self.assertRaises(ValidationError):self.cal.change_schedule('todo','save',values={'label':'日付なし'})
         self.assertEqual(len(self.cal.read_schedule('2027-01-01','2027-01-02')['items']),1)

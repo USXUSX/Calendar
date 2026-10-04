@@ -16,6 +16,8 @@ from typing import Any, Callable, Iterator
 
 from scripts.validate_trip import DEFAULT_SCHEMA, semantic_errors, validate_value, validation_stage_errors
 
+from .google_calendar import GoogleCalendarMixin, after_save
+import threading
 from .schedule import ScheduleMixin
 from .schedule_chat import ScheduleChatMixin
 from .recurrence import RecurrenceMixin
@@ -55,12 +57,13 @@ def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-class CalendarDomain(RecurrenceMixin, TripChatMixin, ScheduleChatMixin, ScheduleMixin, ChatExchangeMixin):
+class CalendarDomain(GoogleCalendarMixin, RecurrenceMixin, TripChatMixin, ScheduleChatMixin, ScheduleMixin, ChatExchangeMixin):
     """Semantic CAL interface; formal storage paths are explicit, Chat root is separate."""
 
     def __init__(self, db_path: str | Path, trip_root: str | Path, *, chat_root: str | Path | None = None):
         if db_path is None or trip_root is None:
             raise ValidationError("db_path and trip_root are required")
+        self._google_save_state = threading.local()
         self.db_path = Path(db_path)
         self.trip_root = Path(trip_root)
         self.chat_root = Path(chat_root) if chat_root is not None else DEFAULT_CHAT_ROOT
@@ -802,6 +805,7 @@ class CalendarDomain(RecurrenceMixin, TripChatMixin, ScheduleChatMixin, Schedule
         candidate = build_import_trip(review["draft"], command_id)
         return self._import_new_trip(candidate)
 
+    @after_save
     def _import_new_trip(self, candidate: dict[str, Any]) -> dict[str, Any]:
         trip_id = candidate["id"]
         _, payload = self._validated_candidate(trip_id, candidate)
@@ -1901,6 +1905,7 @@ class CalendarDomain(RecurrenceMixin, TripChatMixin, ScheduleChatMixin, Schedule
             source_item_id=item["id"],
         )
 
+    @after_save
     def create_event(self, event_id: str, *, title: str, start_date: str, start_time: str | None = None,
                      end_date: str | None = None, end_time: str | None = None, time_zone: str | None = None,
                      notes: str | None = None, visibility: str = "owner") -> dict[str, Any]:
@@ -1925,17 +1930,20 @@ class CalendarDomain(RecurrenceMixin, TripChatMixin, ScheduleChatMixin, Schedule
             raise NotFoundError(f"Event not found: {event_id}")
         return dict(row)
 
+    @after_save
     def update_event(self, event_id: str, **changes: Any) -> dict[str, Any]:
         event_id = self._ordinary_id(event_id)
         self._update("events", event_id, changes, _EVENT_FIELDS)
         return self.get_event(event_id)
 
+    @after_save
     def delete_event(self, event_id: str) -> None:
         event_id = self._ordinary_id(event_id)
         with self._command() as connection:
             if connection.execute("DELETE FROM events WHERE id = ?", (event_id,)).rowcount == 0:
                 raise NotFoundError(f"Event not found: {event_id}")
 
+    @after_save
     def create_todo(self, todo_id: str, *, label: str, due_date: str | None = None,
                     due_time: str | None = None, trip_id: str | None = None,
                     event_id: str | None = None, trip_item_id: str | None = None,
@@ -1975,16 +1983,19 @@ class CalendarDomain(RecurrenceMixin, TripChatMixin, ScheduleChatMixin, Schedule
         with self._read() as connection:
             return [dict(row) for row in connection.execute(query, values)]
 
+    @after_save
     def update_todo(self, todo_id: str, **changes: Any) -> dict[str, Any]:
         self._update("todos", todo_id, changes, _TODO_FIELDS)
         return self.get_todo(todo_id)
 
+    @after_save
     def set_todo_completed(self, todo_id: str, completed: bool = True) -> dict[str, Any]:
         if not isinstance(completed, bool):
             raise ValidationError("completed must be boolean")
         self._update("todos", todo_id, {"completed_at": _now() if completed else None}, {"completed_at"})
         return self.get_todo(todo_id)
 
+    @after_save
     def delete_todo(self, todo_id: str) -> None:
         with self._command() as connection:
             if connection.execute("DELETE FROM todos WHERE id = ?", (todo_id,)).rowcount == 0:
@@ -2303,6 +2314,7 @@ class CalendarDomain(RecurrenceMixin, TripChatMixin, ScheduleChatMixin, Schedule
         self.get_chat_context(result["trip_id"])
         return result
 
+    @after_save
     def set_direct_override(self, override_id: str, trip_id: str, source_item_id: str,
                             field_path: str, value: Any) -> dict[str, Any]:
         self._require_text(override_id, "override_id")
@@ -2351,6 +2363,7 @@ class CalendarDomain(RecurrenceMixin, TripChatMixin, ScheduleChatMixin, Schedule
             {k: copy.deepcopy(v) for k,v in c.persistable.items() if valid_field(k,v)}
             for c in result.candidates if valid_field("name", c.persistable.get("name"))]}
 
+    @after_save
     def edit_trip_item(self, command_id: str, trip_id: str, source_type: str,
                        source_item_id: str, changes: dict[str, Any]) -> dict[str, Any]:
         """Validate and persist one target's semantic field changes atomically."""
@@ -2362,11 +2375,13 @@ class CalendarDomain(RecurrenceMixin, TripChatMixin, ScheduleChatMixin, Schedule
         from .review_edit import edit_item
         return edit_item(self, command_id, trip_id, source_type, source_item_id, changes)
 
+    @after_save
     def change_trip_schedule(self, command_id, trip_id, action, payload):
         """Direct add/delete/reorder via CAL-owned structural Overrides."""
         from .direct_schedule import change
         return change(self, command_id, trip_id, action, payload)
 
+    @after_save
     def edit_trip_day(self, command_id: str, trip_id: str, day_id: str,
                       changes: dict[str, Any]) -> dict[str, Any]:
         """Update one day's title and representative areas through Direct Override."""
@@ -2449,6 +2464,7 @@ class CalendarDomain(RecurrenceMixin, TripChatMixin, ScheduleChatMixin, Schedule
             ).fetchall()
         return [self._get_override(row["id"]) for row in rows]
 
+    @after_save
     def clear_direct_override(self, override_id: str) -> dict[str, Any]:
         with self._command() as connection:
             row = connection.execute("SELECT active FROM direct_overrides WHERE id = ?", (override_id,)).fetchone()
