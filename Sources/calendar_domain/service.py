@@ -17,6 +17,7 @@ from typing import Any, Callable, Iterator
 from scripts.validate_trip import DEFAULT_SCHEMA, semantic_errors, validate_value, validation_stage_errors
 
 from .schedule import ScheduleMixin
+from .schedule_chat import ScheduleChatMixin
 from .errors import ConflictError, GenerationWriteError, NotFoundError, ValidationError
 from .models import UnifiedEvent
 from .trip_lifecycle import is_trip_completed
@@ -52,7 +53,7 @@ def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-class CalendarDomain(ScheduleMixin, ChatExchangeMixin):
+class CalendarDomain(ScheduleChatMixin, ScheduleMixin, ChatExchangeMixin):
     """Semantic CAL interface; formal storage paths are explicit, Chat root is separate."""
 
     def __init__(self, db_path: str | Path, trip_root: str | Path, *, chat_root: str | Path | None = None):
