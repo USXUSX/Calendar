@@ -36,7 +36,7 @@ class GoogleTest(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.root=Path(self.tmp.name);self.db=self.root/'cal.sqlite3';initialize(self.db)
         self.cal=CalendarDomain(self.db,self.root);self.api=FakeGoogle();self.serial=0
-        (self.root/'settings').mkdir();(self.root/'settings/google-token.json').write_text('{}');(self.root/'settings/google-calendar.json').write_text('{}')
+        (self.root/'settings').mkdir();(self.root/'settings/google-token.json').write_text('{"refresh_token":"synthetic"}');(self.root/'settings/google-calendar.json').write_text('{"calendar_id":"synthetic-cal"}')
         self.addCleanup(patch.stopall)
         patch('Sources.calendar_domain.google_calendar.today',return_value='2026-10-05').start()
         patch('Sources.calendar_domain.google_calendar.GoogleClient',return_value=self.api).start()

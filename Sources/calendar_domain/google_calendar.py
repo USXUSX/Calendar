@@ -203,7 +203,11 @@ class GoogleCalendarMixin:
             if rows is None:return dict(status='unreflected',reason='migration_required',pending=0)
             desired=self._google_desired(rows)
             pending=sum(self._google_hash(desired.get(k))!=rows.get(k,{}).get('applied_hash') or bool(rows.get(k,{}).get('error')) for k in set(desired)|set(rows))
-            configured=(self.trip_root/'settings/google-token.json').is_file() and (self.trip_root/'settings/google-calendar.json').is_file()
+            try:
+                token=json.loads((self.trip_root/'settings/google-token.json').read_text())
+                config=json.loads((self.trip_root/'settings/google-calendar.json').read_text())
+                configured=bool(token.get('refresh_token') and config.get('calendar_id') and config['calendar_id']!='primary')
+            except (OSError, ValueError):configured=False
             return dict(status='unreflected' if pending or not configured else 'synced',pending=pending,
                         reason='authentication_required' if not configured else next((r['error'] for r in rows.values() if r['error']),None))
         except Exception:
