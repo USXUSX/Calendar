@@ -12,6 +12,20 @@
 
 正式Trip／SQLiteをGitや参照コピーへ入れません。ChatはDB・正式JSONを直接編集しません。旅程・通常予定・Todoは[CAL専用CLI](chat-schedule.md)でCAL共通処理へ委譲して正式保存します。
 
+## CALコード変更のFrame反映
+
+通常の日程登録は既存専用CLI内で行い、未対応依頼と機能開発を区別する。保存確定・CLI再取得・Frame API・公開画面・実機の報告範囲は[Chatガイド](chat-schedule.md#完了報告の確認範囲)に従う。
+
+許可されたCALコード変更を既存Frameへ反映する場合、merge済みmainを既存Git正本へ反映し、[Frame READMEの既存運用手順](https://github.com/USXUSX/Frame/blob/main/README.md#external-access-and-continuous-operation)に従って`com.usxusx.frame`を再起動する。FrameはCALコードをプロセスに読み込むため、checkout更新とCLI成功だけでは稼働中Frameの反映確認にならない。既存サービスの再起動には次を使い、Tunnel・公開先・認証設定は変更しない。
+
+```sh
+launchctl kickstart -k gui/$(id -u)/com.usxusx.frame
+```
+
+変更に直接関係する代表APIを再起動後に読み取り確認する。日程なら`GET /api/calendar/schedule?start=YYYY-MM-DD&end=YYYY-MM-DD`を既存loopback `http://127.0.0.1:8080`で確認し、定期条件の変更なら必要な代表期間の各回が返るかを確認する。実日程の追加・変更・削除を反映試験に使わない。公開画面・Safari実機が未確認なら、そのまま未確認と報告する。問題時は直前のmerge済みrevisionへ戻して同じサービスを再起動する。
+
+専用CLIによるデータ更新だけなら、通常はFrame再起動を必要としない。文書のみの更新でも再起動しない。通常の登録操作に、コード反映手順や機能開発の許可を持ち込まない。
+
 ## 自宅の共通設定
 
 固定の住所と座標は`Calendar_Local/settings/home.json`で管理する。各旅行の「自宅」はこの値を共通利用し、旅行ごとの位置修正は行わない。詳細は[固定の自宅](map-locations.md#固定の自宅)を参照する。
