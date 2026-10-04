@@ -133,6 +133,7 @@ CALの共通Schema・semantic・Todo参照検証と、既存の`.adoption` stagi
 | weekly | weekdays: 日曜0〜土曜6の重複しない配列、複数可 |
 | monthly | month_day: 1〜31。存在しない月はスキップ |
 | month_end | 各月の最終日。平年・閏年を反映 |
+| yearly | `recurrence.start` の月日と同じ日に毎年。2/29など存在しない年はスキップ |
 
 untilは省略／nullで無期限。休日移動はしない。各回の終了日はテンプレートの開始日からの日数差を維持し、時刻も維持する。無期限でも取得期間に必要な回だけ計算し、全回の事前保存や常駐生成はしない。
 
