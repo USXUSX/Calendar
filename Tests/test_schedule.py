@@ -47,6 +47,9 @@ class ScheduleTest(unittest.TestCase):
         self.assertEqual(self.cal.get_event(event['id'])['notes'],'メモ')
         self.cal.change_schedule('todo','complete',todo['id'],{'completed':True})
         self.assertEqual(len(self.cal.read_schedule(start,end)['items']),2)
+        completed=self.cal.read_schedule(start,end,include_completed=True)['items']
+        self.assertEqual(len(completed),3)
+        self.assertTrue(next(x for x in completed if x['id']==todo['id'])['completed_at'])
         self.assertEqual(self.cal.get_todo(todo['id'])['notes'],'持参品')
         self.cal.change_schedule('event','delete',event['id'],{})
         self.cal.change_schedule('todo','delete',todo['id'],{})
