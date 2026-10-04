@@ -82,9 +82,11 @@ def event_body(item, key):
         body['description'] = (notes+'\n'+link).strip()
         body['source'] = dict(title='CAL 旅程',url=link)
     if item.get('start_time'):
-        start = datetime.fromisoformat(begin+'T'+item['start_time']).replace(tzinfo=ZONE)
+        zone_name = item.get('time_zone') or 'Asia/Tokyo'
+        zone = ZoneInfo(zone_name)
+        start = datetime.fromisoformat(begin+'T'+item['start_time']).replace(tzinfo=zone)
         if item.get('end_time'):
-            end = datetime.fromisoformat(finish+'T'+item['end_time']).replace(tzinfo=ZONE)
+            end = datetime.fromisoformat(finish+'T'+item['end_time']).replace(tzinfo=zone)
         else:
             end = start + timedelta(minutes=1)
             body['description'] = (body['description']+'\n終了不明（1分の開始マーカー）').strip()
@@ -92,7 +94,7 @@ def event_body(item, key):
         if end == start:
             end = start + timedelta(minutes=1)
             body['description'] = (body['description']+'\n開始マーカー（CALの開始・終了は同時刻）').strip()
-        body.update(start=dict(dateTime=start.isoformat(),timeZone='Asia/Tokyo'),end=dict(dateTime=end.isoformat(),timeZone='Asia/Tokyo'))
+        body.update(start=dict(dateTime=start.isoformat(),timeZone=zone_name),end=dict(dateTime=end.isoformat(),timeZone=zone_name))
     else:
         body.update(start={'date':begin},end={'date':(date.fromisoformat(finish)+timedelta(days=1)).isoformat()})
     return body
