@@ -44,10 +44,14 @@ class ScheduleMixin:
             for r in c.execute('SELECT * FROM todos WHERE due_date BETWEEN ? AND ? AND (? OR completed_at IS NULL)', (start,end,include_completed)):
                 items.append(dict(r) | dict(kind='todo', title=r['label'], start_date=r['due_date'],
                                            end_date=None, start_time=r['due_time'], end_time=None, revision=schedule_revision(r)))
+            items.extend(self._read_recurrence(c,start,end,include_completed))
         return dict(items=sorted(items, key=lambda x:(x['start_date'],x.get('start_time') or '',x['kind'],x['id'])),
                     trips=[dict(id=t['trip_id'], title=t['title']) for t in trips])
 
-    def change_schedule(self, kind, action, item_id=None, values=None):
+    def change_schedule(self, kind, action, item_id=None, values=None, expected_revision=None, request_id=None):
+        if isinstance(item_id,str) and item_id.startswith("rec:"):
+            result=self.apply_recurrence_request(dict(request_id=request_id or str(uuid.uuid4()),kind=kind,action=action,scope="this",id=item_id,values=values,expected_revision=expected_revision))
+            return result["receipt"]
         with self._command() as c:
             c.execute('BEGIN IMMEDIATE')
             return self._change_schedule(c, kind, action, item_id, values)
@@ -77,24 +81,7 @@ class ScheduleMixin:
                 raise ValidationError('完了状態を確認してください。')
             c.execute('UPDATE todos SET completed_at=?,updated_at=? WHERE id=?', (timestamp if values['completed'] else None,timestamp,item_id))
         else:
-            merged = dict(old) if old else dict.fromkeys(allowed)
-            merged.update(values)
-            title_field, date_field, time_field = ('title','start_date','start_time') if kind == 'event' else ('label','due_date','due_time')
-            if not isinstance(merged[title_field],str) or not merged[title_field].strip():
-                raise ValidationError('件名を入力してください。')
-            day(merged[date_field]); clock(merged[time_field])
-            if merged['notes'] is not None and not isinstance(merged['notes'],str):
-                raise ValidationError('メモを確認してください。')
-            if kind == 'event':
-                finish = day(merged['end_date']) if merged['end_date'] else merged['start_date']
-                clock(merged['end_time'])
-                if merged['end_time'] and not merged['end_date']:
-                    merged['end_date'] = finish
-                if finish < merged['start_date'] or (merged['end_time'] and not merged['start_time']) or (finish == merged['start_date'] and merged['end_time'] and merged['end_time'] < merged['start_time']):
-                    raise ValidationError('終了は開始以降にしてください。終了時刻には開始時刻が必要です。')
-                trip_id = merged['trip_id']
-                if trip_id is not None and (not isinstance(trip_id,str) or c.execute('SELECT 1 FROM trips WHERE id=?',(trip_id,)).fetchone() is None):
-                    raise ValidationError('関連する旅程を確認してください。')
+            merged = self._validate_schedule_values(c, kind, values, dict(old) if old else None)
             fields = sorted(allowed)
             if old:
                 c.execute(f'UPDATE {table} SET '+','.join(f'{f}=?' for f in fields)+',updated_at=? WHERE id=?', [merged[f] for f in fields]+[timestamp,item_id])
@@ -105,3 +92,27 @@ class ScheduleMixin:
                 c.execute(f'INSERT INTO {table} ('+','.join(fields)+') VALUES ('+','.join('?' for _ in fields)+')',[merged[f] for f in fields])
         result = dict(c.execute(f'SELECT * FROM {table} WHERE id=?',(item_id,)).fetchone())
         return result
+
+    def _validate_schedule_values(self, c, kind, values, old=None):
+        allowed = {'title','start_date','start_time','end_date','end_time','notes','trip_id'} if kind == 'event' else {'label','due_date','due_time','notes'}
+        if not isinstance(values,dict) or set(values)-allowed:
+            raise ValidationError('invalid_schedule_values')
+        merged = dict(old) if old else dict.fromkeys(allowed)
+        merged.update(values)
+        title_field, date_field, time_field = ('title','start_date','start_time') if kind == 'event' else ('label','due_date','due_time')
+        if not isinstance(merged[title_field],str) or not merged[title_field].strip():
+            raise ValidationError('件名を入力してください。')
+        day(merged[date_field]); clock(merged[time_field])
+        if merged['notes'] is not None and not isinstance(merged['notes'],str):
+            raise ValidationError('メモを確認してください。')
+        if kind == 'event':
+            finish = day(merged['end_date']) if merged['end_date'] else merged['start_date']
+            clock(merged['end_time'])
+            if merged['end_time'] and not merged['end_date']:
+                merged['end_date'] = finish
+            if finish < merged['start_date'] or (merged['end_time'] and not merged['start_time']) or (finish == merged['start_date'] and merged['end_time'] and merged['end_time'] < merged['start_time']):
+                raise ValidationError('終了は開始以降にしてください。終了時刻には開始時刻が必要です。')
+            trip_id = merged['trip_id']
+            if trip_id is not None and (not isinstance(trip_id,str) or c.execute('SELECT 1 FROM trips WHERE id=?',(trip_id,)).fetchone() is None):
+                raise ValidationError('関連する旅程を確認してください。')
+        return {key: merged[key] for key in allowed}

@@ -20,6 +20,7 @@ def main(argv=None):
     sub = p.add_subparsers(dest='action', required=True)
     sub.add_parser('doctor')
     sub.add_parser('trips')
+    series=sub.add_parser('series');series.add_argument('--id')
     trip = sub.add_parser('trip-get');trip.add_argument('--id', required=True)
     sub.add_parser('trip-plan')
     read = sub.add_parser('read');read.add_argument('--start', required=True);read.add_argument('--end', required=True)
@@ -34,9 +35,18 @@ def main(argv=None):
         with sqlite3.connect(args.database.resolve().as_uri()+'?mode=ro', uri=True) as c:
             if c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='schedule_receipts'").fetchone() is None:
                 raise ValueError('receipt_migration_required')
+            if c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='schedule_series'").fetchone() is None:
+                raise ValueError('recurrence_migration_required')
         cal = CalendarDomain(args.database, args.local_root, chat_root=args.local_root/'chat-unused')
         if args.action == 'doctor':
             result = dict(status='ready', protocol='cal-schedule-v1', receipt_storage='CAL SQLite', time_zone='Asia/Tokyo')
+        elif args.action == 'series':
+            if args.id:
+                result=dict(status='ok',series=cal.get_series(args.id))
+            else:
+                with cal._read() as c:
+                    identities=[r[0] for r in c.execute('SELECT id FROM schedule_series')]
+                result=dict(status='ok',series=[cal.get_series(i) for i in identities])
         elif args.action == 'trips':
             result = dict(status='ok', trips=cal.list_trips())
         elif args.action == 'trip-get':
@@ -57,7 +67,10 @@ def main(argv=None):
             raw = base64.b64decode(args.request_base64, validate=True).decode('utf-8') if args.request_base64 else sys.stdin.read()
             request = json.loads(raw)
             try:
-                result = cal.apply_trip_request(request) if isinstance(request,dict) and request.get('kind') == 'trip' else cal.apply_schedule_request(request)
+                if isinstance(request,dict) and 'scope' in request:
+                    result=cal.apply_recurrence_request(request)
+                else:
+                    result = cal.apply_trip_request(request) if isinstance(request,dict) and request.get('kind') == 'trip' else cal.apply_schedule_request(request)
             except Exception:
                 trip_value = request.get('trip') if isinstance(request,dict) else None
                 trip_id = trip_value.get('id') if isinstance(trip_value,dict) else None

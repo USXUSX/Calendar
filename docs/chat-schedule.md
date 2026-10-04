@@ -1,6 +1,6 @@
-# Chatからの通常予定・タスク保存（Frame #177 Phase 3 Step 1 / CAL #203）
+# Chatからの日程保存（Frame #177 Phase 3 Step 1・2）
 
-既存Remote Desktop Commander（RDC）でMacのCAL専用CLIを呼ぶ。CALの既存SQLiteと正式Trip JSONが正本。Frameを開く／再読込することは保存条件ではない。旅程も本書の専用コマンドで正式保存する。定期日程・Google反映は対象外。
+既存Remote Desktop Commander（RDC）でMacのCAL専用CLIを呼ぶ。CALの既存SQLiteと正式Trip JSONが正本。Frameを開く／再読込することは保存条件ではない。旅程も本書の専用コマンドで正式保存する。通常予定・タスクの定期日程も扱う。Google反映は対象外。
 
 ## Chatで使う
 
@@ -19,7 +19,7 @@ ChatでRDCを選択し、対象Mac `usMac-miniM4Pro.local` を選ぶ。次の入
 /usr/bin/python3 -B /Users/us/Tools/Development/Calendar_Dev/scripts/cal_schedule.py lookup --request-id '送信時の要求ID'
 ```
 
-`read`は両端を含む期間の通常予定・日付付きタスク（完了を含む）を返す。`get`は対象の全保存値とrevisionを返す。日付なしの既存Todoは期間readの対象外だがIDによるgetは可能。`doctor`のreadyは接続・receipt表の準備確認であり、保存成功ではない。日時は既存CALと同じローカル日付と24時間表記（通常運用Asia/Tokyo）。日付ISO `yyyy-mm-dd`、時刻`HH:mm`、任意値の解除はnull。
+`read`は両端を含む期間の通常予定・日付付きタスク（完了を含む）を返す。`get`は対象の全保存値とrevisionを返す。日付なしの既存Todoは期間readの対象外だがIDによるgetは可能。`doctor`のreadyは接続・receipt表・定期日程表の準備確認であり、保存成功ではない。日時は既存CALと同じローカル日付と24時間表記（通常運用Asia/Tokyo）。日付ISO `yyyy-mm-dd`、時刻`HH:mm`、任意値の解除はnull。
 
 ### 正式更新
 
@@ -43,7 +43,7 @@ CAL_SCHEDULE_REQUEST
 | 削除 | eventまたはtodo / delete / `{}` |
 | 完了・未完了 | todo / complete / `{"completed":true}` またはfalse |
 
-追加以外では、同じJSONに`id`と`expected_revision`を必ず付ける。両方とも直前のread/get結果を使う。件名や日付をIDの代わりにしない。既存共通処理により空の件名・不正日時・終了が開始より前・未対応field等を拒否する。旅程の更新は受け付けない。
+追加以外では、同じJSONに`id`と`expected_revision`を必ず付ける。両方とも直前のread/get結果を使う。件名や日付をIDの代わりにしない。既存共通処理により空の件名・不正日時・終了が開始より前・未対応field等を拒否する。旅程は後述の専用形式で更新する。
 
 ```json
 {"request_id":"example-replace-with-new-uuid","kind":"todo","action":"complete","id":"取得済みID","expected_revision":"sha256:取得した値","values":{"completed":true}}
@@ -51,7 +51,7 @@ CAL_SCHEDULE_REQUEST
 
 ### 保存確定の判定と応答不明
 
-- exit 0と`status=committed`、かつreceiptの要求ID・対象・操作・内容が一致して初めて保存確定。`receipt_id`、`entity_id`、`revision`（削除後はnull）、`committed_at`を結果として会話へ残す。削除receiptは削除前の内容とprevious_revisionを保持する。
+- exit 0と`status=committed`、かつreceiptの要求ID・対象・操作・内容が一致して初めて保存確定。`receipt_id`、`entity_id`、`revision`（単発削除後はnull、定期は更新後のシリーズrevision）、`committed_at`を結果として会話へ残す。単発の削除receiptは削除前の内容とprevious_revisionを保持する。
 - 例：「CAL保存済み。対象ID …、要求ID …、receipt …、revision …」。保存内容も短く示す。RDCの「Process started」やFrame画面の表示だけで成功扱いにしない。
 - RDCがPIDを返したらread_process_outputで終了・出力を取得する。通信断・出力なし・timeout・`status=unknown`は結果不明。`lookup --request-id`で照合する。
 - lookupがcommittedなら元の確定receipt。`not_found`（exit 4）は現時点で確定receiptが見つからないだけで、未実行の証明ではない。同じ要求ID・同じ内容で再送できる。別IDで再作成しない。
@@ -109,3 +109,47 @@ CALの共通Schema・semantic・Todo参照検証と、既存の`.adoption` stagi
 旅程receiptは保存したcomplete Trip、revision、対応指示、座標補完件数も含む。正式JSON＋SQLite＋`.adoption`は従来どおり同じCAL LocalDataの管理対象で、別DBは作らない。receiptと保存データは非公開扱いでGit/Issueへ転記しない。
 
 通常Chatのcontext/candidate授受、context自動共有、Frame load/reloadのcandidate自動採用は停止した。残存ファイルは削除しない。Frameの手動新規JSON取込、直接編集、Chat指示入力は維持する。旧Envelopeのdomain処理は保守・既存中断復旧用に保持するが、通常のChatから呼ばない。RDC利用には既存Macの稼働・接続が必要。iPhoneでの動作・実通信断の確認範囲はIssueの実測記録を参照する。
+
+## 定期予定・タスク（#207 / Phase 3 Step 2）
+
+条件の登録・変更はChatの専用CLIで行う。Frameに条件フォームは追加しない。旅行の定期化は対象外。通常項目の検証・時刻・メモの扱いは単発と共通。
+
+- `series` はシリーズ一覧、`series --id <series_id>` は条件・期間別テンプレート・単回例外と最新revisionを返す。
+- `read` は指定期間と重なる各回を通常項目形式で返す。`get --kind event|todo --id <回ID>` は各回の現在値を返す。
+- 回IDは `rec:<series UUID>:<元の発生日>`。単回の日付移動後も同じIDで、`occurrence_date`が元の発生日。`series_id`も返す。
+- シリーズと各回は `series:<UUID>:<連番>` のrevisionを共有する。別の回の変更でも連番が進むため、操作前に対象を再取得する。古いシリーズ／回の上書きは拒否する。
+
+`apply` に `scope` を指定する。新規シリーズは `scope=series`、`action=save`、id・expected_revisionなし。以下は形式例（依頼なしに実行しない）。
+
+```json
+{"request_id":"example-replace-with-new-uuid","kind":"todo","action":"save","scope":"series","recurrence":{"frequency":"weekly","start":"2026-10-05","until":null,"weekdays":[1,3]},"values":{"label":"定期タスク","due_date":"2026-10-05","due_time":"09:00","notes":null}}
+```
+
+`recurrence.start` とテンプレートのstart_date／due_dateは一致させる。開始日・終了日は両端を含む。開始日そのものが条件に該当しなければ、最初に該当する日から発生する。
+
+| frequency | 追加項目・動作 |
+| --- | --- |
+| daily | 毎日 |
+| weekly | weekdays: 日曜0〜土曜6の重複しない配列、複数可 |
+| monthly | month_day: 1〜31。存在しない月はスキップ |
+| month_end | 各月の最終日。平年・閏年を反映 |
+
+untilは省略／nullで無期限。休日移動はしない。各回の終了日はテンプレートの開始日からの日数差を維持し、時刻も維持する。無期限でも取得期間に必要な回だけ計算し、全回の事前保存や常駐生成はしない。
+
+変更・削除・完了では回IDと最新expected_revisionを指定する。
+
+| scope / action | 動作 |
+| --- | --- |
+| this / save | 今回だけ変更。valuesに変更fieldのみ。recurrence指定不可 |
+| this / delete | 今回だけ削除。valuesは空 |
+| this / complete | Todoの今回だけ完了／未完了。values.completedにboolean |
+| following / save | 指定回を含む今回以降の条件／テンプレート変更 |
+| following / delete | 指定回を含む今回以降を削除。valuesは空 |
+
+followingの境界は表示日ではなく元の発生日。条件変更時はrecurrence全体を渡し、startは境界以降とする。条件省略なら現在の条件を引き継ぎ、startを境界日にする。テンプレートの日付は新しいstartへ移し、複数日の期間を保持する。valuesで日付を指定する場合も新しいstartと一致させる。
+
+過去の回・例外・完了は維持する。明示済みの単回例外（変更・削除・完了）はfollowingの条件変更後も優先して保持し、消した回を再生成しない。following削除は境界以降の例外も含めて除外する。移動した回も元の発生日で判定する。対象や範囲が曖昧な依頼は、実行前にChatで特定する。
+
+保存とreceiptは既存SQLiteの同一transactionで確定する。返すreceiptにはseries_id、scope、対象回のentity_id／occurrence_date、更新後revision、保存内容（itemまたはseries）を含む。新規seriesのentity_idはシリーズID。削除はdeleted=true。要求ID照合・同一内容再送・異なる内容の拒否・応答不明時のlookupは単発と同じ。Frameの既存編集・削除・完了は常にthisとして共通処理へ渡す。
+
+既存DBはbackup後に `scripts/migrate_recurrence.py <既存DBパス>` を明示実行する。schedule_series（id、kind、revision、data_json）だけを追加し、既存行・schema version 3は維持する。data_jsonは開始日で区切った条件／通常項目テンプレートと元の発生日で索引した単回例外。receipt表は共用し、自動削除しない。通常起動・Chat操作ではmigrationしない。追加サービス・RDC設定変更・別DBは不要。
