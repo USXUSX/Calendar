@@ -78,7 +78,7 @@ class GoogleTest(unittest.TestCase):
         self.cal.change_schedule('todo','complete',item['id'],dict(completed=True));self.assertTrue(next(iter(self.api.events.values()))['summary'].startswith('✓ '))
         self.cal.change_schedule('todo','complete',item['id'],dict(completed=False));self.assertFalse(next(iter(self.api.events.values()))['summary'].startswith('✓'))
     def test_existing_event_timezone_is_preserved(self):
-        self.cal.create_event('zoned',title='synthetic',start_date='2026-10-05',start_time='09:00',end_time='10:00',time_zone='America/New_York')
+        self.cal.create_event('zoned',title='synthetic',start_date='2026-10-05',start_time='09:00',end_date='2026-10-05',end_time='10:00',time_zone='America/New_York')
         body=next(iter(self.api.events.values()))
         self.assertEqual(body['start']['timeZone'],'America/New_York')
         self.assertTrue(body['start']['dateTime'].endswith('-04:00'))
