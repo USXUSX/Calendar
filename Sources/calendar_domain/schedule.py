@@ -22,7 +22,7 @@ def clock(value):
 
 
 class ScheduleMixin:
-    def read_schedule(self, start, end):
+    def read_schedule(self, start, end, include_completed=False):
         day(start); day(end)
         if start > end:
             raise ValidationError('期間を確認してください。')
@@ -33,7 +33,7 @@ class ScheduleMixin:
         with self._read() as c:
             for r in c.execute('SELECT * FROM events WHERE start_date<=? AND COALESCE(end_date,start_date)>=?', (end,start)):
                 items.append(dict(r) | {'kind':'event'})
-            for r in c.execute('SELECT * FROM todos WHERE due_date BETWEEN ? AND ? AND completed_at IS NULL', (start,end)):
+            for r in c.execute('SELECT * FROM todos WHERE due_date BETWEEN ? AND ? AND (? OR completed_at IS NULL)', (start,end,include_completed)):
                 items.append(dict(r) | dict(kind='todo', title=r['label'], start_date=r['due_date'],
                                            end_date=None, start_time=r['due_time'], end_time=None))
         return dict(items=sorted(items, key=lambda x:(x['start_date'],x.get('start_time') or '',x['kind'],x['id'])),
