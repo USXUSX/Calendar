@@ -82,9 +82,11 @@ def event_body(item, key):
         body['description'] = (notes+'\n'+link).strip()
         body['source'] = dict(title='CAL 旅程',url=link)
     if item.get('start_time'):
-        start = datetime.fromisoformat(begin+'T'+item['start_time']).replace(tzinfo=ZONE)
+        zone_name = item.get('time_zone') or 'Asia/Tokyo'
+        zone = ZoneInfo(zone_name)
+        start = datetime.fromisoformat(begin+'T'+item['start_time']).replace(tzinfo=zone)
         if item.get('end_time'):
-            end = datetime.fromisoformat(finish+'T'+item['end_time']).replace(tzinfo=ZONE)
+            end = datetime.fromisoformat(finish+'T'+item['end_time']).replace(tzinfo=zone)
         else:
             end = start + timedelta(minutes=1)
             body['description'] = (body['description']+'\n終了不明（1分の開始マーカー）').strip()
@@ -92,7 +94,7 @@ def event_body(item, key):
         if end == start:
             end = start + timedelta(minutes=1)
             body['description'] = (body['description']+'\n開始マーカー（CALの開始・終了は同時刻）').strip()
-        body.update(start=dict(dateTime=start.isoformat(),timeZone='Asia/Tokyo'),end=dict(dateTime=end.isoformat(),timeZone='Asia/Tokyo'))
+        body.update(start=dict(dateTime=start.isoformat(),timeZone=zone_name),end=dict(dateTime=end.isoformat(),timeZone=zone_name))
     else:
         body.update(start={'date':begin},end={'date':(date.fromisoformat(finish)+timedelta(days=1)).isoformat()})
     return body
@@ -201,7 +203,11 @@ class GoogleCalendarMixin:
             if rows is None:return dict(status='unreflected',reason='migration_required',pending=0)
             desired=self._google_desired(rows)
             pending=sum(self._google_hash(desired.get(k))!=rows.get(k,{}).get('applied_hash') or bool(rows.get(k,{}).get('error')) for k in set(desired)|set(rows))
-            configured=(self.trip_root/'settings/google-token.json').is_file() and (self.trip_root/'settings/google-calendar.json').is_file()
+            try:
+                token=json.loads((self.trip_root/'settings/google-token.json').read_text())
+                config=json.loads((self.trip_root/'settings/google-calendar.json').read_text())
+                configured=bool(token.get('refresh_token') and config.get('calendar_id') and config['calendar_id']!='primary')
+            except (OSError, ValueError):configured=False
             return dict(status='unreflected' if pending or not configured else 'synced',pending=pending,
                         reason='authentication_required' if not configured else next((r['error'] for r in rows.values() if r['error']),None))
         except Exception:

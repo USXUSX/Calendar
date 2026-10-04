@@ -36,7 +36,7 @@ class GoogleTest(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.root=Path(self.tmp.name);self.db=self.root/'cal.sqlite3';initialize(self.db)
         self.cal=CalendarDomain(self.db,self.root);self.api=FakeGoogle();self.serial=0
-        (self.root/'settings').mkdir();(self.root/'settings/google-token.json').write_text('{}');(self.root/'settings/google-calendar.json').write_text('{}')
+        (self.root/'settings').mkdir();(self.root/'settings/google-token.json').write_text('{"refresh_token":"synthetic"}');(self.root/'settings/google-calendar.json').write_text('{"calendar_id":"synthetic-cal"}')
         self.addCleanup(patch.stopall)
         patch('Sources.calendar_domain.google_calendar.today',return_value='2026-10-05').start()
         patch('Sources.calendar_domain.google_calendar.GoogleClient',return_value=self.api).start()
@@ -77,6 +77,12 @@ class GoogleTest(unittest.TestCase):
         a=datetime.fromisoformat(body['start']['dateTime']);b=datetime.fromisoformat(body['end']['dateTime']);self.assertEqual((b-a).seconds,60)
         self.cal.change_schedule('todo','complete',item['id'],dict(completed=True));self.assertTrue(next(iter(self.api.events.values()))['summary'].startswith('✓ '))
         self.cal.change_schedule('todo','complete',item['id'],dict(completed=False));self.assertFalse(next(iter(self.api.events.values()))['summary'].startswith('✓'))
+    def test_existing_event_timezone_is_preserved(self):
+        self.cal.create_event('zoned',title='synthetic',start_date='2026-10-05',start_time='09:00',end_date='2026-10-05',end_time='10:00',time_zone='America/New_York')
+        body=next(iter(self.api.events.values()))
+        self.assertEqual(body['start']['timeZone'],'America/New_York')
+        self.assertTrue(body['start']['dateTime'].endswith('-04:00'))
+
     def test_recurring_rules_exceptions_following(self):
         for r in [dict(frequency='monthly',month_day=31),dict(frequency='month_end'),dict(frequency='yearly',start='2024-02-29'),dict(frequency='weekly',weekdays=[0,3])]:self.series(**r)
         lines=[b['recurrence'][0] for b in self.api.events.values()]
