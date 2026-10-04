@@ -20,6 +20,10 @@ def extend_schedule_receipts(connection):
     connection.execute('CREATE TABLE IF NOT EXISTS schedule_receipts (request_id TEXT PRIMARY KEY, payload_hash TEXT NOT NULL, receipt_json TEXT NOT NULL)')
 
 
+def extend_recurrence(connection):
+    connection.execute("CREATE TABLE IF NOT EXISTS schedule_series (id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('event','todo')), revision INTEGER NOT NULL, data_json TEXT NOT NULL)")
+
+
 def initialize(database_path: Path) -> None:
     if database_path.exists() and database_path.stat().st_size != 0:
         raise FileExistsError(f"refusing to initialize non-empty file: {database_path}")
@@ -32,6 +36,7 @@ def initialize(database_path: Path) -> None:
             raise RuntimeError("schema version verification failed")
         extend_schedule(connection)
         extend_schedule_receipts(connection)
+        extend_recurrence(connection)
         connection.commit()
     except Exception:
         connection.close()

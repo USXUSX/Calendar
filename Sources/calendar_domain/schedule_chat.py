@@ -26,6 +26,10 @@ def table(kind):
 
 class ScheduleChatMixin:
     def get_schedule_item(self, kind, item_id):
+        if isinstance(item_id,str) and item_id.startswith("rec:"):
+            item=self.get_occurrence(item_id)
+            if item["kind"]!=kind:raise ValidationError("kind_mismatch")
+            return dict(kind=kind,item=item,revision=item["revision"])
         name = table(kind)
         with self._read() as c:
             row = c.execute(f'SELECT * FROM {name} WHERE id=?', (item_id,)).fetchone()
