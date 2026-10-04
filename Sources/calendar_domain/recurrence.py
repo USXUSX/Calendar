@@ -13,7 +13,7 @@ def rule(value):
     if not isinstance(value,dict) or set(value)-{'frequency','start','until','weekdays','month_day'}:
         raise ValidationError('invalid_recurrence_rule')
     result=copy.deepcopy(value);frequency=result.get('frequency');day(result.get('start'))
-    if frequency not in ('daily','weekly','monthly','month_end'):
+    if frequency not in ('daily','weekly','monthly','month_end','yearly'):
         raise ValidationError('invalid_recurrence_frequency')
     if result.get('until') is not None:
         day(result['until'])
@@ -33,7 +33,7 @@ def rule(value):
 def matches(segment, anchor):
     r=segment['rule'];d=date.fromisoformat(anchor)
     if anchor<max(segment['from'],r['start']) or anchor>min(segment.get('until') or '9999-12-31',r.get('until') or '9999-12-31'):return False
-    return r['frequency']=='daily' or (r['frequency']=='weekly' and (d.weekday()+1)%7 in r['weekdays']) or (r['frequency']=='monthly' and d.day==r['month_day']) or (r['frequency']=='month_end' and d.day==calendar.monthrange(d.year,d.month)[1])
+    return r['frequency']=='daily' or (r['frequency']=='weekly' and (d.weekday()+1)%7 in r['weekdays']) or (r['frequency']=='monthly' and d.day==r['month_day']) or (r['frequency']=='month_end' and d.day==calendar.monthrange(d.year,d.month)[1]) or (r['frequency']=='yearly' and (d.month,d.day)==(date.fromisoformat(r['start']).month,date.fromisoformat(r['start']).day))
 
 
 def occurrence_id(series_id, anchor):return 'rec:'+series_id+':'+anchor
