@@ -13,7 +13,7 @@ CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb�
 
 ## 予定画面の直接操作
 
-Frame #177 Phase 2の月間・一覧・複数月と通常Event/Todo操作は[期間表示・保存契約](docs/schedule.md)を使う。Eventの任意TripリンクとTodoメモを追加し、既存DBには明示した追加migrationを適用する。Chat/RDC用コマンドとGoogle反映はPhase 3であり未実装。
+Frame #177 Phase 2の月間・一覧・複数月と通常Event/Todo操作は[期間表示・保存契約](docs/schedule.md)を使う。Eventの任意TripリンクとTodoメモを追加し、既存DBには明示した追加migrationを適用する。通常予定・Todoは既存RDCから[正式Chatコマンド](docs/chat-schedule.md)でも保存・結果照合できる。Google反映・定期日程は未実装。
 
 ## 現在地
 

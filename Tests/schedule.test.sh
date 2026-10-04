@@ -2,4 +2,4 @@
 set -eu
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$repo_root"
-python3 -m unittest discover -s Tests -p test_schedule.py
+python3 -m unittest discover -s Tests -p 'test_schedule*.py'

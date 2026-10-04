@@ -10,7 +10,7 @@
 | `/Users/us/マイドライブ/Tools/Calendar_Chat` | CALがcontextを共有し、Chatがcandidateを返す運用授受先 |
 | `/Users/us/マイドライブ/Tools/Calendar_GD` | Gitから一方向同期するコード・仕様の参照コピー |
 
-正式Trip／SQLiteをGitや参照コピーへ入れません。Chatは正式保存先を直接変更せず、運用授受先だけを使います。
+正式Trip／SQLiteをGitや参照コピーへ入れません。ChatはDB・正式JSONを直接編集しません。旅程は既存の運用授受先を使い、通常予定・Todoは[CAL専用CLI](chat-schedule.md)でCAL共通処理へ委譲して正式保存します。
 
 ## 自宅の共通設定
 

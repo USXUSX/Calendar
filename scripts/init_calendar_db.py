@@ -16,6 +16,10 @@ def extend_schedule(connection):
         connection.execute('ALTER TABLE todos ADD COLUMN notes TEXT')
 
 
+def extend_schedule_receipts(connection):
+    connection.execute('CREATE TABLE IF NOT EXISTS schedule_receipts (request_id TEXT PRIMARY KEY, payload_hash TEXT NOT NULL, receipt_json TEXT NOT NULL)')
+
+
 def initialize(database_path: Path) -> None:
     if database_path.exists() and database_path.stat().st_size != 0:
         raise FileExistsError(f"refusing to initialize non-empty file: {database_path}")
@@ -27,6 +31,7 @@ def initialize(database_path: Path) -> None:
         if connection.execute("SELECT version FROM schema_meta").fetchone() != (3,):
             raise RuntimeError("schema version verification failed")
         extend_schedule(connection)
+        extend_schedule_receipts(connection)
         connection.commit()
     except Exception:
         connection.close()
