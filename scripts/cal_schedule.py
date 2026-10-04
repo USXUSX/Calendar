@@ -19,6 +19,9 @@ def main(argv=None):
     p.add_argument('--local-root', type=Path, default=DEFAULT_ROOT, help='synthetic tests only: override the CAL local root')
     sub = p.add_subparsers(dest='action', required=True)
     sub.add_parser('doctor')
+    sub.add_parser('google-status')
+    sub.add_parser('google-retry')
+    sub.add_parser('google-reconcile')
     sub.add_parser('trips')
     series=sub.add_parser('series');series.add_argument('--id')
     trip = sub.add_parser('trip-get');trip.add_argument('--id', required=True)
@@ -38,7 +41,11 @@ def main(argv=None):
             if c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='schedule_series'").fetchone() is None:
                 raise ValueError('recurrence_migration_required')
         cal = CalendarDomain(args.database, args.local_root, chat_root=args.local_root/'chat-unused')
-        if args.action == 'doctor':
+        if args.action == 'google-status':
+            result = cal.google_status()
+        elif args.action in ('google-retry','google-reconcile'):
+            result = cal.sync_google(reconcile=args.action=='google-reconcile')
+        elif args.action == 'doctor':
             result = dict(status='ready', protocol='cal-schedule-v1', receipt_storage='CAL SQLite', time_zone='Asia/Tokyo')
         elif args.action == 'series':
             if args.id:
@@ -85,6 +92,8 @@ def main(argv=None):
                     print(json.dumps(result),flush=True)
                     return 5
                 raise
+        if args.action in ('lookup','doctor'):
+            result['google'] = cal.google_status()
         print(json.dumps(result, ensure_ascii=False, sort_keys=True), flush=True)
         return 0 if result['status'] != 'not_found' else 4
     except ConflictError as e:

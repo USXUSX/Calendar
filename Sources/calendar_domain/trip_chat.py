@@ -1,4 +1,5 @@
 """RDC Trip requests using CAL's validation, adoption journal and SQLite receipts."""
+from .google_calendar import after_save
 import json
 import os
 from datetime import datetime, timezone
@@ -48,6 +49,7 @@ class TripChatMixin:
             if journal.get('kind') == 'rdc' and journal['receipt']['request_id'] == identity:
                 self._recover_rdc_trip(c, path.stem, journal)
 
+    @after_save
     def apply_trip_request(self, request):
         allowed = {'request_id','kind','action','trip','expected_revision','handled_instruction_ids','coordinate_results'}
         if not isinstance(request, dict) or set(request)-allowed or request.get('kind') != 'trip':

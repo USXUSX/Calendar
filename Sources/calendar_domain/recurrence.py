@@ -1,4 +1,5 @@
 """Finite-window recurrence with stable occurrence IDs and explicit exceptions."""
+from .google_calendar import after_save
 import calendar
 import copy
 import json
@@ -166,6 +167,7 @@ class RecurrenceMixin:
         if scope=='following':result['series']=data
         return result
 
+    @after_save
     def apply_recurrence_request(self,request):
         allowed={'request_id','kind','action','scope','id','expected_revision','values','recurrence'}
         if not isinstance(request,dict) or set(request)-allowed or not {'kind','action','scope'}<=set(request):raise ValidationError('invalid_recurrence_request')

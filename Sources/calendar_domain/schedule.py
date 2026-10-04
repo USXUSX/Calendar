@@ -1,4 +1,5 @@
 """Shared ordinary schedule commands and period summaries; no external delivery."""
+from .google_calendar import after_save
 from datetime import date, datetime, timezone
 import hashlib
 import json
@@ -48,6 +49,7 @@ class ScheduleMixin:
         return dict(items=sorted(items, key=lambda x:(x['start_date'],x.get('start_time') or '',x['kind'],x['id'])),
                     trips=[dict(id=t['trip_id'], title=t['title']) for t in trips])
 
+    @after_save
     def change_schedule(self, kind, action, item_id=None, values=None, expected_revision=None, request_id=None):
         if isinstance(item_id,str) and item_id.startswith("rec:"):
             result=self.apply_recurrence_request(dict(request_id=request_id or str(uuid.uuid4()),kind=kind,action=action,scope="this",id=item_id,values=values,expected_revision=expected_revision))

@@ -3,9 +3,11 @@
 
 import argparse
 import sqlite3
+import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(REPO_ROOT))
 SCHEMA_PATH = REPO_ROOT / "Schemas" / "calendar-v3.sql"
 
 
@@ -37,6 +39,8 @@ def initialize(database_path: Path) -> None:
         extend_schedule(connection)
         extend_schedule_receipts(connection)
         extend_recurrence(connection)
+        from Sources.calendar_domain.google_calendar import extend_google
+        extend_google(connection)
         connection.commit()
     except Exception:
         connection.close()
