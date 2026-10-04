@@ -22,7 +22,7 @@ class ChatExchangeMixin:
             raise ValidationError("Chat共有ファイルのsymlinkは使えません。")
         return path
 
-    def _write_chat_context(self, trip_id, effective):
+    def _write_chat_context(self, trip_id, effective, *, publish=False):
         with self._read() as connection:
             version = connection.execute("SELECT version FROM trips WHERE id = ?", (trip_id,)).fetchone()["version"]
             instructions = [dict(row) for row in connection.execute(
@@ -36,6 +36,8 @@ class ChatExchangeMixin:
                  "current_revision": {"trip_version": version, "trip_hash": self._digest(self._trip_path(trip_id).read_bytes())},
                  "effective_revision": {"trip_version": version, "effective_hash": self._digest(self._canonical_json(effective))},
                  "trip": effective, "instructions": instructions}
+        if not publish:
+            return value
         path = self._chat_path(trip_id, "context.json")
         payload = self._canonical_json(value)
         try:
@@ -57,13 +59,13 @@ class ChatExchangeMixin:
             raise ValidationError("CALの状態は保存済みですが、Chat contextを更新できません。共有先を確認して再読込してください。") from error
         return value
 
-    def get_chat_context(self, trip_id):
+    def get_chat_context(self, trip_id, *, publish=False):
         # Serialize publication with CAL writers so an older reader cannot replace
         # a newer context or combine an old effective Trip with a new version.
         with self._command() as connection:
             connection.execute("BEGIN IMMEDIATE")
             effective = self.get_effective_trip(trip_id)
-            return self._write_chat_context(trip_id, effective)
+            return self._write_chat_context(trip_id, effective, publish=publish)
 
     def add_chat_instruction(self, instruction_id, trip_id, instruction):
         # Chat instructions do not enqueue an API/AFM worker.

@@ -19,6 +19,9 @@ def main(argv=None):
     p.add_argument('--local-root', type=Path, default=DEFAULT_ROOT, help='synthetic tests only: override the CAL local root')
     sub = p.add_subparsers(dest='action', required=True)
     sub.add_parser('doctor')
+    sub.add_parser('trips')
+    trip = sub.add_parser('trip-get');trip.add_argument('--id', required=True)
+    sub.add_parser('trip-plan')
     read = sub.add_parser('read');read.add_argument('--start', required=True);read.add_argument('--end', required=True)
     get = sub.add_parser('get');get.add_argument('--kind', choices=['event','todo'], required=True);get.add_argument('--id', required=True)
     lookup = sub.add_parser('lookup');lookup.add_argument('--request-id', required=True)
@@ -34,15 +37,41 @@ def main(argv=None):
         cal = CalendarDomain(args.database, args.local_root, chat_root=args.local_root/'chat-unused')
         if args.action == 'doctor':
             result = dict(status='ready', protocol='cal-schedule-v1', receipt_storage='CAL SQLite', time_zone='Asia/Tokyo')
+        elif args.action == 'trips':
+            result = dict(status='ok', trips=cal.list_trips())
+        elif args.action == 'trip-get':
+            result = dict(status='ok', **cal.get_trip_command_context(args.id))
+        elif args.action == 'trip-plan':
+            value = json.load(sys.stdin)
+            if not isinstance(value,dict) or not isinstance(value.get('trip'),dict):
+                raise ValueError('trip_required')
+            cal._validated_candidate(value['trip'].get('id'),value['trip'])
+            result = dict(status='ok', location_plan=cal.prepare_import_locations(value['trip'], existing_trip_id=value.get('existing_trip_id')))
         elif args.action == 'read':
             result = dict(status='ok', **cal.read_schedule(args.start,args.end,include_completed=True,include_trips=False))
         elif args.action == 'get':
             result = dict(status='ok', **cal.get_schedule_item(args.kind,args.id))
         elif args.action == 'lookup':
-            result = cal.lookup_schedule_request(args.request_id)
+            result = cal.lookup_chat_request(args.request_id)
         else:
             raw = base64.b64decode(args.request_base64, validate=True).decode('utf-8') if args.request_base64 else sys.stdin.read()
-            result = cal.apply_schedule_request(json.loads(raw))
+            request = json.loads(raw)
+            try:
+                result = cal.apply_trip_request(request) if isinstance(request,dict) and request.get('kind') == 'trip' else cal.apply_schedule_request(request)
+            except Exception:
+                trip_value = request.get('trip') if isinstance(request,dict) else None
+                trip_id = trip_value.get('id') if isinstance(trip_value,dict) else None
+                pending = False
+                if isinstance(trip_id,str):
+                    try:
+                        pending = cal._journal_path(trip_id).exists()
+                    except DomainError:
+                        pass
+                if isinstance(request,dict) and request.get('kind') == 'trip' and pending:
+                    result = dict(status='unknown', reason='pending_trip_adoption',request_id=request.get('request_id'))
+                    print(json.dumps(result),flush=True)
+                    return 5
+                raise
         print(json.dumps(result, ensure_ascii=False, sort_keys=True), flush=True)
         return 0 if result['status'] != 'not_found' else 4
     except ConflictError as e:

@@ -7,10 +7,10 @@
 | 保存先 | 内容・所有者 |
 | --- | --- |
 | `/Users/us/Tools/LocalData/Calendar_Local` | 正式Trip JSON・SQLite。CALだけが更新する |
-| `/Users/us/マイドライブ/Tools/Calendar_Chat` | CALがcontextを共有し、Chatがcandidateを返す運用授受先 |
+| `/Users/us/マイドライブ/Tools/Calendar_Chat` | 保持する旧授受ファイルと手動新規JSON取込候補 |
 | `/Users/us/マイドライブ/Tools/Calendar_GD` | Gitから一方向同期するコード・仕様の参照コピー |
 
-正式Trip／SQLiteをGitや参照コピーへ入れません。ChatはDB・正式JSONを直接編集しません。旅程は既存の運用授受先を使い、通常予定・Todoは[CAL専用CLI](chat-schedule.md)でCAL共通処理へ委譲して正式保存します。
+正式Trip／SQLiteをGitや参照コピーへ入れません。ChatはDB・正式JSONを直接編集しません。旅程・通常予定・Todoは[CAL専用CLI](chat-schedule.md)でCAL共通処理へ委譲して正式保存します。
 
 ## 自宅の共通設定
 
@@ -18,18 +18,16 @@
 
 ## 新規Tripと通常操作
 
-1. Chatに現行Schemaと生成ガイドを渡し、complete Trip JSONを作成する。
-2. 生成ガイドの手順で`Calendar_Chat/<trip-id>/candidate.json`へ受け渡す。
-3. Frameの`/calendar/import`で読み込み、CALのValidation結果と旅程内容を確認して登録する。不正ならChatで修正して再確認する。
+1. Chatは現行Schemaと生成ガイドを読み、complete Tripを生成または専用CLIで取得する。
+2. [CAL専用CLI](chat-schedule.md)から検証・正式保存し、receiptで確定を確認する。
+3. 手動新規JSON取込が必要な場合は、保持する`/calendar/import`で確認して登録できる。
 4. `/calendar/trips`の一覧から旅程を開く。編集ONで予定・日別情報を編集し、「変更を保存」で反映する。予定追加・削除・並び替え、候補の正式採用／選択解除も通常画面で行う。
 
 取込後の編集は微修正に限定しません。意味更新と保存はCALへ委譲し、Frameは正式JSONやSQLiteを直接操作しません。
 
 ## 既存TripのChat往復
 
-CALが最新旅程と未処理指示を`context.json`へ共有します。Chatはこのcontextから既存Trip用Envelopeの`candidate.json`を作成します。新規登録用のcomplete JSON単体を既存Trip用Envelopeの代わりに置きません。
-
-通常load/reloadは読み取り専用ではありません。CALがcandidateを検証し、有効なら正式採用します。invalid/staleなら正式旅程を保ち、修正または最新contextからの再生成を案内します。指示・revision・採用条件は[継続Chat往復](trip-json-generation.md#継続するchat往復112)を参照してください。
+既存RDC＋専用CLIのtrip-get → apply → receipt/lookupを使います。通常load/reloadはcandidateを採用せず、contextも自動共有しません。残存ファイルは保持し、指示はCLI取得結果に含めます。詳細は[正式Chatコマンド](chat-schedule.md)を参照してください。
 
 Place補完は対象施設と保存値を確認して採用します。取得できない値は未補完のまま扱います。天気は予報期間内の座標・対象日に対応する一時情報です。契約は[Place取得・採用](place-acquisition.md)と[表示・更新契約](trip-detail-model.md)を参照してください。
 

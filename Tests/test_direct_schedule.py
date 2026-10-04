@@ -43,7 +43,7 @@ class DirectScheduleTests(unittest.TestCase):
         self.assertEqual([e['source_item_id'] for e in self.domain.get_trip_detail_view(self.tid)['days'][0]['entries']],ids)
         self.change('delete',source_item_id=item['id'])
         self.assertNotIn(item['id'], [i['id'] for i in self.domain.get_effective_trip(self.tid)['days'][0]['scheduleItems']])
-        context = self.domain.get_chat_context(self.tid)
+        context = self.domain.get_chat_context(self.tid, publish=True)
         candidate = dict(trip_id=self.tid,base_revision=context['effective_revision'],handled_instruction_ids=[],trip=context['trip'])
         candidate['trip']['title']='Chat反映'
         path = self.root/'chat'/self.tid/'candidate.json';path.write_text(json.dumps(candidate))
@@ -71,7 +71,7 @@ class DirectScheduleTests(unittest.TestCase):
         current=self.domain.get_effective_trip(self.tid)
         self.assertNotIn(transport['id'],[t['id'] for t in current['transports']])
         self.assertTrue(all(transport['id'] not in d['transportIds'] for d in current['days']))
-        ctx=self.domain.get_chat_context(self.tid)
+        ctx=self.domain.get_chat_context(self.tid, publish=True)
         candidate=dict(trip_id=self.tid,base_revision=ctx['effective_revision'],handled_instruction_ids=[],trip=ctx['trip'])
         place=copy.deepcopy(candidate['trip']['places'][0]);place.update(id='chat-candidate-place',address=None,location=None,urls=[])
         candidate['trip']['places'].append(place)

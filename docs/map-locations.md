@@ -4,13 +4,13 @@ Goal 2 Phase 2（Calendar #167 / Frame #114）。追加修正は [#167 の追加
 
 ## 取り込み
 
-Frameの新規complete JSON登録と、既存TripのChat candidate自動採用で補完する。CALの`prepare_import_locations`が現行地図対象から検索planを生成し、Frameは既存ブラウザ用Maps SDKのPlaces API (New) Text Searchを使う。名称＋住所、住所なしなら名称＋その日の旅行エリア、両方なしなら名称を、一度だけ検索する。ただし名称が「自宅」の地点は旅行エリアを使わず、住所があれば住所だけで検索する。住所なしは`skip_search=true`として検索せず、未登録のまま保持する（返却された検索結果も採用しない）。保存済み座標と地図での手動設定は従来どおり使える。この規則は地点入力と地図編集にも適用する。これは検索文字列の選択順であり、結果なしで条件を変えて再検索するものではない。
+Frameの手動新規complete JSON登録と、RDC専用コマンドの旅程登録・変更で補完する。CALの`prepare_import_locations`が現行地図対象から検索planを生成し、Frameは既存ブラウザ用Maps SDKのPlaces API (New) Text Searchを使う。名称＋住所、住所なしなら名称＋その日の旅行エリア、両方なしなら名称を、一度だけ検索する。ただし名称が「自宅」の地点は旅行エリアを使わず、住所があれば住所だけで検索する。住所なしは`skip_search=true`として検索せず、未登録のまま保持する（返却された検索結果も採用しない）。保存済み座標と地図での手動設定は従来どおり使える。この規則は地点入力と地図編集にも適用する。これは検索文字列の選択順であり、結果なしで条件を変えて再検索するものではない。
 
 検索対象は実際のPlace座標がない地図表示対象とDay.areas。エリアは自身の名称を使う。既存座標は検索・上書きしない。既存Tripは同じ安定Place IDのeffective座標（Direct Overrideを含む）を入力JSONより優先する。名称＋住所が完全一致する別IDは同一点として一度検索し、同じ座標と施設IDを未登録IDへ保存する。Day.areasは同じDay ID・名称の保存済み位置を保持する。あいまいな名称一致やTrip間のグローバルPlace統合はしない。
 
 Frameは先頭結果の緯度経度とGoogle Place IDを地点ID別`coordinate_results`で返す。結果は`{location:{latitude,longitude},googlePlaceId}`。正式PlaceおよびDay.areasの任意`googlePlaceId`に保存し、既存locationだけのJSONも受け付ける。Google Place IDとCALの安定Place ID、表示先のmapPlaceIdは別の値。取得済み座標へのID後付けを目的とした再検索はしない。CALは対象と不足状態を再計算し、有効な座標だけをcomplete Tripへ反映して従来の採用を行う。対象外の結果は利用しない。検索失敗・結果なし・不正な検索座標は未取得として取り込みを続ける。取り込み応答の`coordinates`は`filled / missing / existing`件数（地図対象の同一地点を重複しない単位と日別エリア）で、Frameは登録後の旅程画面へ簡潔に表示する。
 
-ブラウザの通常load/reloadはreadyなChat candidateを受け取り、座標補完後に既存adopt操作へ渡す。検索中のcandidate変更・revision競合は従来のCAL検証で拒否し、正式旅程を保持する。候補比較・追加の確認画面は置かない。ブラウザ以外の呼出側は同じplan/result契約を使える。検索結果を渡さない呼出では不足座標を未取得として採用する。
+通常load/reloadによるcandidate自動採用は#205で停止した。専用CLIはtrip-planで同じplanを返し、applyでcoordinate_resultsを受け取る。ブラウザのPlaces SDK検索をCLI内で自動実行するものではない。呼出側は取得できた結果を返し、取得不能なら明示的に空の結果を渡す。CALは既存座標・自宅設定を維持して補完し、filled/missing/existingをreceiptへ返す。取得不能を成功扱いせず、必要ならFrameの地図編集で補正する。
 
 ## 地図編集
 
