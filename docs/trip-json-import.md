@@ -1,7 +1,7 @@
 # complete Trip JSONの新規取込
 
 Calendar #110。生成と受渡しは[生成ガイド](trip-json-generation.md)、正式構造はSchemaが正本。
-Frame `/calendar/import` は共有candidateの選択→Validation→内容確認→登録を主要入口とする。
+Frame `/calendar/import` は共有candidateの選択→Validation→内容確認→登録を保持する手動取込入口とする。通常Chatは[専用コマンド](chat-schedule.md)で正式保存する。
 旧日本語Trip全体の補正UIは置き換える。既存の日本語command/APIは互換用に保持し、
 新規主要入口には案内しない。既存Tripへの1予定追加コピペ・条件指定追加は別経路として維持する。
 
@@ -22,7 +22,7 @@ domainの`chat_root`（未指定時は`/Users/us/マイドライブ/Tools/Calend
 
 JSONのID・候補・selection・予約・準備等をそのまま保持し、値を推測・再生成しない。
 previewの編集・AI targetは無効。修正はChatでcandidateを更新して再確認する。
-登録後のCAL編集を微修正に限定しない。既存TripのChat継続編集は[共有Envelope](trip-json-generation.md#継続するchat往復112)で扱い、本commandの新規ID制約を緩めない。
+登録後のCAL編集を微修正に限定しない。既存TripのChat継続編集は[専用コマンド](chat-schedule.md)で扱い、本commandの新規ID制約を緩めない。
 
 採用結果は`trip_id / status=adopted / visibility=owner / version=1`。
 [既存初回採用](chat-paste-import.md#確認と採用)と同じSQLite transactionを使い、SQLite登録済みTripは上書きしない。

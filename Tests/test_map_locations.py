@@ -34,7 +34,7 @@ class MapLocationsTest(TestCase):
         self.domain.save_map_location('move',self.tid,pid,moved,old)
         with self.assertRaises(ConflictError):
             self.domain.save_map_location('stale',self.tid,pid,moved,old)
-        context=self.domain.get_chat_context(self.tid)
+        context=self.domain.get_chat_context(self.tid, publish=True)
         candidate=copy.deepcopy(context['trip'])
         next(p for p in candidate['places'] if p['id']==pid)['location']={'latitude':1,'longitude':2}
         envelope=dict(trip_id=self.tid,base_revision=context['effective_revision'],handled_instruction_ids=[],trip=candidate)

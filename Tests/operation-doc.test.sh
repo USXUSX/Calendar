@@ -15,7 +15,7 @@ for required in \
   '(trip-json-import.md)' \
   '/calendar/import' \
   '/calendar/trips' \
-  '通常load/reloadは読み取り専用ではありません' \
+  '(chat-schedule.md)' \
   '## 保持している旧経路'
 do
   grep -F "$required" "$operation" >/dev/null

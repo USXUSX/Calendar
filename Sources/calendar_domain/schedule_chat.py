@@ -68,6 +68,7 @@ class ScheduleChatMixin:
         # Reuse the CAL schedule implementation, never a second independent write path.
         with self._command() as c:
             c.execute('BEGIN IMMEDIATE')
+            self._recover_request_journal(c, identity)
             prior = c.execute('SELECT payload_hash,receipt_json FROM schedule_receipts WHERE request_id=?', (identity,)).fetchone()
             if prior:
                 if prior['payload_hash'] != digest:

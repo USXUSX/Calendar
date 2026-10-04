@@ -42,6 +42,7 @@ class CalendarDomain(_CalendarDomain):
         """Adopt complete JSON and replace only an unregistered orphan formal file."""
         if confirmed is not True:
             raise ValidationError("JSON取込には内容確認が必要です。")
+        self.recover_trip_adoption(candidate["id"])
         result = self.review_trip_json(candidate)
         if not result["ready"]:
             raise ValidationError("candidate Trip JSON is invalid: " + result["errors"][0])
@@ -65,18 +66,10 @@ class CalendarDomain(_CalendarDomain):
         return save(self, command_id, trip_id, place_id, location, expected_location, google_place_id, expected_name)
 
     def load_trip_detail_view(self, trip_id):
-        """Ordinary screen load: validate/adopt the latest Chat candidate, then display."""
-        review = self.review_chat_candidate(trip_id)
-        status = review["status"]
-        message = review.get("message") or "\n".join(review.get("errors", []))
-        if review["ready"]:
-            try:
-                self.adopt_chat_candidate(trip_id, review["candidate"], confirmed=True)
-                status, message = "adopted", ""
-            except DomainError as error:
-                status, message = "invalid", str(error)
+        """Display committed state; ordinary loads never consume Chat candidates."""
+        self.recover_trip_adoption(trip_id)
         result = self.get_trip_detail_view(trip_id)
-        result["chat"] = {"status": status, "message": message if status in {"invalid", "stale"} else ""}
+        result['chat'] = dict(status='command', message='')
         return result
 
     def get_trip_detail_view(self, trip_id, *, candidate_judgments=None, weather_by_day=None):

@@ -122,7 +122,7 @@ areasがある日はその配列を表示・天気地点の正本とする。旧
 予報値を正式Trip JSON・SQLite・Chat contextへ保存せず、終了済みTripでは取得しない。
 
 新規Trip作成はbaseを持たないため、完全Trip JSONのcomplete candidate Validationから
-初回採用する独立経路とする。既存Tripの大きな変更もChat candidateをCALが通常load / reload時に検証・自動採用する。
+初回採用する独立経路とする。既存TripのChat変更は[専用コマンド](chat-schedule.md)で検証・正式保存する。通常load/reloadのcandidate自動採用は停止した。
 Day・順序・Place・Transportのstable IDと保存座標はmap-readinessを満たす。
 地図providerやroute生成はGoal 2で決め、地図用の別正本は作らない。
 

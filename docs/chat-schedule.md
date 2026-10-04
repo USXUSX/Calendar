@@ -1,6 +1,6 @@
 # Chatからの通常予定・タスク保存（Frame #177 Phase 3 Step 1 / CAL #203）
 
-既存Remote Desktop Commander（RDC）でMacのCAL専用CLIを呼ぶ。CALの既存SQLiteが唯一の正本。Frameを開く／再読込することは保存条件ではない。旅程のcontext/candidate・正式Trip JSONの経路は変更しない。定期日程・Google反映はこのコマンドの対象外。
+既存Remote Desktop Commander（RDC）でMacのCAL専用CLIを呼ぶ。CALの既存SQLiteと正式Trip JSONが正本。Frameを開く／再読込することは保存条件ではない。旅程も本書の専用コマンドで正式保存する。定期日程・Google反映は対象外。
 
 ## Chatで使う
 
@@ -78,3 +78,34 @@ receiptは既存CAL DBの`schedule_receipts`に保持し、自動削除しない
 ```
 
 通常のChatからmigrationやinitを実行しない。導入後はdoctorでreadyを確認する。切戻し時はCLI利用を止め、receipt表を削除せず保持する。追加の常駐・RDC設定変更・認証変更は不要。
+
+## 旅程の正式更新（#205）
+
+同じCLI・同じlookup・同じCAL SQLite receipt表を使う。予定/Todoと旅程のJSON形式は別で、全旅程削除は提供しない。
+
+- `trips`：登録済み旅程の一覧。対象IDを特定する。
+- `trip-get --id <Trip ID>`：effective complete Trip、未処理instructions、revisionを取得する。Direct Overrideと固定自宅を含む。revisionはtrip_version/effective_hash/instructions_hashの組で、指示の追加・変更も競合判定に含める。
+- `trip-plan`：標準入力の `{"trip":<complete Trip>,"existing_trip_id":<更新対象ID>}` から既存の地図補完planを取得する。新規時はexisting_trip_idを省略する。Schemaを確認してから不足地点を調べ、実際に取得できたlocation/Google Place IDだけを次のcoordinate_resultsへ渡す。
+- `apply`：下記の旅程要求を標準入力（またはrequest-base64）で渡す。
+
+```json
+{
+  "request_id": "example-replace-with-new-uuid",
+  "kind": "trip",
+  "action": "save",
+  "expected_revision": {"trip_version": 1, "effective_hash": "取得値", "instructions_hash": "取得値"},
+  "handled_instruction_ids": [],
+  "coordinate_results": {},
+  "trip": {}
+}
+```
+
+これは形状例であり空tripは無効。新規登録はaction=create、expected_revision省略、handled_instruction_idsは空。更新はaction=saveと最新trip-getのrevisionを指定する。getのtripを出発点に意図した変更だけを適用し、既存ID・予約・選択済み地点・変更対象外の値を保持する。対応した指示IDだけを列挙する。新規createは既存ID・未登録の同名正式ファイルを上書きしない。
+
+座標補完は既存CALのplan/result契約を再利用する。既存座標・手動補正・固定自宅設定を保持し、同一点をまとめて補完する。CLIはブラウザのPlaces SDKを自動起動せず、新しいAPI認証も追加しない。coordinate_resultsは必須で、取得不能なら空の`{}`を明示する。未取得のまま保存できる従来契約を維持し、receiptのcoordinates（filled/missing/existing）と未取得の有無を報告する。必要な位置補正は既存Frame地図編集で行える。座標を推測して埋めない。
+
+CALの共通Schema・semantic・Todo参照検証と、既存の`.adoption` staging/journal・SQLite transactionを使う。正式JSON置換前の中断は未採用へ、置換後はSQLiteのversion・指示・Overrideとreceiptを確定させて収束する。lookupは該当要求の未完journalを回復してからreceiptを返す。反映後の応答喪失でも元receiptを取得できる。復旧不能な不一致は確定済みと返さず、journalや正式ファイルを手編集しない。
+
+旅程receiptは保存したcomplete Trip、revision、対応指示、座標補完件数も含む。正式JSON＋SQLite＋`.adoption`は従来どおり同じCAL LocalDataの管理対象で、別DBは作らない。receiptと保存データは非公開扱いでGit/Issueへ転記しない。
+
+通常Chatのcontext/candidate授受、context自動共有、Frame load/reloadのcandidate自動採用は停止した。残存ファイルは削除しない。Frameの手動新規JSON取込、直接編集、Chat指示入力は維持する。旧Envelopeのdomain処理は保守・既存中断復旧用に保持するが、通常のChatから呼ばない。RDC利用には既存Macの稼働・接続が必要。iPhoneでの動作・実通信断の確認範囲はIssueの実測記録を参照する。

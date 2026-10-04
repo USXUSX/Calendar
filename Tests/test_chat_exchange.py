@@ -25,7 +25,7 @@ class ChatExchangeTests(unittest.TestCase):
         self.file = self.directory / 'candidate.json'
 
     def context(self):
-        return json.loads((self.directory / 'context.json').read_text())
+        return self.domain.get_chat_context(self.id, publish=True)
 
     def candidate(self):
         context = self.context()
@@ -35,28 +35,14 @@ class ChatExchangeTests(unittest.TestCase):
         self.file.write_text(json.dumps(value))
         return value
 
-    def test_normal_load_auto_adopts_and_invalid_keeps_formal_trip(self):
-        self.domain.add_chat_instruction('auto', self.id, '変更してほしい')
+    def test_normal_load_preserves_legacy_candidate(self):
         candidate = self.candidate()
+        before = self.domain._trip_path(self.id).read_bytes()
         loaded = self.domain.load_trip_detail_view(self.id)
-        self.assertEqual(loaded['title'], candidate['trip']['title'])
-        self.assertEqual(loaded['chat']['status'], 'adopted')
-        self.assertEqual(loaded['instructions'], [])
-        self.assertFalse(self.file.exists())
-        formal = self.domain._trip_path(self.id).read_bytes()
-        version = self.context()['current_revision']
-        self.file.write_text(json.dumps(candidate))
-        self.assertEqual(self.domain.load_trip_detail_view(self.id)['chat']['status'], 'stale')
-        for invalid in ('{', json.dumps({'trip_id': self.id})):
-            self.file.write_text(invalid)
-            self.assertEqual(self.domain.load_trip_detail_view(self.id)['chat']['status'], 'invalid')
-            self.assertEqual(self.domain._trip_path(self.id).read_bytes(), formal)
-            self.assertEqual(self.context()['current_revision'], version)
-        candidate = self.candidate()
-        candidate['trip']['days'][0]['scheduleItems'][0]['placeSelection']['selection'] = ['missing-place']
-        self.file.write_text(json.dumps(candidate))
-        self.assertEqual(self.domain.load_trip_detail_view(self.id)['chat']['status'], 'invalid')
-        self.assertEqual(self.domain._trip_path(self.id).read_bytes(), formal)
+        self.assertEqual(loaded['title'], self.trip['title'])
+        self.assertEqual(loaded['chat']['status'], 'command')
+        self.assertEqual(json.loads(self.file.read_text()),candidate)
+        self.assertEqual(self.domain._trip_path(self.id).read_bytes(),before)
 
     def test_default_and_explicit_shared_root(self):
         default = CalendarDomain(self.db, self.root / 'data')

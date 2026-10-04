@@ -18,6 +18,7 @@ from scripts.validate_trip import DEFAULT_SCHEMA, semantic_errors, validate_valu
 
 from .schedule import ScheduleMixin
 from .schedule_chat import ScheduleChatMixin
+from .trip_chat import TripChatMixin
 from .errors import ConflictError, GenerationWriteError, NotFoundError, ValidationError
 from .models import UnifiedEvent
 from .trip_lifecycle import is_trip_completed
@@ -53,7 +54,7 @@ def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-class CalendarDomain(ScheduleChatMixin, ScheduleMixin, ChatExchangeMixin):
+class CalendarDomain(TripChatMixin, ScheduleChatMixin, ScheduleMixin, ChatExchangeMixin):
     """Semantic CAL interface; formal storage paths are explicit, Chat root is separate."""
 
     def __init__(self, db_path: str | Path, trip_root: str | Path, *, chat_root: str | Path | None = None):
@@ -512,6 +513,8 @@ class CalendarDomain(ScheduleChatMixin, ScheduleMixin, ChatExchangeMixin):
                 return None
             try:
                 journal = json.loads(journal_path.read_text(encoding="utf-8"))
+                if journal.get("kind") == "rdc":
+                    return self._recover_rdc_trip(connection, trip_id, journal)
                 legacy_required = {
                     "version", "trip_id", "request_id", "instruction_id",
                     "old_version", "old_hash", "candidate_hash",

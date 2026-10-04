@@ -45,13 +45,13 @@ class HomeSettingsTest(TestCase):
         self.domain.import_trip_json(other, confirmed=True)
         before = self.domain._trip_path(trip['id']).read_bytes()
         self.domain.save_map_location('old-pin', trip['id'], pid, {'latitude':1,'longitude':2}, None)
-        old_revision = self.domain.get_chat_context(trip['id'])['effective_revision']
+        old_revision = self.domain.get_chat_context(trip['id'], publish=True)['effective_revision']
         path = self.configure()
         for tid in [trip['id'], other['id']]:
             home = next(p for p in self.domain.get_chat_context(tid)['trip']['places'] if p['id'] == pid)
             self.assertEqual({k:home[k] for k in self.home}, self.home)
         self.assertEqual(self.domain._trip_path(trip['id']).read_bytes(), before)
-        self.assertNotEqual(old_revision, self.domain.get_chat_context(trip['id'])['effective_revision'])
+        self.assertNotEqual(old_revision, self.domain.get_chat_context(trip['id'], publish=True)['effective_revision'])
         updated = dict(self.home, location={'latitude':36,'longitude':140})
         path.write_text(json.dumps(updated))
         self.assertEqual(self.domain.get_map_location(trip['id'], pid)['location'], updated['location'])
@@ -62,7 +62,7 @@ class HomeSettingsTest(TestCase):
         self.configure()
         trip, pid = self.home_candidate()
         self.domain.import_trip_json(trip, confirmed=True)
-        context = self.domain.get_chat_context(trip['id'])
+        context = self.domain.get_chat_context(trip['id'], publish=True)
         candidate = copy.deepcopy(context['trip'])
         next(p for p in candidate['places'] if p['id'] == pid).update(address='別住所', location={'latitude':1,'longitude':2}, googlePlaceId='wrong')
         envelope = dict(trip_id=trip['id'], base_revision=context['effective_revision'], handled_instruction_ids=[], trip=candidate)
