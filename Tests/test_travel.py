@@ -122,3 +122,6 @@ class TravelTest(unittest.TestCase):
             self.cal.change_schedule('event','save',item['id'],dict(google_calendar_id=None,google_event_id=None))
             self.assertEqual(len(api.events),2)
             self.assertEqual(api.events['external'],{'summary':'保持'})
+            projection=next(k for k in api.events if k!='external');before=copy.deepcopy(api.events);api.calls.clear()
+            self.cal.change_schedule('event','save',item['id'],dict(google_calendar_id='synthetic-cal',google_event_id=projection))
+            self.assertEqual(api.events,before);self.assertEqual(api.calls,[])
