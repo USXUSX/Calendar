@@ -18,7 +18,7 @@ class HomeSettingsTest(TestCase):
 
     def home_candidate(self):
         trip = copy.deepcopy(self.candidate)
-        pid = prepare(trip)[1][0]['place_id']
+        pid = prepare(trip)[1][1]['place_id']
         next(p for p in trip['places'] if p['id'] == pid).update(name='自宅', address=None, location=None, googlePlaceId='wrong')
         return trip, pid
 

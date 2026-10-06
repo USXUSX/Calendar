@@ -58,8 +58,9 @@ def build_map_stops(days, trip):
             if day is days[-1] and end and entry['order'] > end['order']: continue
             if entry['source_type'] == 'transport':
                 for p in entry['map_points']:
-                    if entry is start and p['role'] == 'departure': continue
-                    if entry is end and p['role'] == 'arrival': continue
+                    if entry is start and entry['transport_mode'] == 'flight' and p['role'] == 'departure': continue
+                    if entry is end and entry['transport_mode'] == 'flight' and p['role'] == 'arrival': continue
+                    if (entry is start or entry is end) and entry['transport_mode'] in ('train', 'shinkansen') and places[p['place_id']]['name'].strip() == '自宅': continue
                     pid = canonical[p['place_id']]
                     add('place:'+pid, places[pid]['name'], [pid], False, entry, p['role'])
             else:

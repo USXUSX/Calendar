@@ -19,7 +19,8 @@ class MapLocationsTest(TestCase):
         point = next(x for x in plan if x['place_id'] == p['id'])
         self.assertEqual(point['query'], p['name']+' 合成住所')
         self.assertEqual(len({x['place_id'] for x in plan}), len(plan))
-        self.assertLess(len(plan),len(trip['places']))  # home/access-side places excluded
+        # The synthetic rail-only Trip now retains both main rail endpoints.
+        self.assertEqual({x['place_id'] for x in plan}, {p['id'] for p in trip['places']})
         result, counts = complete(trip,{p['id']:{'latitude':43,'longitude':141}, 'not-a-target': {'latitude':0,'longitude':0}})
         self.assertEqual(counts,dict(filled=1,missing=len(plan)-1,existing=0))
         bad, bad_counts=complete(trip,{p['id']:{'latitude':999,'longitude':141}})
@@ -144,7 +145,7 @@ class MapLocationsTest(TestCase):
 
     def test_home_without_address_stays_unlocated_on_import(self):
         trip = copy.deepcopy(self.trip)
-        pid = prepare(trip)[1][0]['place_id']
+        pid = prepare(trip)[1][1]['place_id']
         home = next(p for p in trip['places'] if p['id'] == pid)
         home.update(name='自宅', address=None, location=None)
         home.pop('googlePlaceId', None)

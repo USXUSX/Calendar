@@ -170,3 +170,25 @@ class TripMapTest(unittest.TestCase):
         stop=next(s for s in stops if s['stop_id']=='place:'+place['id'])
         self.assertIsNone(stop['points'][0]['location'])
         self.assertTrue(any(r['entry_key']=='scheduleItem:'+item['id'] for r in stop['references']))
+
+    def test_rail_access_retains_main_boundary_and_hides_home(self):
+        trip = self.trip
+        template = copy.deepcopy(trip['transports'][0])
+        place = copy.deepcopy(trip['places'][0])
+        trip['places'] = [dict(copy.deepcopy(place), id=pid, name=name, address='')
+                          for pid, name in [('home', '自宅'), ('hub', '本体境界駅'), ('away', '旅行先駅')]]
+        trip['transports'] = []
+        for day in trip['days']:
+            day['scheduleItems'] = []; day['transportIds'] = []
+        for day, movements in [(trip['days'][0], [('access-out', 0, 'home', 'hub', 'train'), ('main-out', 1, 'hub', 'away', 'shinkansen')]),
+                               (trip['days'][-1], [('main-in', 0, 'away', 'hub', 'shinkansen'), ('access-in', 1, 'hub', 'home', 'train')])]:
+            for identity, order, origin, destination, mode in movements:
+                trip['transports'].append(dict(copy.deepcopy(template), id=identity, dayId=day['id'], order=order,
+                                              fromPlaceId=origin, toPlaceId=destination, mode=mode))
+                day['transportIds'].append(identity)
+        view = build_trip_detail_view(trip)
+        for index, main in [(0, 'main-out'), (-1, 'main-in')]:
+            stops = view['days'][index]['map_stops']
+            self.assertEqual({p['place_id'] for stop in stops for p in stop['points']}, {'hub', 'away'})
+            hub = next(stop for stop in stops if stop['stop_id'] == 'place:hub')
+            self.assertEqual([r['entry_key'] for r in hub['references']], ['transport:' + main])
