@@ -1,4 +1,5 @@
 """Independent travel management in the existing CAL registry and receipt transaction."""
+import calendar
 import copy
 import json
 import re
@@ -7,7 +8,7 @@ from uuid import uuid4
 from .errors import ValidationError, ConflictError, NotFoundError
 from .google_calendar import after_save
 
-CATEGORIES = ('general','air','rail','ship','car','lodging','food','reservation','medical','finance','anniversary','pet','other')
+CATEGORIES = ('general','air','rail','ship','car','lodging','food','reservation','medical','finance','anniversary','pet','travel','other')
 TRANSPORTS = ('air','rail','ship','car','other')
 
 
@@ -53,7 +54,14 @@ class TravelMixin:
             items=[self._travel_basic(c,row[0]) for row in c.execute('SELECT id FROM trips ORDER BY id')]
         return sorted(items,key=lambda t:(t['start_date'] or '9999-12-31',t['id']))
 
-    def get_travel(self, tid):
+    def get_travel(self, tid, start=None, end=None):
+        from .schedule import day
+        if start is None and end is None:
+            current=date.today(); start=current.replace(day=1).isoformat()
+            end=current.replace(day=calendar.monthrange(current.year,current.month)[1]).isoformat()
+        day(start); day(end)
+        if end < start or (date.fromisoformat(end)-date.fromisoformat(start)).days > 365:
+            raise ValidationError("invalid_related_window")
         with self._read() as c:
             result=self._travel_basic(c,tid)
             items=[]
@@ -63,9 +71,14 @@ class TravelMixin:
                     item=dict(row,kind=kind,revision=schedule_revision(row))
                     if kind=='todo': item.update(title=row['label'],start_date=row['due_date'],start_time=row['due_time'])
                     items.append(item)
-            # Only expand the finite travel period, without inventing dates for undated travel.
-            if result['start_date']:
-                items.extend(i for i in self._read_recurrence(c,result['start_date'],result['end_date'],True) if i.get('trip_id')==tid)
+            series=[]
+            for raw in c.execute('SELECT * FROM schedule_series'):
+                data=json.loads(raw['data_json'])
+                if any(s['values'].get('trip_id')==tid for s in data['segments']) or any(e.get('values',{}).get('trip_id')==tid for e in data['exceptions'].values()):
+                    series.append(self.get_series(raw['id']))
+            items.extend(i for i in self._read_recurrence(c,start,end,True) if i.get('trip_id')==tid)
+        result['related_series']=series
+        result['recurrence_window']=dict(start=start,end=end)
         result['items']=sorted(items,key=lambda i:(i.get('start_date') or '',i.get('start_time') or '',i['id']))
         return result
 

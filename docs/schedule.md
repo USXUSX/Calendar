@@ -25,7 +25,7 @@ python3 scripts/migrate_schedule.py /explicit/path/to/calendar.sqlite3
 
 ## 独立した旅行管理（#221）
 
-`list_travel()`は全旅行を返す。`get_travel(id)`は基本情報と関連Event/Todo（期間内の定期回を含む）を返す。`change_travel(values, item_id=None, expected_revision=None, request_id=None)`は共通receiptで保存する。更新は最新revision必須。
+`list_travel()`は全旅行を返す。`get_travel(id, start=None, end=None)`は基本情報・関連単発Event/Todoと、指定した有限期間の関連定期回を返す。省略時は現在月、最大366日。旅行期間や日付未定に依存しない。`recurrence_window`に実際の期間、`related_series`に関連条件（各segment/exceptionの既存series read）を返すため、期間外や終了済みの関連条件も消えない。各回のID/revisionと編集・完了契約は従来どおり。CLI `travel-get --start YYYY-MM-DD --end YYYY-MM-DD`で期間を指定できる。`change_travel(values, item_id=None, expected_revision=None, request_id=None)`は共通receiptで保存する。更新は最新revision必須。
 
 基本情報はtitle、start_date/end_date、date_status（confirmed / tentative / undecided）、transport（air / rail / ship / car / other）。undecidedは両日付null、tentativeは仮日付あり。readにはtrip_id、dateRange、has_itinerary、itinerary_id、revisionを含む。日付未定は期間グリッドに出さず全旅行一覧に残す。`list_trips()`は旅程接続済みだけを返す。
 
@@ -33,7 +33,7 @@ python3 scripts/migrate_schedule.py /explicit/path/to/calendar.sqlite3
 
 旅行名と期間の表示は管理情報を使う。旅程JSONの日別行動日付は旅行基本情報の変更だけでは移動しない。日付未定でも既存旅程を保持する。Trip専用saveで明示変更された名称・期間は同じCAL基本情報へ反映し、別正本を作らない。保持する旧candidateの明示採用も同じCAL基本情報へ変更を反映し、既存journalで回復する。
 
-Event/Todoに共通category、gmail_url、trip_idを追加する。categoryはgeneral（既定）、air、rail、ship、car、lodging、food、reservation、medical、finance、anniversary、pet、other。iconは保存しない。Chatは入力・メールの意味からcategoryを選び、CALは分類を推測しない。trip_id=nullで解除。Frameはcategoryだけ編集し、旅行関連は保持する。gmail_urlは`https://mail.google.com/mail/u/0/#all/<message-or-thread-id>`等のメール参照URL。本文は保存しない。
+Event/Todoに共通category、gmail_url、trip_idを追加する。categoryはgeneral（既定）、air、rail、ship、car、lodging、food、reservation、medical、finance、anniversary、pet、travel、other。travelは普通の日帰り旅行等の分類であり旅行registry/旅程/関連を自動作成しない。表示順・ラベルは一般→食事→イベント（reservation）→ペット→病院（medical）→記念日→金融→旅行→宿泊→車→航空→鉄道→船→その他。既存コードは変更しない。iconは保存しない。Chatは入力・メールの意味からcategoryを選び、CALは分類を推測しない。trip_id=nullで解除。Frameはcategoryだけ編集し、旅行関連は保持する。gmail_urlは`https://mail.google.com/mail/u/0/#all/<message-or-thread-id>`等のメール参照URL。本文は保存しない。
 
 既存Google予定と同一と確認済みの場合のみ、google_calendar_id / google_event_idの組をgmail_urlと共に渡せる。Google連携の扱いは[所有文書](google-calendar.md)を参照。
 
