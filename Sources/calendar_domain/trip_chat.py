@@ -97,6 +97,8 @@ class TripChatMixin:
                 version = expected['trip_version']
                 old_hash = self._digest(path.read_bytes())
             candidate, _ = self._validated_candidate(trip_id, request['trip'])
+            if action == 'create' and connected:
+                candidate['title']=json.loads(connected['data_json'])['title']
             candidate, counts = complete(candidate,request['coordinate_results'],existing,require_attempts=True)
             candidate, payload = self._validated_candidate(trip_id,candidate)
             timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')

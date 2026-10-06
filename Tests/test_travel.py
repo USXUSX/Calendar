@@ -31,6 +31,7 @@ class TravelTest(unittest.TestCase):
             saved=self.cal.apply_trip_request(request)
             self.assertEqual(self.cal.apply_trip_request(request)['resolution'],'replayed')
         self.assertEqual(len(self.cal.list_travel()),1);self.assertEqual(len(self.cal.list_trips()),1)
+        self.assertEqual(self.cal.get_trip_command_context(tid)['revision'],saved['receipt']['revision'])
         detail=self.cal.get_trip_detail_view(tid,weather_by_day={})
         self.assertEqual(detail['title'],'旅行');self.assertEqual(detail['date_range'],changed['dateRange'])
         self.assertEqual(self.cal.lookup_chat_request('connect')['receipt'],saved['receipt'])

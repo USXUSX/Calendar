@@ -368,6 +368,12 @@ class CalendarDomain(TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChat
             "old_hash": old_digest,
             "candidate_hash": candidate_digest,
         }
+        existing = self.get_effective_trip(trip_id)
+        changes = {}
+        if candidate_value['title'] != existing['title']: changes['title'] = candidate_value['title']
+        if candidate_value['dateRange'] != existing['dateRange']:
+            changes.update(start_date=candidate_value['dateRange']['start'],end_date=candidate_value['dateRange']['end'],date_status='confirmed')
+        journal['travel_changes'] = changes
         if kind == "chat":
             journal["handled_instruction_ids"] = list(instruction_ids)
             journal["envelope_hash"] = self._digest(self._canonical_json(chat_envelope))
@@ -455,6 +461,7 @@ class CalendarDomain(TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChat
                     (timestamp, trip_id, expected_version),
                 ).rowcount != 1:
                     raise ConflictError("Trip version changed during candidate adoption")
+                self._apply_travel_changes(connection,trip_id,journal.get("travel_changes",{}))
                 if kind == "generation_request":
                     if connection.execute(
                         "UPDATE ai_instructions SET state = 'applied', updated_at = ? "
@@ -527,10 +534,12 @@ class CalendarDomain(TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChat
                     "old_version", "old_hash", "candidate_hash",
                 }
                 current_required = legacy_required | {"kind"}
+                journal_keys = set(journal) - {"travel_changes"}
+                if not isinstance(journal.get("travel_changes",{}),dict): raise ValueError
                 if set(journal) == legacy_required and journal.get("version") == 2:
                     kind = "generation_request"
-                elif ((set(journal) == current_required and journal.get("kind") != "chat") or
-                      (set(journal) == current_required | {"handled_instruction_ids", "envelope_hash"} and journal.get("kind") == "chat")) and journal.get("version") == 3:
+                elif ((journal_keys == current_required and journal.get("kind") != "chat") or
+                      (journal_keys == current_required | {"handled_instruction_ids", "envelope_hash"} and journal.get("kind") == "chat")) and journal.get("version") == 3:
                     kind = journal.get("kind")
                 else:
                     raise ValueError
@@ -585,6 +594,7 @@ class CalendarDomain(TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChat
                         "UPDATE trips SET version = ?, updated_at = ? WHERE id = ?",
                         (old_version + 1, timestamp, trip_id),
                     )
+                self._apply_travel_changes(connection,trip_id,journal.get("travel_changes",{}))
                 if kind == "generation_request":
                     connection.execute(
                         "UPDATE ai_instructions SET state = 'applied', updated_at = ? WHERE id = ?",
@@ -814,6 +824,11 @@ class CalendarDomain(TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChat
     @after_save
     def _import_new_trip(self, candidate: dict[str, Any]) -> dict[str, Any]:
         trip_id = candidate["id"]
+        with self._read() as c:
+            connected=self._check_travel_connection(c,candidate)
+            if connected:
+                candidate=copy.deepcopy(candidate)
+                candidate["title"]=json.loads(connected["data_json"])["title"]
         _, payload = self._validated_candidate(trip_id, candidate)
         path = self._trip_path(trip_id)
         path.parent.mkdir(parents=True, exist_ok=True)

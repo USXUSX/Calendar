@@ -45,11 +45,10 @@ class DirectScheduleTests(unittest.TestCase):
         self.assertNotIn(item['id'], [i['id'] for i in self.domain.get_effective_trip(self.tid)['days'][0]['scheduleItems']])
         context = self.domain.get_chat_context(self.tid, publish=True)
         candidate = dict(trip_id=self.tid,base_revision=context['effective_revision'],handled_instruction_ids=[],trip=context['trip'])
-        travel_title=context['trip']['title']
         candidate['trip']['title']='Chat反映'
         path = self.root/'chat'/self.tid/'candidate.json';path.write_text(json.dumps(candidate))
         self.domain.adopt_chat_candidate(self.tid,candidate,confirmed=True)
-        self.assertEqual(self.domain.get_effective_trip(self.tid)['title'],travel_title)
+        self.assertEqual(self.domain.get_effective_trip(self.tid)['title'],'Chat反映')
     def test_paste_candidate_enrichment_does_not_select(self):
         value = self.change('add',text='予定: 未定 | 候補予定\nカテゴリ: 観光\n候補: 候補公園A\n候補: 候補公園B')
         item = value['trip']['days'][0]['scheduleItems'][-1]

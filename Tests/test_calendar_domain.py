@@ -46,7 +46,7 @@ class CalendarDomainTests(unittest.TestCase):
             database_before = list(db.iterdump())
         self.assertEqual(self.domain.list_trips(today=date(2027, 5, 14)), [{
             "trip_id": trip_id, "title": "一覧用の旅程名", "dateRange": orphan["dateRange"],
-            "photo_url": None, "is_completed": False, "first_day_id": orphan["days"][0]["id"],
+            "date_status": "confirmed", "photo_url": None, "is_completed": False, "first_day_id": orphan["days"][0]["id"],
         }])
         self.assertEqual(self.trip_path.read_bytes(), before)
         with sqlite3.connect(self.db_path) as db:

@@ -138,3 +138,9 @@ class TravelMixin:
             data=json.loads(row['data_json']);data.update(changes)
             c.execute('UPDATE travel_basics SET data_json=? WHERE trip_id=?',(json.dumps(data,ensure_ascii=False),tid))
             c.execute('UPDATE trips SET version=version+1 WHERE id=?',(tid,))
+
+    def _apply_travel_changes(self,c,tid,changes):
+        row=self._travel_row(c,tid)
+        if row and changes:
+            data=json.loads(row['data_json']);data.update(changes)
+            c.execute('UPDATE travel_basics SET data_json=? WHERE trip_id=?',(json.dumps(data,ensure_ascii=False),tid))
