@@ -237,14 +237,17 @@ class GoogleCalendarMixin:
             for key in sorted(set(rows)|set(desired)):
                 body=desired.get(key);digest=self._google_hash(body);old=rows.get(key)
                 if old and old['applied_hash']==digest and not old.get('error') and not reconcile:continue
+                new_mapping=old is None
                 if old is None:
                     old=dict(event_id='cal'+uuid4().hex,lower_date=today(),applied_hash=None)
                     with sqlite3.connect(self.db_path) as c:
                         c.execute('INSERT INTO google_events VALUES (?,?,?,?,NULL)',(key,old['event_id'],old['lower_date'],None))
                 event_path=base+'/'+old['event_id']
                 try:
-                    # A Chat-verified Gmail/Google match is referenced, never adopted or mutated.
-                    if body and body.get('_external_reference'):
+                    # Initial references have no CAL projection. Later references must clean
+                    # the persisted CAL mapping, never the externally referenced event.
+                    external=bool(body and body.get('_external_reference'))
+                    if external and new_mapping:
                         with sqlite3.connect(self.db_path) as c:
                             c.execute('UPDATE google_events SET applied_hash=?,error=NULL WHERE cal_key=?',(digest,key))
                         continue
@@ -256,9 +259,9 @@ class GoogleCalendarMixin:
                         owner=remote.get('extendedProperties',{}).get('private',{})
                         expected=hashlib.sha256(key.encode()).hexdigest()
                         if owner.get('calOwner')!='cal-v1' or owner.get('calKey')!=expected:raise GoogleError('ownership_conflict')
-                        if body:client.request('PUT',event_path,dict(body,status='confirmed'))
+                        if body and not external:client.request('PUT',event_path,dict(body,status='confirmed'))
                         else:client.request('DELETE',event_path)
-                    elif body:
+                    elif body and not external:
                         if (remote and remote.get('status')=='cancelled') or old['applied_hash']==self._google_hash(None):
                             old['event_id']='cal'+uuid4().hex
                             with sqlite3.connect(self.db_path) as c:c.execute('UPDATE google_events SET event_id=? WHERE cal_key=?',(old['event_id'],key))

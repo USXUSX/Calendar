@@ -74,3 +74,46 @@ class TravelTest(unittest.TestCase):
         item=self.cal.read_schedule('2027-01-01','2027-01-02',include_trips=False)['items'][0]
         self.assertEqual(item['category'],'general');self.assertIsNone(item['gmail_url'])
         with sqlite3.connect(self.db) as c:self.assertEqual(json.loads(c.execute('SELECT data_json FROM schedule_series').fetchone()[0]),data)
+
+    def test_related_series_survive_undated_and_outside_travel(self):
+        travel=self.create(start_date='2027-01-10',end_date='2027-01-12',date_status='confirmed')
+        receipt=self.cal.apply_recurrence_request(dict(request_id='related',kind='todo',action='save',scope='series',recurrence=dict(frequency='daily',start='2027-01-01',until='2027-01-03'),values=dict(label='準備',due_date='2027-01-01',trip_id=travel['id'],category='travel')))['receipt']
+        before=self.cal.get_series(receipt['entity_id'])
+        detail=self.cal.get_travel(travel['id'],'2027-01-01','2027-01-31')
+        self.assertEqual(len(detail['items']),3)
+        self.cal.change_travel(dict(date_status='undecided',start_date=None,end_date=None),travel['id'],travel['revision'])
+        self.assertEqual(len(self.cal.get_travel(travel['id'],'2027-01-01','2027-01-31')['items']),3)
+        self.assertEqual(len(self.cal.get_travel(travel['id'],'2028-01-01','2028-01-31')['related_series']),1)
+        occurrence=detail['items'][0]
+        self.cal.change_schedule('todo','complete',occurrence['id'],{'completed':True},occurrence['revision'])
+        self.assertTrue(self.cal.get_occurrence(occurrence['id'])['completed_at'])
+        self.assertEqual(self.cal.get_series(receipt['entity_id'])['segments'],before['segments'])
+        with self.assertRaises(ValidationError):self.cal.get_travel(travel['id'],'2027-01-01','2029-01-01')
+
+    def test_later_external_reference_cleanup_ownership_and_response_loss(self):
+        from Sources.calendar_domain.google_calendar import GoogleError
+        api=FakeGoogle();api.events['external']={'summary':'保持'}
+        (self.root/'settings').mkdir();(self.root/'settings/google-token.json').write_text('{"refresh_token":"synthetic"}');(self.root/'settings/google-calendar.json').write_text('{"calendar_id":"synthetic-cal"}')
+        with patch('Sources.calendar_domain.google_calendar.GoogleClient',return_value=api),patch('Sources.calendar_domain.google_calendar.today',return_value='2027-01-01'):
+            item=self.cal.change_schedule('event','save',values=dict(title='旅行予定',start_date='2027-01-01',category='travel'))
+            projection=next(k for k in api.events if k!='external')
+            values=dict(gmail_url='https://mail.google.com/mail/u/0/#all/abc',google_calendar_id='primary',google_event_id='external')
+            api.fail=True
+            self.cal.change_schedule('event','save',item['id'],values)
+            self.assertEqual(self.cal.google_status()['status'],'unreflected')
+            api.fail=False
+            owned=copy.deepcopy(api.events[projection]);api.events[projection]['extendedProperties']={}
+            self.assertEqual(self.cal.sync_google()['status'],'unreflected')
+            self.assertIn(projection,api.events)
+            api.events[projection]=owned;request=api.request
+            def lost_delete(method,path,body=None):
+                result=request(method,path,body)
+                if method=='DELETE':raise GoogleError('communication_failed')
+                return result
+            with patch.object(api,'request',side_effect=lost_delete):self.assertEqual(self.cal.sync_google()['status'],'unreflected')
+            self.assertEqual(self.cal.sync_google()['status'],'synced')
+            self.assertEqual(api.events,{'external':{'summary':'保持'}})
+            self.assertFalse(any(path.endswith('/external') for method,path in api.calls))
+            self.cal.change_schedule('event','save',item['id'],dict(google_calendar_id=None,google_event_id=None))
+            self.assertEqual(len(api.events),2)
+            self.assertEqual(api.events['external'],{'summary':'保持'})

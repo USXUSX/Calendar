@@ -25,7 +25,7 @@ def main(argv=None):
     sub.add_parser('google-reconcile')
     sub.add_parser('trips')
     sub.add_parser('travels')
-    travel = sub.add_parser('travel-get');travel.add_argument('--id', required=True)
+    travel = sub.add_parser('travel-get');travel.add_argument('--id', required=True);travel.add_argument('--start');travel.add_argument('--end')
     series=sub.add_parser('series');series.add_argument('--id')
     trip = sub.add_parser('trip-get');trip.add_argument('--id', required=True)
     sub.add_parser('trip-plan')
@@ -61,7 +61,7 @@ def main(argv=None):
         elif args.action == 'travels':
             result = dict(status='ok', travels=cal.list_travel())
         elif args.action == 'travel-get':
-            result = dict(status='ok', **cal.get_travel(args.id))
+            result = dict(status='ok', **cal.get_travel(args.id,args.start,args.end))
         elif args.action == 'trips':
             result = dict(status='ok', trips=cal.list_trips())
         elif args.action == 'trip-get':
