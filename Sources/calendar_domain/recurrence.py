@@ -133,7 +133,7 @@ class RecurrenceMixin:
         if scope=='this':
             if 'recurrence' in request:raise ValidationError('single_occurrence_has_no_rule')
             existing=data['exceptions'].get(anchor,{})
-            current={key:item.get(key) for key in ({'title','start_date','start_time','end_date','end_time','notes','trip_id'} if kind=='event' else {'label','due_date','due_time','notes'})}
+            current={key:item.get(key) for key in ({'title','start_date','start_time','end_date','end_time','notes','trip_id'} if kind=='event' else {'label','due_date','due_time','notes'}) | {'trip_id','category','gmail_url','google_calendar_id','google_event_id'}}
             if action=='delete':
                 if values:raise ValidationError('delete_has_no_values')
                 data['exceptions'][anchor]=dict(deleted=True)

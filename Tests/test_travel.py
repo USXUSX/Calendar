@@ -87,6 +87,11 @@ class TravelTest(unittest.TestCase):
         occurrence=detail['items'][0]
         self.cal.change_schedule('todo','complete',occurrence['id'],{'completed':True},occurrence['revision'])
         self.assertTrue(self.cal.get_occurrence(occurrence['id'])['completed_at'])
+        self.assertEqual(self.cal.get_occurrence(occurrence['id'])['trip_id'],travel['id'])
+        self.assertEqual(len(self.cal.get_travel(travel['id'],'2027-01-01','2027-01-31')['items']),3)
+        changed=self.cal.get_occurrence(occurrence['id'])
+        self.cal.change_schedule('todo','save',changed['id'],{'notes':'保持'},changed['revision'])
+        self.assertEqual(self.cal.get_occurrence(changed['id'])['category'],'travel')
         self.assertEqual(self.cal.get_series(receipt['entity_id'])['segments'],before['segments'])
         with self.assertRaises(ValidationError):self.cal.get_travel(travel['id'],'2027-01-01','2029-01-01')
 
