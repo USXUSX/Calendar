@@ -27,7 +27,10 @@ class HomeSettingsTest(TestCase):
         trip, pid = self.home_candidate()
         original = copy.deepcopy(trip)
         plan = self.domain.prepare_import_locations(trip)
-        self.assertEqual(next(p for p in plan if p['place_id'] == pid)['location'], self.home['location'])
+        # A home at the rail boundary is hidden, so it needs no map search.
+        self.assertFalse(any(p['place_id'] == pid for p in plan))
+        home = next(p for p in self.domain.review_trip_json(trip)['candidate']['places'] if p['id'] == pid)
+        self.assertEqual(home['location'], self.home['location'])
         review = self.domain.review_trip_json(trip)
         self.assertTrue(review['ready'])
         self.domain.import_trip_json(review['candidate'], confirmed=True, coordinate_results={pid:{'latitude':1,'longitude':2}})
