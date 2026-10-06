@@ -1906,6 +1906,8 @@ class CalendarDomain(TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChat
             for row in ordinary
         ]
         for registry in trips:
+            if not self.has_itinerary(registry["id"]):
+                continue
             trip = self.get_effective_trip(registry["id"])
             places = {place["id"]: place["name"] for place in trip["places"]}
             transports = {item["id"]: item for item in trip["transports"]}

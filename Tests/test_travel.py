@@ -21,6 +21,7 @@ class TravelTest(unittest.TestCase):
         return self.cal.change_travel(dict(title='旅行',**values))['receipt']['item']
     def test_independent_travel_receipt_revision_and_connection(self):
         travel=self.create();tid=travel['id']
+        self.assertEqual(self.cal.list_events('2027-01-01','2027-12-31'),[])
         self.assertFalse(self.cal.list_trips());self.assertEqual(len(self.cal.list_travel()),1)
         self.assertFalse(self.cal.read_schedule('2027-01-01','2027-12-31')['items'])
         changed=self.cal.change_travel(dict(start_date='2027-05-01',end_date='2027-05-03',date_status='tentative',transport='rail'),tid,travel['revision'])['receipt']['item']
