@@ -114,11 +114,11 @@ class GoogleTest(unittest.TestCase):
         self.assertEqual(self.create()['google']['status'],'synced')
     def test_trip_changes_delete_and_following_save(self):
         trip=dict(trip_id='synthetic-trip',title='trip',dateRange={'start':'2026-10-04','end':'2026-10-06'})
-        with patch.object(self.cal,'list_trips',return_value=[trip]):
+        with patch.object(self.cal,'list_travel',return_value=[trip]):
             self.cal.sync_google();identity=next(iter(self.api.events))
             trip['dateRange']['end']='2026-10-08';self.cal.sync_google()
             self.assertEqual(self.api.events[identity]['end'],{'date':'2026-10-09'})
-        with patch.object(self.cal,'list_trips',return_value=[]):self.cal.sync_google()
+        with patch.object(self.cal,'list_travel',return_value=[]):self.cal.sync_google()
         self.assertFalse(self.api.events)
         receipt=self.series();item=self.cal.get_occurrence('rec:'+receipt['series_id']+':2026-10-08')
         self.cal.apply_recurrence_request(dict(request_id='following-save',kind='event',action='save',scope='following',id=item['id'],expected_revision=item['revision'],values={'title':'changed'},recurrence={'frequency':'weekly','start':'2026-10-08','weekdays':[4]}))

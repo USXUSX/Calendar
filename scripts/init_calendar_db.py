@@ -26,6 +26,15 @@ def extend_recurrence(connection):
     connection.execute("CREATE TABLE IF NOT EXISTS schedule_series (id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('event','todo')), revision INTEGER NOT NULL, data_json TEXT NOT NULL)")
 
 
+def extend_travel(connection):
+    connection.execute("CREATE TABLE IF NOT EXISTS travel_basics (trip_id TEXT PRIMARY KEY REFERENCES trips(id), data_json TEXT NOT NULL, has_itinerary INTEGER NOT NULL DEFAULT 0)")
+    for table in ('events', 'todos'):
+        columns = {row[1] for row in connection.execute(f'PRAGMA table_info({table})')}
+        for name, declaration in [('category', "TEXT NOT NULL DEFAULT 'general'"), ('gmail_url', 'TEXT'), ('google_calendar_id','TEXT'), ('google_event_id','TEXT')]:
+            if name not in columns:
+                connection.execute(f'ALTER TABLE {table} ADD COLUMN {name} {declaration}')
+
+
 def initialize(database_path: Path) -> None:
     if database_path.exists() and database_path.stat().st_size != 0:
         raise FileExistsError(f"refusing to initialize non-empty file: {database_path}")
@@ -39,6 +48,7 @@ def initialize(database_path: Path) -> None:
         extend_schedule(connection)
         extend_schedule_receipts(connection)
         extend_recurrence(connection)
+        extend_travel(connection)
         from Sources.calendar_domain.google_calendar import extend_google
         extend_google(connection)
         connection.commit()

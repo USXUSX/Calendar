@@ -24,6 +24,8 @@ def main(argv=None):
     sub.add_parser('google-retry')
     sub.add_parser('google-reconcile')
     sub.add_parser('trips')
+    sub.add_parser('travels')
+    travel = sub.add_parser('travel-get');travel.add_argument('--id', required=True)
     series=sub.add_parser('series');series.add_argument('--id')
     trip = sub.add_parser('trip-get');trip.add_argument('--id', required=True)
     sub.add_parser('trip-plan')
@@ -56,6 +58,10 @@ def main(argv=None):
                 with cal._read() as c:
                     identities=[r[0] for r in c.execute('SELECT id FROM schedule_series')]
                 result=dict(status='ok',series=[cal.get_series(i) for i in identities])
+        elif args.action == 'travels':
+            result = dict(status='ok', travels=cal.list_travel())
+        elif args.action == 'travel-get':
+            result = dict(status='ok', **cal.get_travel(args.id))
         elif args.action == 'trips':
             result = dict(status='ok', trips=cal.list_trips())
         elif args.action == 'trip-get':
@@ -83,7 +89,10 @@ def main(argv=None):
                 if isinstance(request,dict) and 'scope' in request:
                     result=cal.apply_recurrence_request(request)
                 else:
-                    result = cal.apply_trip_request(request) if isinstance(request,dict) and request.get('kind') == 'trip' else cal.apply_schedule_request(request)
+                    if isinstance(request,dict) and request.get('kind') == 'travel':
+                        result = cal.apply_travel_request(request)
+                    else:
+                        result = cal.apply_trip_request(request) if isinstance(request,dict) and request.get('kind') == 'trip' else cal.apply_schedule_request(request)
             except Exception:
                 trip_value = request.get('trip') if isinstance(request,dict) else None
                 trip_id = trip_value.get('id') if isinstance(trip_value,dict) else None

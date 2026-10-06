@@ -177,3 +177,15 @@ followingの境界は表示日ではなく元の発生日。条件変更時はre
 保存とreceiptは既存SQLiteの同一transactionで確定する。返すreceiptにはseries_id、scope、対象回のentity_id／occurrence_date、更新後revision、保存内容（itemまたはseries）を含む。新規seriesのentity_idはシリーズID。削除はdeleted=true。要求ID照合・同一内容再送・異なる内容の拒否・応答不明時のlookupは単発と同じ。Frameの既存編集・削除・完了は常にthisとして共通処理へ渡す。
 
 既存DBはbackup後に `scripts/migrate_recurrence.py <既存DBパス>` を明示実行する。schedule_series（id、kind、revision、data_json）だけを追加し、既存行・schema version 3は維持する。data_jsonは開始日で区切った条件／通常項目テンプレートと元の発生日で索引した単回例外。receipt表は共用し、自動削除しない。通常起動・Chat操作ではmigrationしない。追加サービス・RDC設定変更・別DBは不要。
+
+## 旅行先行管理とGmail起点登録（#221）
+
+`travels` / `travel-get --id <ID>`で全旅行・基本情報・関連項目を取得する。旅程の有無はhas_itinerary、遷移IDはitinerary_id。旅行の先行作成と更新はapplyのkind=travel、action=save、valuesを使う（更新にはid / expected_revision）。要求ID・receipt・lookupは既存契約と共通。基本情報fieldは[日程契約](schedule.md#独立した旅行管理221)を正本とする。
+
+旅程作成前にtravelsを確認し、該当する旅行があればそのIDをcomplete Trip.idに使ってkind=trip / action=createで接続する。該当がなければ旅行管理も同時作成される。複数一致は勝手に選ばない。旅行の基本情報はCALへ保存し、表示期間と旅程内行動日付の変更を区別する。
+
+予約（交通・宿泊・食事・ツアー等）と旅行タスクは通常Event/Todoとして保存し、旅行へtrip_idで関連付ける。単なる現地行動を通常日程へ複製しない。関連付け/解除はこの専用CLIのsaveで行う。
+
+Gmail登録前に元メール参照を取得し、categoryを内容から選ぶ。Google側に同じ予定があるか既存Google接続で確認し、件名だけでは同一と判断せず、対象予約・日付時刻・メール根拠を照合する。同一ならそのcalendar ID / event IDを取得してgoogle_calendar_id / google_event_idの組を指定する。Macのapp.created scopeからprimaryを探索する機能や権限拡張は追加しない。照合できなければ未確認と伝え、重複回避済みと報告しない。
+
+CAL正式保存→旅行関連付け→Google反映の順。旅行が既知なら同じ正式保存にtrip_idを含め、保存commit後のGoogle送信を使う。後から関連付ける場合は最新revisionで追加saveする。CAL receipt、外部予定参照、Google送信結果を区別する。既存スケジュールタスクの指示文変更はこの機能導入とは別に扱う。

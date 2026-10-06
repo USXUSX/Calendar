@@ -57,7 +57,10 @@ def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-class CalendarDomain(GoogleCalendarMixin, RecurrenceMixin, TripChatMixin, ScheduleChatMixin, ScheduleMixin, ChatExchangeMixin):
+from .travel import TravelMixin
+
+
+class CalendarDomain(TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChatMixin, ScheduleChatMixin, ScheduleMixin, ChatExchangeMixin):
     """Semantic CAL interface; formal storage paths are explicit, Chat root is separate."""
 
     def __init__(self, db_path: str | Path, trip_root: str | Path, *, chat_root: str | Path | None = None):
@@ -689,12 +692,15 @@ class CalendarDomain(GoogleCalendarMixin, RecurrenceMixin, TripChatMixin, Schedu
             trip_ids = [row["id"] for row in connection.execute("SELECT id FROM trips ORDER BY id")]
         summaries = []
         for trip_id in trip_ids:
+            if not self.has_itinerary(trip_id):
+                continue
             trip = self.get_effective_trip(trip_id)
-            summaries.append({"trip_id": trip_id, "title": trip["title"], "dateRange": trip["dateRange"],
+            with self._read() as c: basic=self._travel_basic(c,trip_id)
+            summaries.append({"trip_id": trip_id, "title": basic["title"], "dateRange": basic["dateRange"], "date_status":basic["date_status"],
                               "is_completed": is_trip_completed(trip, today=today),
                               "photo_url": photo_search_url(trip),
                               "first_day_id": min(trip["days"], key=lambda day: day["date"])["id"]})
-        return sorted(summaries, key=lambda item: (item["dateRange"]["start"], item["trip_id"]))
+        return sorted(summaries, key=lambda item: (item["dateRange"]["start"] or "9999-12-31", item["trip_id"]))
 
     def _candidate_root(self, candidate_root: str | Path | None = None) -> Path:
         return Path(candidate_root) if candidate_root is not None else self.chat_root
@@ -821,7 +827,8 @@ class CalendarDomain(GoogleCalendarMixin, RecurrenceMixin, TripChatMixin, Schedu
                 os.fsync(handle.fileno())
             with self._command() as connection:
                 connection.execute("BEGIN IMMEDIATE")
-                if connection.execute("SELECT 1 FROM trips WHERE id = ?", (trip_id,)).fetchone():
+                connected = self._check_travel_connection(connection, candidate)
+                if connection.execute("SELECT 1 FROM trips WHERE id = ?", (trip_id,)).fetchone() and not connected:
                     raise ConflictError("Trip ID is already registered")
                 try:
                     # Atomic create-if-absent: even unregistered Trip files survive.
@@ -833,9 +840,10 @@ class CalendarDomain(GoogleCalendarMixin, RecurrenceMixin, TripChatMixin, Schedu
                 staging = None
                 timestamp = _now()
                 connection.execute(
-                    "INSERT INTO trips (id, visibility, created_at, updated_at) VALUES (?, 'owner', ?, ?)",
+                    "INSERT OR IGNORE INTO trips (id, visibility, created_at, updated_at) VALUES (?, 'owner', ?, ?)",
                     (trip_id, timestamp, timestamp),
                 )
+                self._connect_travel(connection, candidate)
         except BaseException:
             if created:
                 path.unlink()
@@ -962,7 +970,7 @@ class CalendarDomain(GoogleCalendarMixin, RecurrenceMixin, TripChatMixin, Schedu
         errors = validate_value(effective, self._trip_schema) + semantic_errors(effective)
         if errors:
             raise ValidationError(f"effective Trip is invalid: {errors[0]}")
-        return effective
+        return self._travel_overlay(effective)
 
     def _effective_revision(self, trip_id: str) -> dict[str, Any]:
         effective = self.get_effective_trip(trip_id)
@@ -1617,6 +1625,10 @@ class CalendarDomain(GoogleCalendarMixin, RecurrenceMixin, TripChatMixin, Schedu
             candidate_judgments=candidate_judgments,
             weather_by_day=weather_by_day, today=today,
         )
+        basic = self.get_travel(trip_id)
+        result["title"] = basic["title"]
+        result["date_range"] = basic["dateRange"]
+        result["date_status"] = basic["date_status"]
         result["instructions"] = context["instructions"]
         for day in result["days"]:
             for entry in day["entries"]:
@@ -2330,6 +2342,8 @@ class CalendarDomain(GoogleCalendarMixin, RecurrenceMixin, TripChatMixin, Schedu
             raise ValidationError("Direct Override value is not valid JSON") from error
         timestamp = _now()
         with self._command() as connection:
+            if source_item_id == trip_id and field_path == "/title":
+                self._update_travel_fields(connection,trip_id,{"title":value})
             row = connection.execute(
                 "SELECT id FROM direct_overrides WHERE trip_id = ? AND source_item_id = ? AND field_path = ?",
                 (trip_id, source_item_id, field_path),
@@ -2427,6 +2441,8 @@ class CalendarDomain(GoogleCalendarMixin, RecurrenceMixin, TripChatMixin, Schedu
         timestamp = _now()
         for field, value in changes.items():
             field_path = paths[field]
+            if source_item_id == trip_id and field_path == "/title":
+                self._update_travel_fields(connection,trip_id,{"title":value})
             value_json = json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
             row = connection.execute(
                 "SELECT id FROM direct_overrides WHERE trip_id = ? AND source_item_id = ? AND field_path = ?",

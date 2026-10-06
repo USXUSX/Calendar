@@ -22,3 +22,19 @@ python3 scripts/migrate_schedule.py /explicit/path/to/calendar.sqlite3
 本番適用時は現行DBをSQLite backupで保存してから追加し、旧行の値と件数が保持されたことを確認する。削除・再構築・Trip JSON移行はしない。旧版コードへ戻す場合も追加列を保持できるが、旧`create_event`は列数固定INSERTなのでその呼出しには互換性がない。取り消しは新規書込み前のbackup復元判断が必要になる。
 
 定期日程は同じperiod readに各回を含める。通常項目fieldにseries_id・occurrence_date・シリーズrevisionを加える。完了フィルタと並び順は単発と共通。既存DBにはbackup後に `scripts/migrate_recurrence.py <既存DBパス>` でschedule_seriesを追加する。詳細は[Chat保存契約](chat-schedule.md)に集約する。
+
+## 独立した旅行管理（#221）
+
+`list_travel()`は全旅行を返す。`get_travel(id)`は基本情報と関連Event/Todo（期間内の定期回を含む）を返す。`change_travel(values, item_id=None, expected_revision=None, request_id=None)`は共通receiptで保存する。更新は最新revision必須。
+
+基本情報はtitle、start_date/end_date、date_status（confirmed / tentative / undecided）、transport（air / rail / ship / car / other）。undecidedは両日付null、tentativeは仮日付あり。readにはtrip_id、dateRange、has_itinerary、itinerary_id、revisionを含む。日付未定は期間グリッドに出さず全旅行一覧に残す。`list_trips()`は旅程接続済みだけを返す。
+
+旅行は既存trips registry内に先行作成し、`travel_basics`が基本情報の正本になる。旅程create/importは同じIDの未接続旅行へ接続する。同名・同期間（または日付未定）の未接続旅行が別IDにあれば重複登録を拒否し、その旅行IDを使う。既存旅程はmigrationで1対1に接続する。
+
+旅行名と期間の表示は管理情報を使う。旅程JSONの日別行動日付は旅行基本情報の変更だけでは移動しない。日付未定でも既存旅程を保持する。Trip専用saveで明示変更された名称・期間は同じCAL基本情報へ反映し、別正本を作らない。保持する旧candidate採用は旅行基本情報を上書きしない。
+
+Event/Todoに共通category、gmail_url、trip_idを追加する。categoryはgeneral（既定）、air、rail、ship、car、lodging、food、reservation、medical、finance、anniversary、pet、other。iconは保存しない。Chatは入力・メールの意味からcategoryを選び、CALは分類を推測しない。trip_id=nullで解除。Frameはcategoryだけ編集し、旅行関連は保持する。gmail_urlは`https://mail.google.com/mail/u/0/#all/<message-or-thread-id>`等のメール参照URL。本文は保存しない。
+
+既存Google予定と同一と確認済みの場合のみ、google_calendar_id / google_event_idの組をgmail_urlと共に渡せる。Google連携の扱いは[所有文書](google-calendar.md)を参照。
+
+既存DBはSQLite backup後に `python3 -B scripts/migrate_travel.py <既存DB> <Calendar_Local root>` を明示実行する。v3の既存値・receipt・定期条件・Google対応付けを保持し、新しいnullable列と既定general、travel_basicsだけを追加する。再実行は既存基本情報を上書きしない。通常起動でmigrationしない。

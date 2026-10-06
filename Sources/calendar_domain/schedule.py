@@ -35,10 +35,10 @@ class ScheduleMixin:
         day(start); day(end)
         if start > end:
             raise ValidationError('期間を確認してください。')
-        trips = self.list_trips() if include_trips else []
+        trips = self.list_travel() if include_trips else []
         items = [dict(id=t['trip_id'], kind='trip', title=t['title'], start_date=t['dateRange']['start'],
-                      end_date=t['dateRange']['end'], start_time=None, end_time=None, trip_id=t['trip_id'])
-                 for t in trips if t['dateRange']['start'] <= end and t['dateRange']['end'] >= start]
+                      end_date=t['dateRange']['end'], start_time=None, end_time=None, trip_id=t['trip_id'], date_status=t['date_status'], transport=t['transport'], has_itinerary=t['has_itinerary'])
+                 for t in trips if t['dateRange']['start'] and t['dateRange']['start'] <= end and t['dateRange']['end'] >= start]
         with self._read() as c:
             for r in c.execute('SELECT * FROM events WHERE start_date<=? AND COALESCE(end_date,start_date)>=?', (end,start)):
                 items.append(dict(r) | {'kind':'event', 'revision':schedule_revision(r)})
@@ -68,7 +68,8 @@ class ScheduleMixin:
         if action != 'save' and not item_id:
             raise ValidationError('対象を選択してください。')
         table = 'events' if kind == 'event' else 'todos'
-        allowed = {'title','start_date','start_time','end_date','end_time','notes','trip_id'} if kind == 'event' else {'label','due_date','due_time','notes'}
+        allowed = {'title','start_date','start_time','end_date','end_time','notes','trip_id'} if kind == 'event' else {'label','due_date','due_time','notes','trip_id'}
+        allowed |= {'category','gmail_url','google_calendar_id','google_event_id'}
         if action == 'save' and set(values) - allowed:
             raise ValidationError('未対応の項目があります。')
         timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -96,11 +97,20 @@ class ScheduleMixin:
         return result
 
     def _validate_schedule_values(self, c, kind, values, old=None):
-        allowed = {'title','start_date','start_time','end_date','end_time','notes','trip_id'} if kind == 'event' else {'label','due_date','due_time','notes'}
+        allowed = {'title','start_date','start_time','end_date','end_time','notes','trip_id'} if kind == 'event' else {'label','due_date','due_time','notes','trip_id'}
+        allowed |= {'category','gmail_url','google_calendar_id','google_event_id'}
         if not isinstance(values,dict) or set(values)-allowed:
             raise ValidationError('invalid_schedule_values')
         merged = dict(old) if old else dict.fromkeys(allowed)
+        for key in allowed: merged.setdefault(key,None)
+        merged.setdefault('category','general')
+        if merged.get('category') is None: merged['category']='general'
         merged.update(values)
+        if old and old.get('google_event_id') and set(values)-{'category','trip_id','notes','gmail_url','google_event_id','google_calendar_id'} and 'google_event_id' not in values:
+            merged['google_event_id']=None
+            merged['google_calendar_id']=None
+        from .travel import validate_common
+        validate_common(c, merged)
         title_field, date_field, time_field = ('title','start_date','start_time') if kind == 'event' else ('label','due_date','due_time')
         if not isinstance(merged[title_field],str) or not merged[title_field].strip():
             raise ValidationError('件名を入力してください。')

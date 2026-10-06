@@ -77,10 +77,14 @@ def event_body(item, key):
     body = dict(summary=('✓ ' if item.get('completed_at') else '')+item['title'],
                 description=notes, extendedProperties={'private':{'calOwner':'cal-v1','calKey':hashlib.sha256(key.encode()).hexdigest()}},
                 reminders={'useDefault':False}, visibility='private')
+    if item.get('gmail_url'):
+        body['description']=(notes+'\n'+item['gmail_url']).strip()
+    if item.get('google_event_id') and item.get('google_calendar_id'):
+        body['_external_reference']=dict(calendar_id=item['google_calendar_id'],event_id=item['google_event_id'])
     if item.get('trip_id'):
-        link = 'https://frame.usxtools.com/calendar/trips/'+quote(item['trip_id'], safe='')
-        body['description'] = (notes+'\n'+link).strip()
-        body['source'] = dict(title='CAL 旅程',url=link)
+        link = 'https://frame.usxtools.com/calendar/travels/'+quote(item['trip_id'], safe='')
+        body['description'] = (body['description']+'\n'+link).strip()
+        body['source'] = dict(title='CAL 旅行',url=link)
     if item.get('start_time'):
         zone_name = item.get('time_zone') or 'Asia/Tokyo'
         zone = ZoneInfo(zone_name)
@@ -161,9 +165,9 @@ class GoogleCalendarMixin:
                 item.update(title=item['label'],start_date=item['due_date'],start_time=item['due_time'])
                 if item['due_date']>=current or key in known: desired[key]=event_body(item,key)
             series=[dict(r) for r in c.execute('SELECT * FROM schedule_series')]
-        for t in self.list_trips():
+        for t in self.list_travel():
             key='trip:'+t['trip_id']
-            if t['dateRange']['end']>=current or key in known:
+            if t['dateRange']['end'] and (t['dateRange']['end']>=current or key in known):
                 item=dict(title=t['title'],start_date=t['dateRange']['start'],end_date=t['dateRange']['end'],trip_id=t['trip_id'])
                 desired[key]=event_body(item,key)
         for row in series:
@@ -239,6 +243,11 @@ class GoogleCalendarMixin:
                         c.execute('INSERT INTO google_events VALUES (?,?,?,?,NULL)',(key,old['event_id'],old['lower_date'],None))
                 event_path=base+'/'+old['event_id']
                 try:
+                    # A Chat-verified Gmail/Google match is referenced, never adopted or mutated.
+                    if body and body.get('_external_reference'):
+                        with sqlite3.connect(self.db_path) as c:
+                            c.execute('UPDATE google_events SET applied_hash=?,error=NULL WHERE cal_key=?',(digest,key))
+                        continue
                     try:remote=client.request('GET',event_path)
                     except GoogleError as e:
                         if str(e) not in ('http_404','http_410'):raise
