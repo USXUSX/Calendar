@@ -247,7 +247,8 @@ class GoogleCalendarMixin:
                     # Initial references have no CAL projection. Later references must clean
                     # the persisted CAL mapping, never the externally referenced event.
                     external=bool(body and body.get('_external_reference'))
-                    if external and new_mapping:
+                    reference=body.get('_external_reference',{}) if body else {}
+                    if external and (new_mapping or (reference.get('calendar_id')==calendar_id and reference.get('event_id')==old['event_id'])):
                         with sqlite3.connect(self.db_path) as c:
                             c.execute('UPDATE google_events SET applied_hash=?,error=NULL WHERE cal_key=?',(digest,key))
                         continue
