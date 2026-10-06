@@ -62,3 +62,14 @@ class TravelTest(unittest.TestCase):
         with patch('Sources.calendar_domain.google_calendar.GoogleClient',return_value=api),patch('Sources.calendar_domain.google_calendar.today',return_value='2027-01-01'):
             self.cal.change_schedule('event','save',values=dict(title='予約',start_date='2027-01-01',gmail_url='https://mail.google.com/mail/u/0/#all/abc',google_calendar_id='primary',google_event_id='mail-existing'))
             self.assertEqual(api.calls,[]);self.assertEqual(api.events,{'mail-existing':{'summary':'外部保持'}})
+
+    def test_existing_recurrence_templates_get_common_read_defaults(self):
+        saved=self.cal.apply_recurrence_request(dict(request_id='old-series',kind='todo',action='save',scope='series',recurrence=dict(frequency='daily',start='2027-01-01',until='2027-01-02'),values=dict(label='旧条件',due_date='2027-01-01')))
+        with sqlite3.connect(self.db) as c:
+            raw=c.execute('SELECT data_json FROM schedule_series').fetchone()[0];data=json.loads(raw)
+            for segment in data['segments']:
+                for field in ('category','gmail_url','google_calendar_id','google_event_id','trip_id'):segment['values'].pop(field,None)
+            c.execute('UPDATE schedule_series SET data_json=?',(json.dumps(data),))
+        item=self.cal.read_schedule('2027-01-01','2027-01-02',include_trips=False)['items'][0]
+        self.assertEqual(item['category'],'general');self.assertIsNone(item['gmail_url'])
+        with sqlite3.connect(self.db) as c:self.assertEqual(json.loads(c.execute('SELECT data_json FROM schedule_series').fetchone()[0]),data)

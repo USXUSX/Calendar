@@ -79,6 +79,8 @@ class RecurrenceMixin:
             if include_deleted:return dict(id=occurrence_id(row['id'],anchor),deleted=True)
             raise NotFoundError('occurrence_deleted')
         values=copy.deepcopy(exception['values']) if exception else template(segment,anchor,row['kind'])
+        for key in ('trip_id','gmail_url','google_calendar_id','google_event_id'): values.setdefault(key,None)
+        values.setdefault('category','general')
         item=dict(values,id=occurrence_id(row['id'],anchor),kind=row['kind'],series_id=row['id'],occurrence_date=anchor,revision=revision(row))
         if row['kind']=='todo':
             item.update(title=values['label'],start_date=values['due_date'],start_time=values.get('due_time'),end_date=None,end_time=None,completed_at=exception.get('completed_at') if exception else None)
