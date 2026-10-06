@@ -7,7 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from Sources.calendar_domain import CalendarDomain, ConflictError
+from Sources.calendar_domain import CalendarDomain, ConflictError, ValidationError
 from scripts.init_calendar_db import initialize
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -18,13 +18,17 @@ class TripChatTest(unittest.TestCase):
         self.cal=CalendarDomain(self.db,self.root,chat_root=self.root/'chat')
         self.trip=json.loads((ROOT/'Samples/hokkaido-4days-candidate.json').read_text())
         self.tid=self.trip['id']
+    def attempts(self,trip,existing_trip_id=None):
+        plan=self.cal.prepare_import_locations(trip,existing_trip_id=existing_trip_id)
+        return {p['place_id']:None for p in plan if p['location'] is None and not p.get('skip_search')}
     def create(self,identity='create'):
-        return dict(request_id=identity,kind='trip',action='create',trip=copy.deepcopy(self.trip),coordinate_results={})
+        trip=copy.deepcopy(self.trip)
+        return dict(request_id=identity,kind='trip',action='create',trip=trip,coordinate_results=self.attempts(trip))
     def update(self,identity='update'):
         context=self.cal.get_trip_command_context(self.tid)
         trip=context['trip'];trip['title']='合成変更'
         return dict(request_id=identity,kind='trip',action='save',trip=trip,expected_revision=context['revision'],
-                    handled_instruction_ids=[i['id'] for i in context['instructions']],coordinate_results={})
+                    handled_instruction_ids=[i['id'] for i in context['instructions']],coordinate_results=self.attempts(trip,self.tid))
     def test_lifecycle_preservation_conflicts_and_instructions(self):
         receipt=self.cal.apply_trip_request(self.create())['receipt']
         self.assertEqual(receipt['trip'],self.trip)
@@ -89,13 +93,23 @@ os._exit(83)
         self.assertEqual(candidate.read_text(),'{"retained":true}')
         self.assertFalse((directory/'context.json').exists())
 
+    def test_location_search_attempts_are_required(self):
+        request=self.create('missing-attempts')
+        request['coordinate_results']={}
+        with self.assertRaisesRegex(ValidationError,'coordinate_results_incomplete'):
+            self.cal.apply_trip_request(request)
+        request=self.create('explicit-missing')
+        result=self.cal.apply_trip_request(request)['receipt']
+        self.assertGreater(result['coordinates']['missing'],0)
+
     def test_locations_and_file_only_target_protection(self):
         request=self.create()
         point=next(p for p in request['trip']['places'] if p['location'] is not None)
         pid=point['id'];point['location']=None
         plan=self.cal.prepare_import_locations(request['trip'])
         self.assertTrue(any(p['place_id']==pid for p in plan))
-        request['coordinate_results']={pid:dict(location=dict(latitude=43.0,longitude=141.0),googlePlaceId='synthetic-id')}
+        request['coordinate_results']=self.attempts(request['trip'])
+        request['coordinate_results'][pid]=dict(location=dict(latitude=43.0,longitude=141.0),googlePlaceId='synthetic-id')
         result=self.cal.apply_trip_request(request)['receipt']
         self.assertGreater(result['coordinates']['filled'],0)
         update=self.update()

@@ -105,7 +105,8 @@ receiptは既存CAL DBの`schedule_receipts`に保持し、自動削除しない
 
 - `trips`：登録済み旅程の一覧。対象IDを特定する。
 - `trip-get --id <Trip ID>`：effective complete Trip、未処理instructions、revisionを取得する。Direct Overrideと固定自宅を含む。revisionはtrip_version/effective_hash/instructions_hashの組で、指示の追加・変更も競合判定に含める。
-- `trip-plan`：標準入力の `{"trip":<complete Trip>,"existing_trip_id":<更新対象ID>}` から既存の地図補完planを取得する。新規時はexisting_trip_idを省略する。Schemaを確認してから不足地点を調べ、実際に取得できたlocation/Google Place IDだけを次のcoordinate_resultsへ渡す。
+- `trip-plan`：標準入力の `{"trip":<complete Trip>,"existing_trip_id":<更新対象ID>}` から既存の地図補完planを取得する。新規時はexisting_trip_idを省略する。検索内容の確認用で、保存はしない。
+- `trip-resolve`：`trip-plan`と同じ入力から不足地点を既存FrameのGoogle Maps接続で1回ずつ検索し、`coordinate_results`とattempted / filled / missing / existing件数を返す。Frame画面を開く必要はないが、既存loopback Frameサービスと地図接続設定が利用できる必要がある。Secretは出力しない。
 - `apply`：下記の旅程要求を標準入力（またはrequest-base64）で渡す。
 
 ```json
@@ -122,7 +123,9 @@ receiptは既存CAL DBの`schedule_receipts`に保持し、自動削除しない
 
 これは形状例であり空tripは無効。新規登録はaction=create、expected_revision省略、handled_instruction_idsは空。更新はaction=saveと最新trip-getのrevisionを指定する。getのtripを出発点に意図した変更だけを適用し、既存ID・予約・選択済み地点・変更対象外の値を保持する。対応した指示IDだけを列挙する。新規createは既存ID・未登録の同名正式ファイルを上書きしない。
 
-座標補完は既存CALのplan/result契約を再利用する。既存座標・手動補正・固定自宅設定を保持し、同一点をまとめて補完する。CLIはブラウザのPlaces SDKを自動起動せず、新しいAPI認証も追加しない。coordinate_resultsは必須で、取得不能なら空の`{}`を明示する。未取得のまま保存できる従来契約を維持し、receiptのcoordinates（filled/missing/existing）と未取得の有無を報告する。必要な位置補正は既存Frame地図編集で行える。座標を推測して埋めない。
+座標補完は既存CALのplan/result契約を再利用する。既存座標・手動補正・固定自宅設定を保持し、同一点をまとめて補完する。通常Chatは保存前に`trip-resolve`を実行し、その`coordinate_results`をそのまま`apply`へ渡す。検索対象ごとに結果キーが必要で、検索自体を省略した空`{}`や一部欠落は`coordinate_results_incomplete`で拒否する。検索を実行して結果がなかった地点は値nullとして明示し、その地点だけ未取得のまま保存できる。receiptのcoordinates（filled/missing/existing）と未取得の有無を報告する。必要な位置補正は既存Frame地図編集で行える。座標を推測して埋めない。
+
+`trip-resolve`は既存Frameのloopback `map-config`からブラウザ用接続設定をメモリ内で取得し、Places Text Search (New)へ名称・住所／当日エリアの既存queryだけを送る。新しいcredential・常駐処理・providerは追加しない。接続設定自体をログ・receipt・Gitへ残さない。Frame接続または地図設定が利用できなければresolveを失敗として止め、未検索を空結果に読み替えて保存しない。
 
 CALの共通Schema・semantic・Todo参照検証と、既存の`.adoption` staging/journal・SQLite transactionを使う。正式JSON置換前の中断は未採用へ、置換後はSQLiteのversion・指示・Overrideとreceiptを確定させて収束する。lookupは該当要求の未完journalを回復してからreceiptを返す。反映後の応答喪失でも元receiptを取得できる。復旧不能な不一致は確定済みと返さず、journalや正式ファイルを手編集しない。
 
