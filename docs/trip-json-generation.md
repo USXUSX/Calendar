@@ -174,3 +174,7 @@ PlaceとDay.areasの任意googlePlaceIdは、Google Placesで実際に取得し�
 写真連携を使うTripには任意の`photoAlbumName`を指定する。既存の通常アルバムの命名規則
 `yyyy-mm-dd_場所`に従った承認済みの名前を保持し、Trip表示名で置換しない。
 未指定時は写真リンクを表示しない。[写真参照契約](trip-photos.md)を参照。
+
+## 旅行管理への接続（#221）
+
+complete Trip生成前に[Chat専用CLI](chat-schedule.md)のtravelsで既存旅行を確認する。旅行があればそのIDをTrip.idに使い、createで旅程を接続する。該当がなければ新規旅程登録と共に旅行管理を作成する。名称・期間・日程状態・主要移動手段はCAL旅行基本情報を正本とし、旅程表示に反映する。日付未定の旅行に仮旅程を作る必要はない。

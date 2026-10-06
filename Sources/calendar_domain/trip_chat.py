@@ -84,9 +84,11 @@ class TripChatMixin:
                 raise ConflictError('pending Trip adoption; lookup and retry')
             existing = None
             if action == 'create':
-                if path.exists() or c.execute('SELECT 1 FROM trips WHERE id=?',(trip_id,)).fetchone():
+                connected=self._check_travel_connection(c,request['trip'])
+                registered=c.execute('SELECT version FROM trips WHERE id=?',(trip_id,)).fetchone()
+                if path.exists() or (registered and not connected):
                     raise ConflictError('Trip ID already exists')
-                version, old_hash = 0, None
+                version, old_hash = registered['version'] if registered else 0, None
             else:
                 context = self._trip_command_context(c, trip_id)
                 if expected != context['revision']:
@@ -95,11 +97,13 @@ class TripChatMixin:
                 version = expected['trip_version']
                 old_hash = self._digest(path.read_bytes())
             candidate, _ = self._validated_candidate(trip_id, request['trip'])
+            if action == 'create' and connected:
+                candidate['title']=json.loads(connected['data_json'])['title']
             candidate, counts = complete(candidate,request['coordinate_results'],existing,require_attempts=True)
             candidate, payload = self._validated_candidate(trip_id,candidate)
             timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
             if action == 'create':
-                c.execute("INSERT INTO trips (id,visibility,created_at,updated_at) VALUES (?,'owner',?,?)",(trip_id,timestamp,timestamp))
+                c.execute("INSERT OR IGNORE INTO trips (id,visibility,created_at,updated_at) VALUES (?,'owner',?,?)",(trip_id,timestamp,timestamp))
             else:
                 c.execute('UPDATE direct_overrides SET active=0 WHERE trip_id=?',(trip_id,))
             self._validate_adoption_constraints(c,trip_id,candidate,handled)
@@ -109,7 +113,12 @@ class TripChatMixin:
             receipt = dict(request_id=identity,receipt_id=str(uuid4()),status='committed',kind='trip',action=action,
                            entity_id=trip_id,committed_at=timestamp,previous_revision=expected,revision=revision,
                            coordinates=counts,handled_instruction_ids=list(handled),trip=candidate)
-            journal = dict(version=4,kind='rdc',trip_id=trip_id,old_version=version,old_hash=old_hash,
+            travel_changes={}
+            if existing:
+                if candidate['title']!=existing['title']: travel_changes['title']=candidate['title']
+                if candidate['dateRange']!=existing['dateRange']:
+                    travel_changes.update(start_date=candidate['dateRange']['start'],end_date=candidate['dateRange']['end'],date_status='confirmed')
+            journal = dict(travel_changes=travel_changes,version=4,kind='rdc',trip_id=trip_id,old_version=version,old_hash=old_hash,
                            candidate_hash=self._digest(payload),payload_hash=digest,receipt=receipt)
             staging = self._staging_path(trip_id,journal['candidate_hash'])
             self._write_file(staging,payload)
@@ -131,6 +140,11 @@ class TripChatMixin:
         receipt=journal['receipt'];tid=journal['trip_id'];stamp=receipt['committed_at']
         c.execute("INSERT OR IGNORE INTO trips (id,visibility,created_at,updated_at) VALUES (?,'owner',?,?)",(tid,stamp,stamp))
         c.execute('UPDATE trips SET version=?,updated_at=? WHERE id=?',(journal['old_version']+1,stamp,tid))
+        self._connect_travel(c,receipt['trip'])
+        row=self._travel_row(c,tid)
+        if row and journal.get('travel_changes'):
+            data=json.loads(row['data_json']);data.update(journal['travel_changes'])
+            c.execute('UPDATE travel_basics SET data_json=? WHERE trip_id=?',(encoded(data),tid))
         c.execute('UPDATE direct_overrides SET active=0 WHERE trip_id=?',(tid,))
         self._complete_chat_instructions(c,tid,receipt['handled_instruction_ids'],stamp)
         c.execute('INSERT INTO schedule_receipts VALUES (?,?,?)',(receipt['request_id'],journal['payload_hash'],encoded(receipt)))

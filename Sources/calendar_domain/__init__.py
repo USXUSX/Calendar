@@ -29,7 +29,7 @@ class CalendarDomain(_CalendarDomain):
         candidate, _ = self._validated_candidate(candidate["id"], candidate)
         with self._read() as connection:
             exists = connection.execute("SELECT 1 FROM trips WHERE id = ?", (candidate["id"],)).fetchone()
-        if exists:
+        if exists and self.has_itinerary(candidate["id"]):
             raise ConflictError("同じTrip IDの登録先が既に存在します。上書きはできません。")
         view = build_trip_detail_view(candidate)
         for day in view["days"]:
