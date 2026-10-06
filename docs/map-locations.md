@@ -10,7 +10,7 @@ Frameの手動新規complete JSON登録と、RDC専用コマンドの旅程登�
 
 Frameは先頭結果の緯度経度とGoogle Place IDを地点ID別`coordinate_results`で返す。結果は`{location:{latitude,longitude},googlePlaceId}`。正式PlaceおよびDay.areasの任意`googlePlaceId`に保存し、既存locationだけのJSONも受け付ける。Google Place IDとCALの安定Place ID、表示先のmapPlaceIdは別の値。取得済み座標へのID後付けを目的とした再検索はしない。CALは対象と不足状態を再計算し、有効な座標だけをcomplete Tripへ反映して従来の採用を行う。対象外の結果は利用しない。検索失敗・結果なし・不正な検索座標は未取得として取り込みを続ける。取り込み応答の`coordinates`は`filled / missing / existing`件数（地図対象の同一地点を重複しない単位と日別エリア）で、Frameは登録後の旅程画面へ簡潔に表示する。
 
-通常load/reloadによるcandidate自動採用は#205で停止した。専用CLIはtrip-planで同じplanを返し、applyでcoordinate_resultsを受け取る。ブラウザのPlaces SDK検索をCLI内で自動実行するものではない。呼出側は取得できた結果を返し、取得不能なら明示的に空の結果を渡す。CALは既存座標・自宅設定を維持して補完し、filled/missing/existingをreceiptへ返す。取得不能を成功扱いせず、必要ならFrameの地図編集で補正する。
+通常load/reloadによるcandidate自動採用は#205で停止した。専用CLIはtrip-planで同じplanを返し、通常Chatではtrip-resolveが既存FrameのGoogle Maps接続を使って不足地点を検索し、applyへcoordinate_resultsを渡す。Frame画面の表示・再読込は不要。検索対象の結果キーが欠ける要求は未検索として拒否し、検索済みで結果なしの地点だけnullとして未取得を許容する。CALは既存座標・自宅設定を維持して補完し、filled/missing/existingをreceiptへ返す。取得不能を成功扱いせず、必要ならFrameの地図編集で補正する。
 
 ## 地図編集
 

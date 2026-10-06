@@ -62,11 +62,15 @@ def prepare(trip, existing=None):
     return candidate, plan
 
 
-def complete(trip, results=None, existing=None):
+def complete(trip, results=None, existing=None, *, require_attempts=False):
     candidate, plan = prepare(trip, existing)
     if results is not None and not isinstance(results, dict):
         raise ValidationError('座標検索結果は地点IDごとに指定してください。')
     results = results or {}
+    if require_attempts:
+        required = {point['place_id'] for point in plan if point['location'] is None and not point.get('skip_search')}
+        if required - set(results):
+            raise ValidationError('coordinate_results_incomplete')
     places = {p['id']: p for p in candidate['places']}
     places.update({f"area:{d['id']}:{i}": a for d in candidate['days'] for i, a in enumerate(d.get('areas', []))})
     counts = dict(filled=0, missing=0, existing=0)

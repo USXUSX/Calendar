@@ -9,6 +9,7 @@ import sqlite3
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from Sources.calendar_domain import CalendarDomain, DomainError, ConflictError
+from scripts.trip_location_resolver import resolve_location_plan
 
 DEFAULT_ROOT = Path('/Users/us/Tools/LocalData/Calendar_Local')
 
@@ -26,6 +27,7 @@ def main(argv=None):
     series=sub.add_parser('series');series.add_argument('--id')
     trip = sub.add_parser('trip-get');trip.add_argument('--id', required=True)
     sub.add_parser('trip-plan')
+    resolve = sub.add_parser('trip-resolve');resolve.add_argument('--map-config-url', default='http://127.0.0.1:8080/api/calendar/map-config')
     read = sub.add_parser('read');read.add_argument('--start', required=True);read.add_argument('--end', required=True)
     get = sub.add_parser('get');get.add_argument('--kind', choices=['event','todo'], required=True);get.add_argument('--id', required=True)
     lookup = sub.add_parser('lookup');lookup.add_argument('--request-id', required=True)
@@ -58,12 +60,16 @@ def main(argv=None):
             result = dict(status='ok', trips=cal.list_trips())
         elif args.action == 'trip-get':
             result = dict(status='ok', **cal.get_trip_command_context(args.id))
-        elif args.action == 'trip-plan':
+        elif args.action in ('trip-plan','trip-resolve'):
             value = json.load(sys.stdin)
             if not isinstance(value,dict) or not isinstance(value.get('trip'),dict):
                 raise ValueError('trip_required')
             cal._validated_candidate(value['trip'].get('id'),value['trip'])
-            result = dict(status='ok', location_plan=cal.prepare_import_locations(value['trip'], existing_trip_id=value.get('existing_trip_id')))
+            plan = cal.prepare_import_locations(value['trip'], existing_trip_id=value.get('existing_trip_id'))
+            if args.action == 'trip-plan':
+                result = dict(status='ok', location_plan=plan)
+            else:
+                result = dict(status='ok', **resolve_location_plan(plan, args.map_config_url))
         elif args.action == 'read':
             result = dict(status='ok', **cal.read_schedule(args.start,args.end,include_completed=True,include_trips=False))
         elif args.action == 'get':
