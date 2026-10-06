@@ -32,7 +32,7 @@ class CalendarSchemaV3Tests(unittest.TestCase):
 
     def test_schema_is_reproducible_and_versioned(self):
         tables = {row[0] for row in self.connection.execute("SELECT name FROM sqlite_schema WHERE type = 'table'")}
-        self.assertEqual(tables, {"schema_meta", "trips", "events", "todos", "ai_instructions", "generation_requests", "direct_overrides", "working_trips", "working_trip_generations", "schedule_receipts", "schedule_series", "google_events", "google_calendar_meta"})
+        self.assertEqual(tables, {"schema_meta", "trips", "events", "todos", "ai_instructions", "generation_requests", "direct_overrides", "working_trips", "working_trip_generations", "schedule_receipts", "schedule_series", "google_events", "google_calendar_meta", "travel_basics"})
         self.assertEqual(self.connection.execute("SELECT version FROM schema_meta").fetchone(), (3,))
         self.assertEqual(self.connection.execute("SELECT version FROM trips WHERE id = 'trip-1'").fetchone(), None)
 

@@ -106,7 +106,7 @@ class ScheduleMixin:
         merged.setdefault('category','general')
         if merged.get('category') is None: merged['category']='general'
         merged.update(values)
-        if old and old.get('google_event_id') and set(values)-{'category','trip_id','notes','gmail_url','google_event_id','google_calendar_id'} and 'google_event_id' not in values:
+        if old and old.get('google_event_id') and any(values[k]!=old.get(k) for k in set(values)-{'category','trip_id','notes','gmail_url','google_event_id','google_calendar_id'}) and 'google_event_id' not in values:
             merged['google_event_id']=None
             merged['google_calendar_id']=None
         from .travel import validate_common
