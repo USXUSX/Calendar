@@ -47,6 +47,22 @@ class TravelTest(unittest.TestCase):
         self.assertEqual(self.cal.get_todo(todo['id'])['category'],'pet')
         for invalid in [{'category':'unknown'},{'gmail_url':'https://evil.example/'},{'trip_id':'missing'}]:
             with self.assertRaises(ValidationError): self.cal.change_schedule('todo','save',todo['id'],invalid)
+    def test_transport_categories_save_read_and_single_occurrence_edit(self):
+        from Sources.calendar_domain.travel import CATEGORIES
+        for kind in ('event','todo'):
+            for category in CATEGORIES:
+                values=dict(category=category,**(dict(title='分類',start_date='2027-01-01') if kind=='event' else dict(label='分類',due_date='2027-01-01')))
+                item=self.cal.change_schedule(kind,'save',values=values)
+                self.cal.change_schedule(kind,'save',item['id'],{'notes':'保持'})
+                read=self.cal.get_schedule_item(kind,item['id'])
+                self.assertEqual(read['item']['category'],category)
+                saved=self.cal.apply_recurrence_request(dict(request_id=kind+'-'+category,kind=kind,action='save',scope='series',recurrence=dict(frequency='daily',start='2027-01-01',until='2027-01-02'),values=values))
+                occurrence=self.cal.read_schedule('2027-01-01','2027-01-02',include_trips=False)['items']
+                occurrence=next(x for x in occurrence if x.get('series_id')==saved['receipt']['entity_id'])
+                self.cal.change_schedule(kind,'save',occurrence['id'],{'notes':'単回'},occurrence['revision'])
+                self.assertEqual(self.cal.get_occurrence(occurrence['id'])['category'],category)
+                self.assertEqual(self.cal.get_series(saved['receipt']['entity_id'])['segments'][0]['values']['category'],category)
+
     def test_migration_preserves_old_values_and_is_repeatable(self):
         old=self.root/'old.sqlite3'
         with sqlite3.connect(old) as c:c.executescript((ROOT/'Schemas/calendar-v3.sql').read_text())

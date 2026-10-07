@@ -8,7 +8,7 @@ from uuid import uuid4
 from .errors import ValidationError, ConflictError, NotFoundError
 from .google_calendar import after_save
 
-CATEGORIES = ('general','air','rail','ship','car','lodging','food','reservation','medical','finance','anniversary','pet','travel','other')
+CATEGORIES = ('general','air','shinkansen','rail','ship','car','lodging','food','reservation','medical','finance','anniversary','pet','travel','other')
 TRANSPORTS = ('air','rail','ship','car','other')
 
 
