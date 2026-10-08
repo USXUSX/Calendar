@@ -121,6 +121,8 @@ receiptは既存CAL DBの`schedule_receipts`に保持し、自動削除しない
 }
 ```
 
+create / saveを送る前に[共通生成ガイドの登録前チェック](trip-json-generation.md#登録前チェック)を行う。
+
 これは形状例であり空tripは無効。新規登録はaction=create、expected_revision省略、handled_instruction_idsは空。更新はaction=saveと最新trip-getのrevisionを指定する。getのtripを出発点に意図した変更だけを適用し、既存ID・予約・選択済み地点・変更対象外の値を保持する。対応した指示IDだけを列挙する。新規createは既存ID・未登録の同名正式ファイルを上書きしない。
 
 座標補完は既存CALのplan/result契約を再利用する。既存座標・手動補正・固定自宅設定を保持し、同一点をまとめて補完する。通常Chatは保存前に`trip-resolve`を実行し、その`coordinate_results`をそのまま`apply`へ渡す。検索対象ごとに結果キーが必要で、検索自体を省略した空`{}`や一部欠落は`coordinate_results_incomplete`で拒否する。検索を実行して結果がなかった地点は値nullとして明示し、その地点だけ未取得のまま保存できる。receiptのcoordinates（filled/missing/existing）と未取得の有無を報告する。必要な位置補正は既存Frame地図編集で行える。座標を推測して埋めない。

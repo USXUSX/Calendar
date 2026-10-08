@@ -29,6 +29,8 @@ previewの編集・AI targetは無効。修正はChatでcandidateを更新して
 SQLite未登録なのにformal Trip JSONだけ残る孤立状態は正式Tripとして扱わず、内容確認済みの新規取込時にcandidateへ置換して登録する。
 同一IDがSQLite登録済みなら再送・別candidateとも拒否する。書込み・DB失敗時は今回の新規書込みを撤回する。
 
+登録前の内容確認は[共通生成ガイドの登録前チェック](trip-json-generation.md#登録前チェック)に従う。Schema検証だけで内容確認済みとはしない。
+
 ## 確認
 
 `sh Tests/trip-json-import.test.sh` は北海道4日間の合成例で、読込・検証・snapshot採用・全項目保持、

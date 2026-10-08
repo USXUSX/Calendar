@@ -9,7 +9,7 @@ CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb�
 - 継続編集は専用コマンドからeffective Trip・revision・未処理指示を取得して更新する。context自動共有・candidate自動採用は停止し、残存ファイルを削除しない。
 - 候補探索・比較・大きな旅程編集・調査コメントはChatで行う。通常UIには旧Working／AI生成・候補検索／AFM推薦・コメントAIを置かない。Place補完と天気はCALの意味境界を使う。
 
-新規登録と既存Trip更新を区別し、通常予定と旅程のデータ形式は別に保ちます。生成・受渡しは[生成ガイド](docs/trip-json-generation.md)、新規採用は[JSON取込契約](docs/trip-json-import.md)、日常操作は[運用入口](docs/operation.md)を参照してください。
+新規登録と既存Trip更新を区別し、通常予定と旅程のデータ形式は別に保ちます。別プロジェクト・別担当も旅程作成ルールと登録前チェックの共通正本を参照します。生成・受渡しは[生成ガイド](docs/trip-json-generation.md)、新規採用は[JSON取込契約](docs/trip-json-import.md)、日常操作は[運用入口](docs/operation.md)を参照してください。
 
 ## 予定画面の直接操作
 
