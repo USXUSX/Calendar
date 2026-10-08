@@ -38,7 +38,7 @@ Gitが正本で、`Calendar_GD`はmerge後の公式共有コピー。GitHubを�
 
 ScheduleItem.status / Transport.statusはその行動を行うかどうかの判断。行動が決定済みならconfirmedとし、時刻未定、未予約、複数の店候補があるという理由でtentative / undecidedへ落とさない。tentativeは行動自体の提案、undecidedは実施するか未定の場合に使う。
 
-例えば「小樽で昼食」は実施確定、店は2候補から未選択、時刻未定ならstatus=confirmed、selection=[]、time.kind=undecidedを併用する。予約が必要でまだ予約していないならBooking.status=pending。店の選択・時刻の決定・予約済みはそれぞれ確認できた事実から設定する。
+例えば「小樽で昼食」は実施確定、店は2候補から未選択、時刻未定ならstatus=confirmed、selection=[]、time.mode=undecidedを併用する。予約が必要でまだ予約していないならBooking.status=pending。店の選択・時刻の決定・予約済みはそれぞれ確認できた事実から設定する。
 
 ### 同行者が読む共有メモ
 
@@ -48,11 +48,11 @@ ScheduleItem.status / Transport.statusはその行動を行うかどうかの判
 
 ### 鉄道の参考発着時刻
 
-電車を利用する可能性が高い区間は、乗車便未決定・未予約でも実在する利用可能性の高い便を調べ、Transport.serviceNameとtimeに発着時刻を仮置きして移動時間の目安を示す。time.kind=fixed、start / endにその便の時刻、durationMinutesに確認できた所要分を入れる。fixedは具体的な時刻を持つ表現であり、便の採用や予約済みの証明ではない。移動自体が決定済みならstatus=confirmedを維持する。
+電車を利用する可能性が高い区間は、乗車便未決定・未予約でも実在する利用可能性の高い便を調べ、Transport.serviceNameとtimeに発着時刻を仮置きして移動時間の目安を示す。time.mode=fixed、start / endにその便の時刻、durationMinutesに確認できた所要分を入れる。fixedは具体的な時刻を持つ表現であり、便の採用や予約済みの証明ではない。移動自体が決定済みならstatus=confirmedを維持する。
 
 未予約なら必要なBookingはpendingとし、bookedへ変えない。参考便の根拠（事業者の時刻表等のURL、確認日、適用期間）と乗車便未決定であることは、その区間を特定できるTrip.summaryへ一度だけ簡潔に記す。予約条件に属する情報はBooking.notesへ置く。列車名・各時刻・各コメントに「仮」を繰り返さない。例：「往復鉄道は現行ダイヤ参考、乗車便未決定（確認日・出典）」とし、往復で根拠が異なるなら区間を分ける。
 
-旅行日のダイヤが発表済みなら対象日の便を使う。未発表なら現行ダイヤ等を参考と明記し、その適用期間と旅行日の運行未確認を区別する。存在しない便や将来ダイヤを創作しない。根拠ある便を取得できない場合のみtime.kind=undecidedとし、参考時刻未取得を短く伝える。日跨ぎ等を現行Schemaで表せない場合は値を偽装せず、既存の表現限界に従う。
+旅行日のダイヤが発表済みなら対象日の便を使う。未発表なら現行ダイヤ等を参考と明記し、その適用期間と旅行日の運行未確認を区別する。存在しない便や将来ダイヤを創作しない。根拠ある便を取得できない場合のみtime.mode=undecidedとし、参考時刻未取得を短く伝える。日跨ぎ等を現行Schemaで表せない場合は値を偽装せず、既存の表現限界に従う。
 
 ## 新規Tripの地点情報を自動で充実する（#174）
 
