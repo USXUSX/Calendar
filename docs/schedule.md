@@ -38,3 +38,11 @@ Event/Todoに共通category、gmail_url、trip_idを追加する。categoryはge
 既存Google予定と同一と確認済みの場合のみ、google_calendar_id / google_event_idの組をgmail_urlと共に渡せる。Google連携の扱いは[所有文書](google-calendar.md)を参照。
 
 既存DBはSQLite backup後に `python3 -B scripts/migrate_travel.py <既存DB> <Calendar_Local root>` を明示実行する。v3の既存値・receipt・定期条件・Google対応付けを保持し、新しいnullable列と既定general、travel_basicsだけを追加する。再実行は既存基本情報を上書きしない。通常起動でmigrationしない。
+
+## 保存後の任意変更通知（Calendar #234 / Frame #306）
+
+共通`_command`のcommit成功後、events/todos/trips/travel_basics/schedule_series/direct_overridesの変更があれば、明示設定したconsumerへ変更の可能性を通知する。Chat/画面の単発・既存CRUD、定期条件/単回、旅行管理、Trip新規採用/更新・Working採用/復旧等はこの共通commitを通る。rollback/read/同ID再送の無変更、Google内部反映状態のみの書込では通知しない。生のSQLite/正式JSON直接編集は正式入口ではなく、この通知では捕捉しない。
+
+`<trip_root>/settings/change-notifier.json`に`database`（対象DBの絶対path）と`command`（固定argv array）を明示配置した場合だけ有効。shellは使わず、変更内容/日程payloadやFRM依存をCALへ加えない。consumerは通知で正式データを再保存せず、保存済み意味readと前回の表示入力から影響を判断する。複数commitの通知はconsumerで集約する。
+
+通知は描画/外部取得を同期実行せず、受付だけを行う短いコマンドを設定する。通知失敗でも正式保存/receipt/Google反映を繰り返さない。`settings/change-notification-state.json`はaccepted/failedを示す派生状態で、公開完了の証明ではない。通知/consumer停止中の保存内容は初回・復帰時の保存済みread照合で回復する。運用設定はFrameの別実運用Issueに対象・影響・切戻しを記録する。
