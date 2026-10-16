@@ -89,3 +89,5 @@
 Record a decision here only after it is explicitly confirmed. Include the date, context, decision, and consequences when implementation begins.
 
 - 2026-09-08, Issue #116: 候補探索・推薦・大きな旅程編集はChat中心。CAL内検索/AFM推薦・コメントAIとFrameのWorking UIを廃止する。候補データと明示selectionを維持し、effective Tripの正式Place全般を同じ事実補完境界で扱う。直接操作はDirect Overrideへ保存する。Mac確認で停止し、物理受入・リリースは判断しない。
+
+- 2026-10-16, Calendar #232 / Frame #305（Frame #302 Goal 2 Phase 1）: 単発画面保存をChat正式request処理へ委譲し、同一transactionのrevision/要求ID/receipt照合を共有する。既存内部呼出し用の平坦な保存fieldを維持し、正式receiptと現在値を分離する。再送・lookupはGoogle送信を開始せず、新規commit後だけ一度試みる。schema追加・receipt移行は不要。切戻しはコードrevisionを戻し既存receipt/正式履歴を保持するが、旧単発入口は競合防止を持たないため画面編集を止めChat正式入口を使う。実Google送信・実データ操作・Job変更は本Phase外。

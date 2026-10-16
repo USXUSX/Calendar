@@ -54,9 +54,9 @@ class GoogleTest(unittest.TestCase):
         self.api.fail=False;self.api.lose=True
         self.assertEqual(self.cal.sync_google()['status'],'unreflected');self.assertEqual(len(self.api.events),1)
         self.assertEqual(self.cal.sync_google()['status'],'synced');self.assertEqual(len(self.api.events),1)
-        identity=next(iter(self.api.events));self.cal.change_schedule('event','save',saved['id'],{'title':'changed'})
+        identity=next(iter(self.api.events));self.cal.change_schedule('event','save',saved['id'],{'title':'changed'}, expected_revision=self.cal.get_schedule_item('event',saved['id'])['revision'])
         self.assertEqual(self.api.events[identity]['summary'],'changed')
-        self.api.fail=True;self.cal.change_schedule('event','delete',saved['id'],{})
+        self.api.fail=True;self.cal.change_schedule('event','delete',saved['id'],{}, expected_revision=self.cal.get_schedule_item('event',saved['id'])['revision'])
         self.assertEqual(self.cal.google_status()['pending'],1)
         self.api.fail=False;self.assertEqual(self.cal.sync_google()['status'],'synced');self.assertFalse(self.api.events)
         self.assertEqual(self.cal.sync_google()['status'],'synced')
@@ -66,7 +66,7 @@ class GoogleTest(unittest.TestCase):
         saved=self.create();identity=next(iter(self.api.events))
         self.api.events['unrelated']={'summary':'synthetic'}
         with patch('Sources.calendar_domain.google_calendar.today',return_value='2026-11-01'):
-            self.cal.change_schedule('event','save',saved['id'],{'title':'past changed'})
+            self.cal.change_schedule('event','save',saved['id'],{'title':'past changed'}, expected_revision=self.cal.get_schedule_item('event',saved['id'])['revision'])
         self.assertEqual(self.api.events[identity]['summary'],'past changed')
         self.api.events[identity]['extendedProperties']={}
         result=self.cal.sync_google(reconcile=True);self.assertEqual(result['status'],'unreflected')
@@ -75,8 +75,8 @@ class GoogleTest(unittest.TestCase):
         item=self.cal.change_schedule('todo','save',values=dict(label='task',due_date='2026-10-05',due_time='12:00'))
         body=next(iter(self.api.events.values()));self.assertIn('終了不明',body['description'])
         a=datetime.fromisoformat(body['start']['dateTime']);b=datetime.fromisoformat(body['end']['dateTime']);self.assertEqual((b-a).seconds,60)
-        self.cal.change_schedule('todo','complete',item['id'],dict(completed=True));self.assertTrue(next(iter(self.api.events.values()))['summary'].startswith('✓ '))
-        self.cal.change_schedule('todo','complete',item['id'],dict(completed=False));self.assertFalse(next(iter(self.api.events.values()))['summary'].startswith('✓'))
+        self.cal.change_schedule('todo','complete',item['id'],dict(completed=True), expected_revision=self.cal.get_schedule_item('todo',item['id'])['revision']);self.assertTrue(next(iter(self.api.events.values()))['summary'].startswith('✓ '))
+        self.cal.change_schedule('todo','complete',item['id'],dict(completed=False), expected_revision=self.cal.get_schedule_item('todo',item['id'])['revision']);self.assertFalse(next(iter(self.api.events.values()))['summary'].startswith('✓'))
     def test_existing_event_timezone_is_preserved(self):
         self.cal.create_event('zoned',title='synthetic',start_date='2026-10-05',start_time='09:00',end_date='2026-10-05',end_time='10:00',time_zone='America/New_York')
         body=next(iter(self.api.events.values()))

@@ -138,7 +138,7 @@ def after_save(method):
         finally:
             state.depth = depth
         if depth==0:
-            try:google = self.sync_google()
+            try:google = self.google_status() if isinstance(result, dict) and result.get('resolution') == 'replayed' else self.sync_google()
             except Exception:google = dict(status='unreflected',reason='delivery_failed',pending=0)
             if isinstance(result,dict):
                 result = dict(result,google=google)
