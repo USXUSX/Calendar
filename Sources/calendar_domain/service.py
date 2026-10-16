@@ -92,15 +92,27 @@ class CalendarDomain(TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChat
     @contextmanager
     def _command(self) -> Iterator[sqlite3.Connection]:
         connection = self._connect()
+        changed = set()
+        projection_tables = {"events", "todos", "trips", "travel_basics", "schedule_series", "direct_overrides"}
+        def authorize(action, table, column, database, source):
+            if action in (sqlite3.SQLITE_INSERT, sqlite3.SQLITE_UPDATE, sqlite3.SQLITE_DELETE) and table in projection_tables:
+                changed.add(table)
+            return sqlite3.SQLITE_OK
+        connection.set_authorizer(authorize)
+        committed = False
         try:
             with connection:
                 yield connection
+            committed = bool(changed and connection.total_changes)
         except sqlite3.IntegrityError as error:
             raise ValidationError("command violates the Calendar data contract") from error
         except sqlite3.Error as error:
             raise ValidationError("Calendar database command failed") from error
         finally:
             connection.close()
+        if committed:
+            from .change_notification import notify_committed
+            notify_committed(self.db_path, self.trip_root)
 
     @contextmanager
     def _read(self) -> Iterator[sqlite3.Connection]:
