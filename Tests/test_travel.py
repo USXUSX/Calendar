@@ -43,17 +43,17 @@ class TravelTest(unittest.TestCase):
         self.assertEqual(len(self.cal.get_travel(tid)['items']),2)
         self.cal.apply_schedule_request(dict(request_id='unlink',kind='event',action='save',id=event['id'],expected_revision=self.cal.get_schedule_item('event',event['id'])['revision'],values=dict(trip_id=None)))
         self.assertEqual(len(self.cal.get_travel(tid)['items']),1)
-        self.cal.change_schedule('todo','save',todo['id'],{'notes':'保持'})
+        self.cal.change_schedule('todo','save',todo['id'],{'notes':'保持'}, expected_revision=self.cal.get_schedule_item('todo',todo['id'])['revision'])
         self.assertEqual(self.cal.get_todo(todo['id'])['category'],'pet')
         for invalid in [{'category':'unknown'},{'gmail_url':'https://evil.example/'},{'trip_id':'missing'}]:
-            with self.assertRaises(ValidationError): self.cal.change_schedule('todo','save',todo['id'],invalid)
+            with self.assertRaises(ValidationError): self.cal.change_schedule('todo','save',todo['id'],invalid, expected_revision=self.cal.get_schedule_item('todo',todo['id'])['revision'])
     def test_transport_categories_save_read_and_single_occurrence_edit(self):
         from Sources.calendar_domain.travel import CATEGORIES
         for kind in ('event','todo'):
             for category in CATEGORIES:
                 values=dict(category=category,**(dict(title='分類',start_date='2027-01-01') if kind=='event' else dict(label='分類',due_date='2027-01-01')))
                 item=self.cal.change_schedule(kind,'save',values=values)
-                self.cal.change_schedule(kind,'save',item['id'],{'notes':'保持'})
+                self.cal.change_schedule(kind,'save',item['id'],{'notes':'保持'}, expected_revision=self.cal.get_schedule_item(kind,item['id'])['revision'])
                 read=self.cal.get_schedule_item(kind,item['id'])
                 self.assertEqual(read['item']['category'],category)
                 saved=self.cal.apply_recurrence_request(dict(request_id=kind+'-'+category,kind=kind,action='save',scope='series',recurrence=dict(frequency='daily',start='2027-01-01',until='2027-01-02'),values=values))
@@ -120,7 +120,7 @@ class TravelTest(unittest.TestCase):
             projection=next(k for k in api.events if k!='external')
             values=dict(gmail_url='https://mail.google.com/mail/u/0/#all/abc',google_calendar_id='primary',google_event_id='external')
             api.fail=True
-            self.cal.change_schedule('event','save',item['id'],values)
+            self.cal.change_schedule('event','save',item['id'],values, expected_revision=self.cal.get_schedule_item('event',item['id'])['revision'])
             self.assertEqual(self.cal.google_status()['status'],'unreflected')
             api.fail=False
             owned=copy.deepcopy(api.events[projection]);api.events[projection]['extendedProperties']={}
@@ -135,9 +135,9 @@ class TravelTest(unittest.TestCase):
             self.assertEqual(self.cal.sync_google()['status'],'synced')
             self.assertEqual(api.events,{'external':{'summary':'保持'}})
             self.assertFalse(any(path.endswith('/external') for method,path in api.calls))
-            self.cal.change_schedule('event','save',item['id'],dict(google_calendar_id=None,google_event_id=None))
+            self.cal.change_schedule('event','save',item['id'],dict(google_calendar_id=None,google_event_id=None), expected_revision=self.cal.get_schedule_item('event',item['id'])['revision'])
             self.assertEqual(len(api.events),2)
             self.assertEqual(api.events['external'],{'summary':'保持'})
             projection=next(k for k in api.events if k!='external');before=copy.deepcopy(api.events);api.calls.clear()
-            self.cal.change_schedule('event','save',item['id'],dict(google_calendar_id='synthetic-cal',google_event_id=projection))
+            self.cal.change_schedule('event','save',item['id'],dict(google_calendar_id='synthetic-cal',google_event_id=projection), expected_revision=self.cal.get_schedule_item('event',item['id'])['revision'])
             self.assertEqual(api.events,before);self.assertEqual(api.calls,[])

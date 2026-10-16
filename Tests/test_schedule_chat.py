@@ -64,7 +64,7 @@ class ScheduleChatTest(unittest.TestCase):
 
     def test_stale_after_frame_write_and_invalid_requests_leave_no_receipt(self):
         receipt=self.cal.apply_schedule_request(self.create())['receipt']
-        self.cal.change_schedule('event','save',receipt['entity_id'],{'title':'画面から変更'})
+        self.cal.change_schedule('event','save',receipt['entity_id'],{'title':'画面から変更'}, expected_revision=receipt['revision'], request_id='screen-edit')
         for action,values in [('save',{'title':'古い入力'}),('delete',{})]:
             with self.assertRaisesRegex(ConflictError,'revision_conflict'):
                 self.apply_to(receipt,action,action,values)
@@ -119,3 +119,42 @@ os._exit(86)
         result=subprocess.run(command+['apply','--request-base64',request],capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertEqual(json.loads(result.stdout)['status'],'committed')
+
+    def test_screen_and_chat_share_receipt_conflicts_and_delivery(self):
+        from unittest.mock import Mock
+        self.cal.sync_google = Mock(return_value=dict(status='unreflected', reason='synthetic'))
+        for kind in ('event', 'todo'):
+            request = self.create(kind, 'screen-'+kind)
+            def screen(req):
+                return self.cal.change_schedule(req['kind'], req['action'], req.get('id'),
+                    req.get('values', {}), req.get('expected_revision'), req['request_id'])
+            created = screen(request)
+            self.assertEqual(self.cal.apply_schedule_request(request)['receipt'], created['receipt'])
+            self.assertEqual(screen(request)['receipt'], created['receipt'])
+            with self.assertRaisesRegex(ConflictError, 'request_id_payload_conflict'):
+                screen(dict(request, values=dict(notes='other')))
+            edit = dict(request, request_id='edit-'+kind, id=created['id'],
+                        expected_revision=created['receipt']['revision'], values=dict(notes='Chat'))
+            updated = self.cal.apply_schedule_request(edit)
+            with self.assertRaisesRegex(ConflictError, 'revision_conflict'):
+                screen(dict(edit, request_id='stale-'+kind, values=dict(notes='Screen')))
+            self.assertEqual(screen(edit)['receipt'], updated['receipt'])
+            delete = dict(edit, request_id='delete-'+kind, action='delete', values={},
+                          expected_revision=updated['receipt']['revision'])
+            lost_response = screen(delete)
+            self.assertEqual(self.cal.lookup_schedule_request(delete['request_id'])['receipt'], lost_response['receipt'])
+            self.assertEqual(screen(delete)['receipt'], lost_response['receipt'])
+            # Old receipt remains distinct from current state, including deletion.
+            self.assertEqual(screen(request)['receipt'], created['receipt'])
+            with self.assertRaises(NotFoundError): self.cal.get_schedule_item(kind, created['id'])
+        self.assertEqual(self.cal.sync_google.call_count, 6)
+        with self.assertRaises(ValidationError):
+            self.cal.change_schedule('event', 'save', values={'title':''}, request_id='invalid-screen')
+        self.assertEqual(self.cal.lookup_schedule_request('invalid-screen')['status'], 'not_found')
+        self.assertEqual(self.cal.sync_google.call_count, 6)
+
+    def test_screen_requires_revision_for_existing_item(self):
+        receipt = self.cal.apply_schedule_request(self.create())['receipt']
+        with self.assertRaisesRegex(ValidationError, 'expected_revision_required'):
+            self.cal.change_schedule('event', 'save', receipt['entity_id'], {'notes':'unsafe'}, request_id='unsafe')
+        self.assertEqual(self.cal.lookup_schedule_request('unsafe')['status'], 'not_found')

@@ -1,5 +1,4 @@
 """Shared ordinary schedule commands and period summaries; no external delivery."""
-from .google_calendar import after_save
 from datetime import date, datetime, timezone
 import hashlib
 import json
@@ -49,14 +48,19 @@ class ScheduleMixin:
         return dict(items=sorted(items, key=lambda x:(x['start_date'],x.get('start_time') or '',x['kind'],x['id'])),
                     trips=[dict(id=t['trip_id'], title=t['title']) for t in trips])
 
-    @after_save
     def change_schedule(self, kind, action, item_id=None, values=None, expected_revision=None, request_id=None):
-        if isinstance(item_id,str) and item_id.startswith("rec:"):
-            result=self.apply_recurrence_request(dict(request_id=request_id or str(uuid.uuid4()),kind=kind,action=action,scope="this",id=item_id,values=values,expected_revision=expected_revision))
-            return result["receipt"]
-        with self._command() as c:
-            c.execute('BEGIN IMMEDIATE')
-            return self._change_schedule(c, kind, action, item_id, values)
+        request = dict(request_id=request_id if request_id is not None else str(uuid.uuid4()),
+                       kind=kind, action=action, id=item_id,
+                       values=values, expected_revision=expected_revision)
+        if isinstance(item_id, str) and item_id.startswith("rec:"):
+            result = self.apply_recurrence_request(dict(request, scope="this"))
+            # Retain the existing occurrence response, including delivery state.
+            return dict(result["receipt"], google=result["google"],
+                        receipt=result["receipt"], resolution=result["resolution"])
+        result = self.apply_schedule_request(request)
+        # Existing callers may read the saved fields; the receipt is historical.
+        return dict(result["receipt"]["item"], **result,
+                    id=result["receipt"]["entity_id"], deleted=result["receipt"]["deleted"])
 
     def _change_schedule(self, c, kind, action, item_id=None, values=None):
         if kind not in ('event','todo') or action not in ('save','delete','complete'):

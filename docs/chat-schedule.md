@@ -81,7 +81,7 @@ CAL_SCHEDULE_REQUEST
 
 ## 所有・transaction・revision
 
-`apply_schedule_request`はBEGIN IMMEDIATEの同じ接続内で、要求ID照合→現在行のrevision確認→既存`_change_schedule`→receipt保存を実施し、commit後にだけ成功を返す。Frameの`change_schedule`も同じ更新・Validation本体を使う。試作subclassや故障注入は本番へ持ち込まない。
+`apply_schedule_request`はBEGIN IMMEDIATEの同じ接続内で、要求ID照合→現在行のrevision確認→既存`_change_schedule`→receipt保存を実施し、commit後にだけ成功を返す。Frameの`change_schedule`は単発をこの正式入口へ委譲し、更新・Validation・版照合・receipt保存を二重に持たない。`get_schedule_item`は現在値、`lookup_schedule_request`は元操作のreceiptを返す。lookupは外部送信しない。新規commitだけが`after_save`でGoogle反映を一度試み、再送は現在のローカルGoogle状態を返して送信しない。保存後送信前の中断やGoogle未反映は明示的なGoogle再試行で扱い、正式保存の再送で解消しない。試作subclassや故障注入は本番へ持ち込まない。
 
 revisionは正本行全値（更新日時を含む）のSHA-256。連番ではなく内容fingerprintで、Frameや既存CRUDによる内容変更も検出する。読み取り後に値が変わって元の値・日時まで完全に戻った履歴の検出を保証するものではない。同時再送はSQLiteの書込みlockとrequest_id主キーで直列化する。
 
