@@ -94,3 +94,15 @@ class TripRequestsTest(unittest.TestCase):
             self.assertEqual(result['status'],'committed')
             self.cal.apply_trip_operation(request)
             self.assertEqual(sync.call_count,1)
+
+    def test_weather_read_releases_write_lock(self):
+        from datetime import date
+        self.cal._weather_today = date.fromisoformat(self.trip['days'][0]['date'])
+        def weather(*args, **kwargs):
+            other = CalendarDomain(self.db, self.root)
+            other.apply_trip_operation(self.request('during-weather','instruction',{'instruction':'天気中の別保存'}))
+            return {}
+        with patch('Sources.calendar_domain.weather.build_weather_by_day', side_effect=weather):
+            view = self.cal.get_trip_edit_view(self.tid)
+        self.assertNotEqual(view['revision'], self.cal.get_trip_command_context(self.tid)['revision'])
+        self.assertFalse(any(i['instruction']=='天気中の別保存' for i in view['instructions']))
