@@ -94,4 +94,3 @@ class TripRequestsTest(unittest.TestCase):
             self.assertEqual(result['status'],'committed')
             self.cal.apply_trip_operation(request)
             self.assertEqual(sync.call_count,1)
-
