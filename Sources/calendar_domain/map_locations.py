@@ -109,7 +109,8 @@ def save(domain, command_id, trip_id, place_id, location, expected_location, goo
     if location is None or not valid_field('location', location):
         raise ValidationError('緯度・経度の値を確認してください。')
     with domain._command() as connection:
-        connection.execute('BEGIN IMMEDIATE')
+        if not connection.in_transaction:
+            connection.execute('BEGIN IMMEDIATE')
         if domain._journal_path(trip_id).exists():
             raise ConflictError('pending Trip adoption')
         point = target(domain, trip_id, place_id)
@@ -127,6 +128,8 @@ def save(domain, command_id, trip_id, place_id, location, expected_location, goo
                 domain._store_trip_fields(connection, command_id, trip_id, day_id, {'areas': areas}, {'areas': '/areas'})
             else:
                 domain._store_trip_fields(connection, command_id, trip_id, pid, values, {'location': '/location', 'googlePlaceId': '/googlePlaceId'})
+    if getattr(domain._trip_write_state, 'connection', None) is not None:
+        return {}
     return dict(status='saved', view=domain.get_trip_detail_view(trip_id))
 
 

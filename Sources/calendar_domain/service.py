@@ -22,6 +22,7 @@ from .schedule import ScheduleMixin
 from .schedule_chat import ScheduleChatMixin
 from .recurrence import RecurrenceMixin
 from .trip_chat import TripChatMixin
+from .trip_requests import TripRequestMixin
 from .errors import ConflictError, GenerationWriteError, NotFoundError, ValidationError
 from .models import UnifiedEvent
 from .trip_lifecycle import is_trip_completed
@@ -60,13 +61,14 @@ def _now() -> str:
 from .travel import TravelMixin
 
 
-class CalendarDomain(TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChatMixin, ScheduleChatMixin, ScheduleMixin, ChatExchangeMixin):
+class CalendarDomain(TripRequestMixin, TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChatMixin, ScheduleChatMixin, ScheduleMixin, ChatExchangeMixin):
     """Semantic CAL interface; formal storage paths are explicit, Chat root is separate."""
 
     def __init__(self, db_path: str | Path, trip_root: str | Path, *, chat_root: str | Path | None = None):
         if db_path is None or trip_root is None:
             raise ValidationError("db_path and trip_root are required")
         self._google_save_state = threading.local()
+        self._trip_write_state = threading.local()
         self.db_path = Path(db_path)
         self.trip_root = Path(trip_root)
         self.chat_root = Path(chat_root) if chat_root is not None else DEFAULT_CHAT_ROOT
@@ -91,6 +93,10 @@ class CalendarDomain(TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChat
 
     @contextmanager
     def _command(self) -> Iterator[sqlite3.Connection]:
+        active = getattr(self._trip_write_state, 'connection', None)
+        if active is not None:
+            yield active
+            return
         connection = self._connect()
         changed = set()
         projection_tables = {"events", "todos", "trips", "travel_basics", "schedule_series", "direct_overrides"}
@@ -116,6 +122,10 @@ class CalendarDomain(TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChat
 
     @contextmanager
     def _read(self) -> Iterator[sqlite3.Connection]:
+        active = getattr(self._trip_write_state, 'connection', None)
+        if active is not None:
+            yield active
+            return
         connection = self._connect()
         try:
             yield connection
@@ -2457,6 +2467,8 @@ class CalendarDomain(TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChat
             raise ValidationError(f"direct edit is invalid: {errors[0]}")
         with self._command() as connection:
             self._store_trip_fields(connection, command_id, trip_id, source_item_id, changes, paths)
+        if getattr(self._trip_write_state, "connection", None) is not None:
+            return {"updated_fields": sorted(changes)}
         return {
             "trip": self.get_effective_trip(trip_id),
             "view": self.get_trip_detail_view(trip_id),

@@ -137,7 +137,7 @@ def after_save(method):
             result = method(self,*args,**kwargs)
         finally:
             state.depth = depth
-        if depth==0:
+        if depth==0 and getattr(self._trip_write_state, 'connection', None) is None:
             try:google = self.google_status() if isinstance(result, dict) and result.get('resolution') == 'replayed' else self.sync_google()
             except Exception:google = dict(status='unreflected',reason='delivery_failed',pending=0)
             if isinstance(result,dict):

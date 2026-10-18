@@ -63,7 +63,8 @@ class ChatExchangeMixin:
         # Serialize publication with CAL writers so an older reader cannot replace
         # a newer context or combine an old effective Trip with a new version.
         with self._command() as connection:
-            connection.execute("BEGIN IMMEDIATE")
+            if not connection.in_transaction:
+                connection.execute("BEGIN IMMEDIATE")
             effective = self.get_effective_trip(trip_id)
             return self._write_chat_context(trip_id, effective, publish=publish)
 
@@ -78,7 +79,8 @@ class ChatExchangeMixin:
             connection.execute(
                 "INSERT INTO ai_instructions (id, trip_id, instruction, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
                 (instruction_id, trip_id, instruction, timestamp, timestamp))
-        self.get_chat_context(trip_id)
+        if getattr(self._trip_write_state, "connection", None) is None:
+            self.get_chat_context(trip_id)
         return {"status": "pending", "instruction_id": instruction_id}
 
     @staticmethod
