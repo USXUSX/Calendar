@@ -14,6 +14,8 @@ _BASE = 'https://www.jma.go.jp/bosai/'
 _JST = timezone(timedelta(hours=9))
 _CODES = json.loads(Path(__file__).with_name('jma_weather_codes.json').read_text())
 _DAYPARTS = (('morning', '朝', 6), ('noon', '昼', 12), ('evening', '夕', 18), ('night', '夜', 21))
+# The display GeoJSON simplifies coastlines and omits small islands (e.g. Jogashima).
+_COASTAL_TOLERANCE_KM = 2
 
 
 def _local_today():
@@ -47,6 +49,25 @@ def _contains(geometry, location):
     x, y = location['longitude'], location['latitude']
     return any(_in_ring(x, y, rings[0]) and not any(_in_ring(x, y, hole) for hole in rings[1:])
                for rings in polygons)
+
+
+def _boundary_distance_km(geometry, location):
+    """Distance to outer rings in a local tangent plane; do not fill polygon holes."""
+    polygons = geometry['coordinates'] if geometry['type'] == 'MultiPolygon' else [geometry['coordinates']]
+    x, y = location['longitude'], location['latitude']
+    scale = math.cos(math.radians(y))
+    nearest = math.inf
+    for rings in polygons:
+        if _in_ring(x, y, rings[0]):
+            return math.inf
+        ring = rings[0]
+        for a, b in zip(ring, ring[1:] + ring[:1]):
+            ax, ay = (a[0] - x) * scale, a[1] - y
+            dx, dy = (b[0] - a[0]) * scale, b[1] - a[1]
+            length_squared = dx * dx + dy * dy
+            t = max(0, min(1, -(ax * dx + ay * dy) / length_squared)) if length_squared else 0
+            nearest = min(nearest, math.hypot(ax + t * dx, ay + t * dy) * 6371 * math.pi / 180)
+    return nearest
 
 
 def _number(value):
@@ -122,6 +143,12 @@ class JmaAdapter:
         polygons = self._get('common/const/geojson/class10s.json', metadata=True)
         code = next((f['properties']['code'] for f in polygons['features']
                      if _contains(f['geometry'], location)), None)
+        if code is None:
+            distance, nearest_code = min(
+                ((_boundary_distance_km(f['geometry'], location), f['properties']['code'])
+                 for f in polygons['features']), default=(math.inf, None))
+            if distance <= _COASTAL_TOLERANCE_KM:
+                code = nearest_code
         if code is None:
             return None
         areas = self._get('common/const/area.json', metadata=True)

@@ -87,6 +87,9 @@ areasがある日はその配列を表示・天気地点の正本とする。旧
 `day.weather.locations`へ旅程順で返す。直下には最初の結果を保持する。
 `place_name`は元のarea名、表示の正本は実際の予報対象`area_code / area_name`。
 予定Placeや移動endpointから取得地点を増やさず、施設のピンポイント予報とは扱わない。
+全国表示用GeoJSONは海岸線の簡略化・小島の省略があるため、包含する区域がない座標は
+外周境界までの距離が2km以内の最寄り区域へ対応させる（#236）。包含する区域を常に優先し、
+Polygonの穴は埋めず、2kmを超える区域外座標は`location_unknown`とする。
 
 - 今日・明日は`forecast_type=short`。`weather_label`は発表された日別天気、
   `temperature_max / temperature_min`は`temperature_location`の代表地点値。
