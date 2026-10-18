@@ -18,10 +18,19 @@ class TripRequestMixin:
             self._trip_write_state.connection = c
             try:
                 context = self._trip_command_context(c, trip_id)
-                view = self.load_trip_detail_view(trip_id)
-                return dict(view, revision=context['revision'])
+                basic = self.get_travel(trip_id)
             finally:
                 self._trip_write_state.connection = None
+        # Provider/network reads must never hold the SQLite write lock.
+        today = getattr(self, '_weather_today', None)
+        weather = {}
+        if hasattr(self, '_weather_adapter'):
+            from .trip_lifecycle import is_trip_completed
+            from .weather import build_weather_by_day
+            if not is_trip_completed(context['trip'], today=today):
+                weather = build_weather_by_day(context['trip'], self._weather_adapter, today=today)
+        view = self._build_trip_edit_view(context, basic, weather_by_day=weather, today=today)
+        return dict(view, revision=context['revision'], chat=dict(status='command', message=''))
 
     @after_save
     def apply_trip_operation(self, request):

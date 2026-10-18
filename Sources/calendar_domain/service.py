@@ -1657,12 +1657,14 @@ class CalendarDomain(TripRequestMixin, TravelMixin, GoogleCalendarMixin, Recurre
     ) -> dict[str, Any]:
         """Return the Phase 1 Trip-detail model derived from the effective Trip."""
         context = self.get_chat_context(trip_id)
-        result = build_trip_detail_view(
-            context["trip"],
-            candidate_judgments=candidate_judgments,
-            weather_by_day=weather_by_day, today=today,
-        )
         basic = self.get_travel(trip_id)
+        return self._build_trip_edit_view(context, basic, candidate_judgments=candidate_judgments,
+                                          weather_by_day=weather_by_day, today=today)
+
+    @staticmethod
+    def _build_trip_edit_view(context, basic, *, candidate_judgments=None, weather_by_day=None, today=None):
+        result = build_trip_detail_view(context['trip'], candidate_judgments=candidate_judgments,
+                                        weather_by_day=weather_by_day, today=today)
         result["title"] = basic["title"]
         result["date_range"] = basic["dateRange"]
         result["date_status"] = basic["date_status"]
