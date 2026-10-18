@@ -1,7 +1,9 @@
 import copy
+import json
 import unittest
 from datetime import date
-from Sources.calendar_domain.weather import JmaAdapter, build_weather_by_day, _contains
+from pathlib import Path
+from Sources.calendar_domain.weather import JmaAdapter, build_weather_by_day, _contains, _boundary_distance_km
 
 TODAY = date(2026, 10, 2)
 LOCATION = {'latitude': 35.6, 'longitude': 140.1}
@@ -172,6 +174,91 @@ class WeatherTests(unittest.TestCase):
         self.assertTrue(_contains(geometry, {'latitude': 3, 'longitude': 3}))
         self.assertFalse(_contains(geometry, {'latitude': 1.5, 'longitude': 1.5}))
         self.assertTrue(_contains(geometry, {'latitude': 0, 'longitude': 2}))
+
+
+class CoastalWeatherTests(unittest.TestCase):
+    def setUp(self):
+        # Public JMA geometries, fetched 2026-10-18; no private Trip data.
+        # https://www.jma.go.jp/bosai/common/const/geojson/class10s.json
+        self.geo = json.loads((Path(__file__).parent / 'fixtures/jma-coastal-class10s.json').read_text())
+        raw = json.dumps(fixtures())
+        for old, new in [('120010', '140010'), ('120030', '140020'), ('120000', '140000')]:
+            raw = raw.replace(old, new)
+        self.data = json.loads(raw)
+        self.data['common/const/geojson/class10s.json'] = self.geo
+        self.data['common/const/area.json']['class10s']['120030'] = {'name': '南部', 'parent': '120000'}
+        self.data['common/const/area.json']['offices']['120000'] = {'name': '千葉県'}
+        self.data['common/const/area.json']['class10s']['140010']['name'] = '東部'
+        self.data['common/const/area.json']['offices']['140000']['name'] = '神奈川県'
+        self.calls = []
+        def transport(path):
+            self.calls.append(path)
+            return copy.deepcopy(self.data[path])
+        self.adapter = JmaAdapter(transport=transport, today=lambda: TODAY)
+        self.jogashima = {'latitude': 35.134, 'longitude': 139.623}
+        self.arasaki = {'latitude': 35.195, 'longitude': 139.602}
+
+    def test_public_coastal_coordinates_match_kanagawa_east(self):
+        for location in [self.jogashima, self.arasaki]:
+            with self.subTest(location=location):
+                self.assertFalse(any(_contains(f['geometry'], location) for f in self.geo['features']))
+                self.assertEqual(self.adapter._region(location)['area_code'], '140010')
+
+    def test_containment_wins_and_neighbouring_regions_stay_distinct(self):
+        for lat, lon, code in [(35.444, 139.638, '140010'), (35.256, 139.155, '140020'),
+                               (35.0, 139.86, '120030')]:
+            with self.subTest(code=code):
+                self.assertEqual(self.adapter._region({'latitude': lat, 'longitude': lon})['area_code'], code)
+
+    def test_short_weekly_and_multiple_areas_deduplication(self):
+        for target, kind, code in [(TODAY, 'short', '140010'), (date(2026, 10, 4), 'weekly', '140000')]:
+            trip = {'days': [{'id': 'coast', 'date': target.isoformat(), 'areas': [
+                {'name': '城ヶ島', 'location': self.jogashima},
+                {'name': '荒崎', 'location': self.arasaki}, {'name': '座標なし'}]}]}
+            original = copy.deepcopy(trip)
+            result = build_weather_by_day(trip, self.adapter, today=TODAY)['coast']
+            self.assertEqual([(x['status'], x.get('area_code')) for x in result['locations']],
+                             [('available', code), ('location_unknown', None)])
+            self.assertEqual(result['forecast_type'], kind)
+            self.assertEqual(trip, original)
+
+    def test_distant_ocean_overseas_and_horizon(self):
+        for lat, lon in [(35.0, 139.6), (48, 2), (0, 0)]:
+            self.assertEqual(self.adapter.forecast({'latitude': lat, 'longitude': lon}, TODAY)['status'],
+                             'location_unknown')
+        self.assertEqual(self.adapter.forecast(self.jogashima, date(2026, 10, 10))['status'], 'outside_forecast')
+        self.assertFalse(any('forecast/data' in p for p in self.calls))
+
+    def test_metadata_and_forecast_failures_are_unavailable(self):
+        for path in ['common/const/geojson/class10s.json', 'forecast/data/forecast/140000.json']:
+            with self.subTest(path=path):
+                def transport(requested):
+                    if requested == path:
+                        raise OSError('synthetic network failure')
+                    return self.data[requested]
+                adapter = JmaAdapter(transport=transport, today=lambda: TODAY)
+                self.assertEqual(adapter.forecast(self.jogashima, TODAY)['status'], 'unavailable')
+
+    def test_distance_limit_holes_and_multipolygon(self):
+        geometry = {'type': 'Polygon', 'coordinates': [
+            [[0,0],[1,0],[1,1],[0,1],[0,0]], [[.001,.001],[.002,.001],[.002,.002],[.001,.002],[.001,.001]]]}
+        self.assertLess(_boundary_distance_km(geometry, {'latitude': -.01, 'longitude': .5}), 2)
+        self.assertGreater(_boundary_distance_km(geometry, {'latitude': -.02, 'longitude': .5}), 2)
+        geometry = {'type': 'MultiPolygon', 'coordinates': [geometry['coordinates'],
+                    [[[.003,0],[.004,0],[.004,.003],[.003,.003],[.003,0]]]]}
+        self.assertEqual(_boundary_distance_km(geometry, {'latitude': .0015, 'longitude': .0015}), float('inf'))
+
+    def test_region_distance_cap_and_exact_containment_before_nearest(self):
+        # A point inside the second region must not be reassigned to a nearby first region.
+        def feature(code, west, east):
+            return {'properties': {'code': code}, 'geometry': {'type': 'Polygon', 'coordinates': [
+                [[west, 0], [east, 0], [east, 1], [west, 1], [west, 0]]]}}
+        self.data['common/const/geojson/class10s.json'] = {'features': [
+            feature('140010', 0, 1), feature('140020', 1.001, 2)]}
+        for longitude, expected in [(-.01, '140010'), (-.02, None), (1.002, '140020')]:
+            result = self.adapter._region({'latitude': .5, 'longitude': longitude})
+            self.assertEqual(result['area_code'] if result else None, expected)
+        self.assertEqual(self.calls.count('common/const/geojson/class10s.json'), 1)
 
 
 if __name__ == '__main__':
