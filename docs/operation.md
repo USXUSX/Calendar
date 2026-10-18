@@ -61,3 +61,5 @@ Place補完は対象施設と保存値を確認して採用します。取得で
 ## Google一方向反映
 
 通常の画面/Chat保存後に専用CALへ反映する。未反映の確認・再試行・初回本人認証は[Google連携契約](google-calendar.md)を参照。CAL保存receiptとGoogle反映を区別する。
+
+旅程画面の直接操作は[正式要求・版照合・receipt契約](direct-schedule.md#画面の正式要求calendar-238)を使用する。指示保存とAI処理、正式保存とview/Google/DSP反映を区別する。

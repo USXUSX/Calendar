@@ -514,3 +514,5 @@ Frameは終了済みを一覧下部「過去の旅行」へまとめ、初日を
 `photoAlbumName`未設定時はnull。Trip表示名からアルバム名を推測しない。
 通常アルバム名の対応と端末設定は[写真参照](trip-photos.md)を参照する。
 Trip JSONには任意の文字列`photoAlbumName`を追加する。SQLiteの構造は変更しない。
+
+旅程画面の直接操作は[正式要求・版照合・receipt契約](direct-schedule.md#画面の正式要求calendar-238)を使用する。指示保存とAI処理、正式保存とview/Google/DSP反映を区別する。

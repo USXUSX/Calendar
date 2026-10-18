@@ -16,7 +16,8 @@ def change(domain, command_id, trip_id, action, payload):
         from .map_locations import prepare
         return dict(location_plan=prepare(domain._with_home(pasted_trip(domain, day, payload.get('text'), command_id)))[1])
     with domain._command() as connection:
-        connection.execute('BEGIN IMMEDIATE')
+        if not connection.in_transaction:
+            connection.execute('BEGIN IMMEDIATE')
         if domain._journal_path(trip_id).exists():
             raise ConflictError('pending Trip adoption')
         trip = domain.get_effective_trip(trip_id)
@@ -104,6 +105,8 @@ def change(domain, command_id, trip_id, action, payload):
             raise ValidationError('予定を保存できません: ' + '\n'.join(errors))
         for target, path, value in changes:
             domain._store_trip_fields(connection, command_id, trip_id, target, {path: value}, {path: path})
+    if getattr(domain._trip_write_state, 'connection', None) is not None:
+        return {}
     return dict(view=domain.get_trip_detail_view(trip_id), trip=domain.get_effective_trip(trip_id))
 
 

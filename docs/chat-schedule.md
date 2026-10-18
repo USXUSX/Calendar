@@ -191,3 +191,5 @@ followingの境界は表示日ではなく元の発生日。条件変更時はre
 Chat/Gmail登録では、明確な新幹線はshinkansen、その他の鉄道はrail、飛行機はairをcategoryに選ぶ。CALは自然言語から分類を推測しない。Gmail登録前に元メール参照を取得し、categoryを内容から選ぶ。Google側に同じ予定があるか既存Google接続で確認し、件名だけでは同一と判断せず、対象予約・日付時刻・メール根拠を照合する。同一ならそのcalendar ID / event IDを取得してgoogle_calendar_id / google_event_idの組を指定する。Macのapp.created scopeからprimaryを探索する機能や権限拡張は追加しない。照合できなければ未確認と伝え、重複回避済みと報告しない。
 
 CAL正式保存→旅行関連付け→Google反映の順。旅行が既知なら同じ正式保存にtrip_idを含め、保存commit後のGoogle送信を使う。後から関連付ける場合は最新revisionで追加saveする。CAL receipt、外部予定参照、Google送信結果を区別する。既存スケジュールタスクの指示文変更はこの機能導入とは別に扱う。
+
+旅程画面の直接操作は[正式要求・版照合・receipt契約](direct-schedule.md#画面の正式要求calendar-238)を使用する。指示保存とAI処理、正式保存とview/Google/DSP反映を区別する。

@@ -45,3 +45,5 @@ CAL LocalDataの`settings/home.json`に`address`、`location:{latitude,longitude
 新規取込・Chat採用・既存effective Trip・context・地点入力で共通利用する。既存の正式JSONは読込だけでは書き換えない。自宅の地図編集による個別位置保存は受け付けず、住所変更は共通設定で行う。設定更新は次回読込から反映され、Chatのeffective revisionにも含まれる。設定がない環境は従来動作で、壊れた設定はエラーとして通知する。
 
 初日・最終日の鉄道本体の出発／到着駅は地図対象に残す。新幹線等の前後にある自宅アクセス区間は対象外とし、自宅そのものは鉄道境界のtransport端点でも表示しない。既存のflight境界除外と車旅行の範囲・地点順序・map_routesは維持する（#218）。
+
+旅程画面の直接操作は[正式要求・版照合・receipt契約](direct-schedule.md#画面の正式要求calendar-238)を使用する。指示保存とAI処理、正式保存とview/Google/DSP反映を区別する。

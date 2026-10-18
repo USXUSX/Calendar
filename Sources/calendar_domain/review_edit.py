@@ -19,7 +19,8 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
     if set(changes) - set(paths) - extra:
         raise ValidationError('編集項目を確認してください。')
     with domain._command() as connection:
-        connection.execute('BEGIN IMMEDIATE')
+        if not connection.in_transaction:
+            connection.execute('BEGIN IMMEDIATE')
         trip = domain.get_effective_trip(trip_id)
         matches = domain._item_matches(trip, source_item_id)
         if len(matches) != 1 or (source_type == 'transport') != (matches[0] in trip['transports']):
@@ -159,4 +160,6 @@ def edit_item(domain, command_id, trip_id, source_type, source_item_id, changes)
 
         for target,path,value in edits:
             domain._store_trip_fields(connection,command_id,trip_id,target,{path:value},{path:path})
+    if getattr(domain._trip_write_state, 'connection', None) is not None:
+        return {}
     return dict(trip=domain.get_effective_trip(trip_id), view=domain.get_trip_detail_view(trip_id), updated_fields=sorted(changes))
