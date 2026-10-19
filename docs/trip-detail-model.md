@@ -516,3 +516,8 @@ Frameは終了済みを一覧下部「過去の旅行」へまとめ、初日を
 Trip JSONには任意の文字列`photoAlbumName`を追加する。SQLiteの構造は変更しない。
 
 旅程画面の直接操作は[正式要求・版照合・receipt契約](direct-schedule.md#画面の正式要求calendar-238)を使用する。指示保存とAI処理、正式保存とview/Google/DSP反映を区別する。
+
+
+## 旅程一覧の宿泊数（CAL #242 / Frame #343）
+
+`list_trips`の`lodging_nights`は、effective Tripの宿泊（`category=accommodation`）予定がある日を1泊として集計した整数。同日の複数予定は重複させず、Trip最終日、actionに明記されたチェックアウト（日本語/checkout/check-out/check out）・機内泊は数えない。チェックアウトと宿泊の両方がある日は宿泊を1泊とする。移動や日付差から宿泊を補完せず、予定の未登録は0泊。候補の採用・予約済みへの変更・正式保存・外部取得は行わない。FRMはこの値と既存の管理期間を「○泊○日」へ表示する。正式Trip/schema/DBへ泊数の保存項目を追加しない。
