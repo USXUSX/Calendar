@@ -25,7 +25,7 @@ from .trip_chat import TripChatMixin
 from .trip_requests import TripRequestMixin
 from .errors import ConflictError, GenerationWriteError, NotFoundError, ValidationError
 from .models import UnifiedEvent
-from .trip_lifecycle import is_trip_completed
+from .trip_lifecycle import is_trip_completed, lodging_nights
 from .trip_photos import photo_search_url
 from .chat_exchange import ChatExchangeMixin, DEFAULT_CHAT_ROOT
 from .trip_detail import _mark_time_conflicts, build_trip_detail_view
@@ -729,7 +729,7 @@ class CalendarDomain(TripRequestMixin, TravelMixin, GoogleCalendarMixin, Recurre
             trip = self.get_effective_trip(trip_id)
             with self._read() as c: basic=self._travel_basic(c,trip_id)
             summaries.append({"trip_id": trip_id, "title": basic["title"], "dateRange": basic["dateRange"], "date_status":basic["date_status"],
-                              "is_completed": is_trip_completed(trip, today=today),
+                              "is_completed": is_trip_completed(trip, today=today), "lodging_nights": lodging_nights(trip),
                               "photo_url": photo_search_url(trip),
                               "first_day_id": min(trip["days"], key=lambda day: day["date"])["id"]})
         return sorted(summaries, key=lambda item: (item["dateRange"]["start"] or "9999-12-31", item["trip_id"]))
