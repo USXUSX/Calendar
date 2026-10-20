@@ -1,5 +1,6 @@
 """N02 railway shapes: explicit line/station paths, local derived cache only."""
 from collections import defaultdict
+from bisect import bisect_left, bisect_right
 import heapq
 import math
 from functools import lru_cache
@@ -9,7 +10,7 @@ from pathlib import Path
 import zipfile
 
 VERSION = 'N02-25'
-ALGORITHM_VERSION = 2
+ALGORITHM_VERSION = 3
 SOURCE = 'https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N02-2025.html'
 ATTRIBUTION = '国土交通省「国土数値情報（鉄道データ）2025年度版」を加工（CC BY 4.0）'
 
@@ -105,6 +106,40 @@ def _path(graph, start, end, blocked):
     return [list(p) for p in path], _has_alternative(graph, path, blocked)
 
 
+def _graph(features):
+    """Split source segments at source feature endpoints lying on them.
+
+    N02 junctions can end inside another feature's segment. This is a topology
+    split, not a nearest-line snap: the only tolerance is 1e-8 degrees (about
+    1 mm) for coordinate rounding. Features are already line/operator filtered.
+    """
+    paths = [[tuple(p) for p in f['geometry']['coordinates']] for f in features]
+    endpoints = sorted({p for points in paths for p in (points[0], points[-1])})
+    graph = defaultdict(set)
+    epsilon = 1e-8
+    for points in paths:
+        for a, b in zip(points, points[1:]):
+            if a == b:
+                continue
+            dx, dy = b[0]-a[0], b[1]-a[1]
+            length = math.hypot(dx, dy)
+            left = bisect_left(endpoints, (min(a[0], b[0])-epsilon, -math.inf))
+            right = bisect_right(endpoints, (max(a[0], b[0])+epsilon, math.inf))
+            cuts = [(0.0, a), (1.0, b)]
+            for point in endpoints[left:right]:
+                if point == a or point == b or not min(a[1], b[1])-epsilon <= point[1] <= max(a[1], b[1])+epsilon:
+                    continue
+                px, py = point[0]-a[0], point[1]-a[1]
+                fraction = (px*dx + py*dy)/(length*length)
+                if 0 < fraction < 1 and abs(dx*py - dy*px)/length <= epsilon:
+                    cuts.append((fraction, point))
+            ordered = [point for _, point in sorted(cuts)]
+            for first, second in zip(ordered, ordered[1:]):
+                graph[first].add(second)
+                graph[second].add(first)
+    return graph
+
+
 def extract(sections, stations, specification, mode):
     lines = []
     reference_route = False
@@ -121,13 +156,7 @@ def extract(sections, stations, specification, mode):
         kinds = {s['properties']['N02_002'] for s in matching_stations}
         if (mode == 'shinkansen' and kinds != {'1'}) or (mode == 'train' and '1' in kinds):
             raise Unavailable('mode_mismatch')
-        graph = defaultdict(set)
-        for feature in [s for s in sections if selected(s)] + matching_stations:
-            pts = [tuple(p) for p in feature['geometry']['coordinates']]
-            for a, b in zip(pts, pts[1:]):
-                if a != b:
-                    graph[a].add(b)
-                    graph[b].add(a)
+        graph = _graph([s for s in sections if selected(s)] + matching_stations)
         names = [leg['from'], *leg.get('via', []), leg['to']]
         if len(names) != len(set(names)):
             raise Unavailable('repeated_station')

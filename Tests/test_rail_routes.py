@@ -72,6 +72,27 @@ class RailRoutesTest(unittest.TestCase):
         self.sections=[feature(list(reversed(south))),feature(list(reversed(north)))]
         self.assertEqual(extract(self.sections,list(reversed(self.stations)),self.spec,'train'),result)
 
+    def test_junction_endpoint_inside_source_segment(self):
+        self.sections=[feature([[0,0],[4,0]]),feature([[2,0],[2,1]])]
+        self.stations=[feature([[0,0]],'甲'),feature([[2,1]],'乙')]
+        self.assertEqual(self.extract(),[[[0,0],[2,0],[2,1]]])
+        self.assertEqual(self.extract(dict(legs=[leg('乙','甲')])),[[[2,1],[2,0],[0,0]]])
+        self.assertFalse(extract(self.sections,self.stations,self.spec,'train')[1])
+        # Round-off at a source junction is allowed, a nearby parallel line isn't.
+        self.sections[1]['geometry']['coordinates'][0]=[2,1e-9]
+        self.assertEqual(self.extract()[0][1],[2,1e-9])
+        self.sections[1]['geometry']['coordinates'][0]=[2,1e-5]
+        with self.assertRaisesRegex(Unavailable,'disconnected'):self.extract()
+
+    def test_junction_does_not_join_other_lines_or_interior_crossings(self):
+        self.stations=[feature([[0,0]],'甲'),feature([[2,1]],'乙')]
+        for extra in [dict(line='別線'),dict(operator='別会社')]:
+            with self.subTest(extra=extra):
+                self.sections=[feature([[0,0],[4,0]]),feature([[2,0],[2,1]],**extra)]
+                with self.assertRaisesRegex(Unavailable,'disconnected'):self.extract()
+        self.sections=[feature([[0,0],[4,0]]),feature([[2,-1],[2,1]])]
+        with self.assertRaisesRegex(Unavailable,'disconnected'):self.extract()
+
     def test_multiple_lines_and_platforms(self):
         self.stations.append(feature([[0,0]],'甲'))  # same station code, platform duplicate
         self.assertEqual(len(self.extract()[0]),5)
@@ -97,7 +118,7 @@ class RailRoutesTest(unittest.TestCase):
             self.assertEqual(first['status'],'ready')
             self.assertFalse(first['reference_route'])
             from Sources.calendar_domain.rail_routes import fingerprint
-            old_key=fingerprint(dict(algorithm=1,source=first['source_sha256'],mode='train',specification=self.spec,origin=a,destination=b))
+            old_key=fingerprint(dict(algorithm=2,source=first['source_sha256'],mode='train',specification=self.spec,origin=a,destination=b))
             (root/'rail/derived'/f'{old_key}.json').write_text(json.dumps(dict(first,geometry={'type':'MultiLineString','coordinates':[[[99,99]]]})))
             self.assertNotEqual(first['cache_key'],old_key)
             self.assertEqual(route_geometry(root,transport,a,b),first)
