@@ -518,6 +518,10 @@ Trip JSONには任意の文字列`photoAlbumName`を追加する。SQLiteの構�
 旅程画面の直接操作は[正式要求・版照合・receipt契約](direct-schedule.md#画面の正式要求calendar-238)を使用する。指示保存とAI処理、正式保存とview/Google/DSP反映を区別する。
 
 
-## 旅程一覧の宿泊数（CAL #242 / Frame #343）
+## 旅行の泊数・参加者（CAL #250）
 
-`list_trips`の`lodging_nights`は、effective Tripの宿泊（`category=accommodation`）予定がある日を1泊として集計した整数。同日の複数予定は重複させず、Trip最終日、actionに明記されたチェックアウト（日本語/checkout/check-out/check out）・機内泊は数えない。チェックアウトと宿泊の両方がある日は宿泊を1泊とする。移動や日付差から宿泊を補完せず、予定の未登録は0泊。候補の採用・予約済みへの変更・正式保存・外部取得は行わない。FRMはこの値と既存の管理期間を「○泊○日」へ表示する。正式Trip/schema/DBへ泊数の保存項目を追加しない。
+旅行基本情報 `travel_basics.data_json` に `nights`（0以上の整数 / null＝未登録）と `participants`（人物IDの重複しない配列、未登録は空配列）を保持する。本人 `self`、妻 `wife`、リオ `rio`、母 `mother` を使用し、他の人物IDも保存できる。略称は保存せずFrameが変換する。人数や旅行内容から参加者を推測しない。
+
+complete Trip JSONにも同名の任意fieldを受け付け、Chatの正式create/saveと既存採用journalから基本情報へ反映する。既存JSONで省略したfieldは保存済み基本情報を保持する。effective Tripは基本情報を重ね、`list_travel` / `list_trips`は `nights`・`participants`・`transport` を供給する。日数は管理期間の日付差から表示側で算出し、保存しない。泊数は宿泊予定の追加・削除で自動変更しない。機内泊は泊数に含めず、Chat/手動更新時に確認した明示値を渡す。
+
+既存 `lodging_nights` は宿泊予定の集計として互換保持するが、明示泊数の代用にしない。未登録の泊数から「0泊」を作らない。既存旅行の移行はSQLite backup後 `python3 -B scripts/migrate_travel_metadata.py <DB> <Calendar_Local root>` を実行する。既存明示値を保持し、全宿泊対象日に宿泊または明示機内泊が揃う場合だけ宿泊数を確定する。未確認の泊数はnull、参加者は空配列を保持する。旅行内容・正式JSONを変更せず、再実行で値やrevisionを変えない。

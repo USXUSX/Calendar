@@ -96,7 +96,11 @@ class TripChatMixin:
                 existing = context['trip']
                 version = expected['trip_version']
                 old_hash = self._digest(path.read_bytes())
-            candidate, _ = self._validated_candidate(trip_id, request['trip'])
+            supplied = dict(request['trip'])
+            metadata_source = existing or (json.loads(connected['data_json']) if connected else {})
+            for key in ('nights', 'participants'):
+                if key in metadata_source: supplied.setdefault(key, metadata_source[key])
+            candidate, _ = self._validated_candidate(trip_id, supplied)
             if action == 'create' and connected:
                 candidate['title']=json.loads(connected['data_json'])['title']
             candidate, counts = complete(candidate,request['coordinate_results'],existing,require_attempts=True)
@@ -118,6 +122,7 @@ class TripChatMixin:
                 if candidate['title']!=existing['title']: travel_changes['title']=candidate['title']
                 if candidate['dateRange']!=existing['dateRange']:
                     travel_changes.update(start_date=candidate['dateRange']['start'],end_date=candidate['dateRange']['end'],date_status='confirmed')
+            travel_changes.update({k: candidate[k] for k in ('nights', 'participants') if k in candidate})
             journal = dict(travel_changes=travel_changes,version=4,kind='rdc',trip_id=trip_id,old_version=version,old_hash=old_hash,
                            candidate_hash=self._digest(payload),payload_hash=digest,receipt=receipt)
             staging = self._staging_path(trip_id,journal['candidate_hash'])

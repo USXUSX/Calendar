@@ -395,6 +395,7 @@ class CalendarDomain(TripRequestMixin, TravelMixin, GoogleCalendarMixin, Recurre
         if candidate_value['title'] != existing['title']: changes['title'] = candidate_value['title']
         if candidate_value['dateRange'] != existing['dateRange']:
             changes.update(start_date=candidate_value['dateRange']['start'],end_date=candidate_value['dateRange']['end'],date_status='confirmed')
+        changes.update({k: candidate_value[k] for k in ('nights', 'participants') if k in candidate_value})
         journal['travel_changes'] = changes
         if kind == "chat":
             journal["handled_instruction_ids"] = list(instruction_ids)
@@ -729,7 +730,7 @@ class CalendarDomain(TripRequestMixin, TravelMixin, GoogleCalendarMixin, Recurre
             trip = self.get_effective_trip(trip_id)
             with self._read() as c: basic=self._travel_basic(c,trip_id)
             summaries.append({"trip_id": trip_id, "title": basic["title"], "dateRange": basic["dateRange"], "date_status":basic["date_status"],
-                              "is_completed": is_trip_completed(trip, today=today), "lodging_nights": lodging_nights(trip),
+                              "is_completed": is_trip_completed(trip, today=today), "lodging_nights": lodging_nights(trip), "nights": basic["nights"], "participants": basic["participants"], "transport": basic["transport"],
                               "photo_url": photo_search_url(trip),
                               "first_day_id": min(trip["days"], key=lambda day: day["date"])["id"]})
         return sorted(summaries, key=lambda item: (item["dateRange"]["start"] or "9999-12-31", item["trip_id"]))

@@ -141,3 +141,57 @@ class TravelTest(unittest.TestCase):
             projection=next(k for k in api.events if k!='external');before=copy.deepcopy(api.events);api.calls.clear()
             self.cal.change_schedule('event','save',item['id'],dict(google_calendar_id='synthetic-cal',google_event_id=projection), expected_revision=self.cal.get_schedule_item('event',item['id'])['revision'])
             self.assertEqual(api.events,before);self.assertEqual(api.calls,[])
+
+    def test_explicit_metadata_roundtrip_retention_and_validation(self):
+        travel=self.create(nights=4,participants=['self','wife','rio'])
+        tid=travel['id']
+        self.assertEqual(travel['nights'],4)
+        self.assertEqual(self.cal.list_travel()[0]['participants'],['self','wife','rio'])
+        changed=self.cal.change_travel({'title':'変更'},tid,travel['revision'])['receipt']['item']
+        self.assertEqual(changed['nights'],4)
+        for values in ({'nights':True},{'nights':-1},{'participants':['self','self']},{'participants':'S'}):
+            with self.assertRaises(ValidationError):self.cal.change_travel(values,tid,changed['revision'])
+        trip=json.loads((ROOT/'Samples/synthetic-trip.json').read_text());trip['id']=tid
+        with patch('Sources.calendar_domain.trip_chat.complete',side_effect=lambda candidate,*a,**k:(candidate,{})):
+            saved=self.cal.apply_trip_request(dict(request_id='metadata-connect',kind='trip',action='create',trip=trip,coordinate_results={}))
+            self.assertEqual(self.cal.get_trip_command_context(tid)['revision'],saved['receipt']['revision'])
+            context=self.cal.get_trip_command_context(tid)
+            context['trip']['days'][0]['scheduleItems']=[]
+            context['trip']['nights']=3;context['trip']['participants']=['wife']
+            saved=self.cal.apply_trip_request(dict(request_id='metadata-save',kind='trip',action='save',trip=context['trip'],expected_revision=context['revision'],coordinate_results={}))
+        self.assertEqual(self.cal.get_effective_trip(tid)['nights'],3)
+        self.assertEqual(self.cal.list_trips()[0]['participants'],['wife'])
+        self.assertEqual(self.cal.get_trip_command_context(tid)['revision'],saved['receipt']['revision'])
+        changed=self.cal.get_travel(tid)
+        self.cal.change_travel({'nights':2},tid,changed['revision'])
+        self.assertEqual(self.cal.get_effective_trip(tid)['nights'],2)
+
+    def test_metadata_migration_idempotent_unknown_people_and_nights(self):
+        from scripts.migrate_travel_metadata import migrate as metadata
+        travel=self.create()
+        metadata(self.db,self.root)
+        current=self.cal.get_travel(travel['id'])
+        self.assertIsNone(current['nights']);self.assertEqual(current['participants'],[])
+        metadata(self.db,self.root)
+        self.assertEqual(self.cal.get_travel(travel['id'])['revision'],current['revision'])
+
+    def test_metadata_migration_requires_complete_night_coverage(self):
+        from scripts.migrate_travel_metadata import migrate as metadata
+        trip=json.loads((ROOT/'Samples/synthetic-trip.json').read_text())
+        (self.root/'trips').mkdir(exist_ok=True)
+        (self.root/'trips'/f"{trip['id']}.json").write_text(json.dumps(trip))
+        self.cal.register_trip(trip['id'])
+        migrate(self.db,self.root)
+        metadata(self.db,self.root)
+        # Incomplete itinerary cannot establish nights from date difference.
+        self.assertIsNone(self.cal.get_travel(trip['id'])['nights'])
+        with sqlite3.connect(self.db) as c:
+            data=json.loads(c.execute('SELECT data_json FROM travel_basics').fetchone()[0]);data.pop('nights')
+            c.execute('UPDATE travel_basics SET data_json=?',(json.dumps(data),))
+        from datetime import date,timedelta
+        start=date.fromisoformat(trip['dateRange']['start']);end=date.fromisoformat(trip['dateRange']['end'])
+        trip['days']=[dict(id='night-'+str(n),date=(start+timedelta(days=n)).isoformat(),title='宿泊',routeSummary=None,transportIds=[],scheduleItems=[dict(id='stay-'+str(n),dayId='night-'+str(n),order=0,status='confirmed',action='機内泊' if n==0 else '宿泊',searchQuery='合成宿泊',category='other' if n==0 else 'accommodation',summary=None,details=[],time=dict(mode='none',start=None,end=None,durationMinutes=None),placeSelection=dict(candidatePlaceIds=[],selection=[],minSelections=None,maxSelections=None))]) for n in range((end-start).days)]
+        trip['transports']=[];trip['bookings']=[]
+        (self.root/'trips'/f"{trip['id']}.json").write_text(json.dumps(trip))
+        metadata(self.db,self.root)
+        self.assertEqual(self.cal.get_travel(trip['id'])['nights'],(end-start).days-1)
