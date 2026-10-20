@@ -25,7 +25,7 @@ class RailRoutesTest(unittest.TestCase):
         self.spec = dict(legs=[leg()])
 
     def extract(self, spec=None):
-        return extract(self.sections, self.stations, spec or self.spec, 'train')
+        return extract(self.sections, self.stations, spec or self.spec, 'train')[0]
 
     def test_direction_explicit_line_and_station_identity(self):
         self.assertEqual(self.extract()[0], [[0,0],[1,1],[2,0],[3,1],[4,0]])
@@ -41,10 +41,36 @@ class RailRoutesTest(unittest.TestCase):
         self.sections.append(feature([[2,0],[2,2]]))
         self.assertEqual(len(self.extract()[0]),5)  # dead-end branch is not an alternative
         self.sections.append(feature([[0,0],[2,-1],[4,0]]))
-        with self.assertRaisesRegex(Unavailable,'ambiguous_path'):self.extract()
+        lines, reference = extract(self.sections,self.stations,self.spec,'train')
+        self.assertTrue(reference)
+        self.assertEqual(lines[0],[[0,0],[2,-1],[4,0]])
         self.assertEqual(self.extract(dict(legs=[leg(via=['中'])]))[0], self.sections[0]['geometry']['coordinates'])
         self.sections = [feature([[0,0],[1,1]]),feature([[3,1],[4,0]])]
         with self.assertRaisesRegex(Unavailable,'disconnected'):self.extract()
+
+    def test_distance_not_edge_count_and_via_priority(self):
+        direct=[[0,0],[2,5],[4,0]]  # fewer edges but a much longer rail line
+        short=[[0,0],[1,0],[2,0],[3,0],[4,0]]
+        self.sections=[feature(direct),feature(short)]
+        self.stations.append(feature([[2,5]],'遠回り'))
+        lines, reference=extract(self.sections,self.stations,self.spec,'train')
+        self.assertEqual(lines,[short])
+        self.assertTrue(reference)
+        via=dict(legs=[leg(via=['遠回り'])])
+        self.assertEqual(self.extract(via),[direct])
+        self.assertFalse(extract(self.sections,self.stations,via,'train')[1])
+        # A spur off the selected path must not make it a reference route.
+        self.sections=[feature(short),feature([[2,0],[2,2]])]
+        self.assertFalse(extract(self.sections,self.stations,self.spec,'train')[1])
+
+    def test_equal_distance_is_stable_across_feature_order(self):
+        north=[[0,0],[2,1],[4,0]];south=[[0,0],[2,-1],[4,0]]
+        self.sections=[feature(north),feature(south)]
+        result=extract(self.sections,self.stations,self.spec,'train')
+        self.assertTrue(result[1])
+        self.assertEqual(result[0],[south])
+        self.sections=[feature(list(reversed(south))),feature(list(reversed(north)))]
+        self.assertEqual(extract(self.sections,list(reversed(self.stations)),self.spec,'train'),result)
 
     def test_multiple_lines_and_platforms(self):
         self.stations.append(feature([[0,0]],'甲'))  # same station code, platform duplicate
@@ -69,6 +95,14 @@ class RailRoutesTest(unittest.TestCase):
             original=copy.deepcopy(transport)
             first=route_geometry(root,transport,a,b)
             self.assertEqual(first['status'],'ready')
+            self.assertFalse(first['reference_route'])
+            from Sources.calendar_domain.rail_routes import fingerprint
+            old_key=fingerprint(dict(algorithm=1,source=first['source_sha256'],mode='train',specification=self.spec,origin=a,destination=b))
+            (root/'rail/derived'/f'{old_key}.json').write_text(json.dumps(dict(first,geometry={'type':'MultiLineString','coordinates':[[[99,99]]]})))
+            self.assertNotEqual(first['cache_key'],old_key)
+            self.assertEqual(route_geometry(root,transport,a,b),first)
+            # With the current cache absent, the prior algorithm's cache must not be read.
+            (root/'rail/derived'/f"{first['cache_key']}.json").unlink()
             self.assertEqual(route_geometry(root,transport,a,b),first)
             transport['railRoute']={'legs':[leg('甲','中')]}
             self.assertEqual(route_geometry(root,transport,a,b)['reason'],'endpoint_mismatch')
@@ -79,6 +113,10 @@ class RailRoutesTest(unittest.TestCase):
             fresh=route_geometry(root,original,a,b)
             self.assertNotEqual(first['source_sha256'],fresh['source_sha256'])
             self.assertEqual(fresh['geometry']['coordinates'][0][1],[1,1.5])
+            self.sections.append(feature([[0,0],[2,5],[4,0]]));write()
+            automatic=route_geometry(root,original,a,b)
+            self.assertTrue(automatic['reference_route'])
+            self.assertEqual(route_geometry(root,original,a,b),automatic)
             self.assertEqual(route_geometry(root,{'mode':'train'},a,b)['reason'],'route_unspecified')
             source.unlink()
             self.assertEqual(route_geometry(root,original,a,b)['reason'],'data_unavailable')

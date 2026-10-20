@@ -56,12 +56,22 @@ Transportの任意 `railRoute` に利用区間を順番に指定する。省略/
 {"railRoute":{"legs":[{"operator":"西日本旅客鉄道","line":"山陽新幹線","from":"福山","to":"新大阪","via":[]},{"operator":"東海旅客鉄道","line":"東海道新幹線","from":"新大阪","to":"新横浜","via":[]}]}}
 ```
 
-`operator` / `line` / 駅名はN02の運営会社・路線名・駅名と完全一致させる。from/toは各区間の駅、viaはその区間内の必要な経由駅の順序付き配列。隣接区間は同じ駅で接続する。先頭/末尾駅はTransport端点Placeのname（末尾の「駅」は除ける）と一致させる。新幹線と在来線の区分も照合する。異なる駅コードの同名駅、路線不明、不接続、viaでも一意に決まらない環状経路は未生成とし、最短経路・他路線・直線へ置き換えない。同じ駅コードの複数platform形状は同一駅として扱う。N02駅形状上の頂点を区間端点にし、Place座標から駅への補間線を加えない。
+`operator` / `line` / 駅名はN02の運営会社・路線名・駅名と完全一致させる。from/toは各区間の駅、viaはその区間内の必要な経由駅の順序付き配列。隣接区間は同じ駅で接続する。先頭/末尾駅はTransport端点Placeのname（末尾の「駅」は除ける）と一致させる。新幹線と在来線の区分も照合する。異なる駅コードの同名駅、路線不明、不接続は未生成とし、他路線・直線へ置き換えない。指定を満たす複数経路は下記の距離規則で選ぶ（#246）。同じ駅コードの複数platform形状は同一駅として扱う。N02駅形状上の頂点を区間端点にし、Place座標から駅への補間線を加えない。
 
 正式JSONには指定だけを保持する。`get_trip_edit_view` / `get_trip_detail_view` のday.map_routesの鉄道に `rail` を付ける。ready時は `geometry:{type:"MultiLineString",coordinates:[[[longitude,latitude],...],...]}`、source_version、source_sha256、source_url、license_url、attribution、cache_keyを返す。複数路線は別の線として描き、乗換駅の異なるplatform間を直線でつながない。これは鉄道路線の表示であり運行状況・列車の走行実績ではない。
 
-unavailable時は形状なしでreasonを返す：route_unspecified / endpoint_mismatch / line_not_found / station_not_found / ambiguous_station / mode_mismatch / leg_connection_mismatch / repeated_station / disconnected / ambiguous_path / data_unavailable。FRMは状態を表示して既存リンクを残す。
+ready時の `reference_route` は、指定を満たす複数の線路経路から自動選択した場合true、一意の場合false。FRMはtrueの該当区間だけ「参考経路」と表示する。正式Tripの列車・時刻・railRouteは描画readで変更しない。
+
+unavailable時は形状なしでreasonを返す：route_unspecified / endpoint_mismatch / line_not_found / station_not_found / ambiguous_station / mode_mismatch / leg_connection_mismatch / repeated_station / disconnected / data_unavailable。FRMは状態を表示して既存リンクを残す。
 
 描画read時にローカルデータから抽出し、`Calendar_Local/rail/derived/<fingerprint>.json` へ再生成可能な派生データを保存する。元ZIPのSHA-256・抽出方式版・mode・railRoute・両端点全値をキーにし、変更前の形状を再利用しない。元データがない場合も古いcacheを表示しない。通常表示からネットワーク取得や正式Trip更新は行わず、SQLiteの更新lock外で生成する。
 
 既存の編集commandは `changes.rail_route`（nullで解除）を受け付ける。他fieldだけの部分更新では保持する。画面は既存 `apply_trip_operation`、Chatの部分変更は専用CLI `trip-operation` を使い、request_id・expected_revision・committed receipt・lookupは既存正式要求と同じ。新規生成・complete Trip更新も同じrailRouteを保持する。
+
+### 複数経路の選択規則（#246）
+
+運営会社・路線と端点駅の同一性を従来どおり照合し、viaの順番を優先する。各指定駅間では、前後の他の指定駅を通らない路線内graphに対し、隣り合うN02頂点の球面距離（地球平均半径6,371,008.8mによるhaversine）を辺の重みとしてDijkstra法で合計距離を最小化する。辺数・頂点数や端点駅間の直線距離で選ばない。元の線路頂点列だけを描き、道路・指定外路線・駅への補間線を加えない。
+
+合計距離が同じときは、探索queueを `(累積距離, 経度, 緯度)` の昇順、隣接頂点も `(経度, 緯度)` の昇順で処理し、同距離で到達済みの頂点の親を置き換えない。元Featureやsetの列挙順が変わっても安定した結果を返す。各via区間で別の単純経路が存在するかを調べ、1つでも複数ならそのTransportのreference_route=trueとする。単なる行止まり分岐は複数経路扱いにしない。
+
+方式版は2。元データ・指定等が同じでも方式版1の派生cacheは選択しない。環状線・駅周辺の分岐もこの同じ規則を使い、利用者の位置関係把握用の参考形状とする。全国乗換検索や運行可否の判定は行わない。
