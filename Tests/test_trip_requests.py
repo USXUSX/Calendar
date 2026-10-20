@@ -1,4 +1,7 @@
 import copy
+import json
+import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 import sqlite3
@@ -40,6 +43,29 @@ class TripRequestsTest(unittest.TestCase):
             self.cal.apply_trip_operation(item_request|{'operation':'day'})
         self.assertEqual(self.cal._load_trip(self.tid), original)
         self.assertEqual(added['receipt']['action'],'add')
+
+    def test_rail_specification_receipt_preservation_and_validation(self):
+        transport=self.trip['transports'][0]
+        spec={'legs':[{'operator':'試験鉄道','line':'本線','from':'甲','to':'乙','via':['中']}]}
+        values=dict(source_type='transport',source_item_id=transport['id'],changes={'rail_route':spec,'show_on_map':True})
+        request=self.request('rail-save',values=values)
+        result=self.cal.apply_trip_operation(request)
+        self.assertEqual(result['status'],'committed')
+        self.assertEqual(self.cal.lookup_chat_request('rail-save')['receipt'],result['receipt'])
+        self.assertEqual(self.cal.apply_trip_operation(request)['resolution'],'replayed')
+        self.cal.apply_trip_operation(self.request('other-field',values=dict(values,changes={'service_name':'既存編集'})))
+        current=next(t for t in self.cal.get_effective_trip(self.tid)['transports'] if t['id']==transport['id'])
+        self.assertEqual(current['railRoute'],spec)
+        self.assertEqual(self.cal.get_trip_edit_view(self.tid)['revision'],self.cal.get_trip_command_context(self.tid)['revision'])
+        with self.assertRaisesRegex(ConflictError,'revision_conflict'):
+            self.cal.apply_trip_operation(dict(request,request_id='stale-rail'))
+        with self.assertRaises(ValidationError):
+            self.cal.apply_trip_operation(self.request('invalid-rail',values=dict(values,changes={'rail_route':{'legs':[]}})))
+        clear=self.request('clear-rail',values=dict(values,changes={'rail_route':None}))
+        process=subprocess.run([sys.executable,'scripts/cal_schedule.py','--database',str(self.db),'--local-root',str(self.root),'trip-operation'],input=json.dumps(clear),text=True,capture_output=True)
+        self.assertEqual(process.returncode,0,process.stderr)
+        self.assertEqual(json.loads(process.stdout)['receipt'],self.cal.lookup_chat_request('clear-rail')['receipt'])
+        self.assertIsNone(next(t for t in self.cal.get_effective_trip(self.tid)['transports'] if t['id']==transport['id'])['railRoute'])
 
     def test_instruction_revision_and_chat_conflicts(self):
         stale=self.request('stale')

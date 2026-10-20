@@ -33,7 +33,7 @@ Google接続設定と画面検証はFrame README、実行・確認結果は#167 
 ## 選択経路・公式画像の表示契約（#174）
 
 移動編集の「地図に経路を表示」は`edit_trip_item`の`show_on_map`でTransport.showOnMapを保存する。重要な移動とは独立し、表示モデルの`show_on_map`で再編集時の状態を返す。
-Transportの任意showOnMap=trueだけをday.map_routesへ投影する。route_id、mode、origin/destination（place_id、name、location、googlePlaceId）を渡す。省略時は非表示。日別・全日表示はFRMが絞り込み、車の経路はFRMのGoogle Routesで取得・描画する。鉄道は日本の公共交通API非対応のためGoogle Maps経路検索リンクを表示する（#174 us承認）。CALは経路形状を保存しない。
+Transportの任意showOnMap=trueだけをday.map_routesへ投影する。route_id、mode、origin/destination（place_id、name、location、googlePlaceId）を渡す。省略時は非表示。日別・全日表示はFRMが絞り込み、車の経路はFRMのGoogle Routesで取得・描画する。鉄道は下記N02由来のCAL派生形状とGoogle Maps経路検索リンクを表示する（#244）。車の経路形状はCALに保存しない。
 map_stops.pointsにはcategoryとofficial_urlも渡す。FRMはattractionかつ公式URLありの地点に限り、フォーカス時の公式og:imageを1枚表示できる。画像URLや画像本体はCALへ書き戻さない。
 
 画像取得元はCALのget_place_image_source(trip_id, place_id)から取得する。これはeffective TripのattractionかつofficialUrlのみを返す読み取りで、Chat candidateの採用を起動しない。
@@ -47,3 +47,21 @@ CAL LocalDataの`settings/home.json`に`address`、`location:{latitude,longitude
 初日・最終日の鉄道本体の出発／到着駅は地図対象に残す。新幹線等の前後にある自宅アクセス区間は対象外とし、自宅そのものは鉄道境界のtransport端点でも表示しない。既存のflight境界除外と車旅行の範囲・地点順序・map_routesは維持する（#218）。
 
 旅程画面の直接操作は[正式要求・版照合・receipt契約](direct-schedule.md#画面の正式要求calendar-238)を使用する。指示保存とAI処理、正式保存とview/Google/DSP反映を区別する。
+
+## 国内鉄道路線の形状（#244）
+
+Transportの任意 `railRoute` に利用区間を順番に指定する。省略/nullの旧Tripも有効で、線は生成せずリンクを維持する。
+
+```json
+{"railRoute":{"legs":[{"operator":"西日本旅客鉄道","line":"山陽新幹線","from":"福山","to":"新大阪","via":[]},{"operator":"東海旅客鉄道","line":"東海道新幹線","from":"新大阪","to":"新横浜","via":[]}]}}
+```
+
+`operator` / `line` / 駅名はN02の運営会社・路線名・駅名と完全一致させる。from/toは各区間の駅、viaはその区間内の必要な経由駅の順序付き配列。隣接区間は同じ駅で接続する。先頭/末尾駅はTransport端点Placeのname（末尾の「駅」は除ける）と一致させる。新幹線と在来線の区分も照合する。異なる駅コードの同名駅、路線不明、不接続、viaでも一意に決まらない環状経路は未生成とし、最短経路・他路線・直線へ置き換えない。同じ駅コードの複数platform形状は同一駅として扱う。N02駅形状上の頂点を区間端点にし、Place座標から駅への補間線を加えない。
+
+正式JSONには指定だけを保持する。`get_trip_edit_view` / `get_trip_detail_view` のday.map_routesの鉄道に `rail` を付ける。ready時は `geometry:{type:"MultiLineString",coordinates:[[[longitude,latitude],...],...]}`、source_version、source_sha256、source_url、license_url、attribution、cache_keyを返す。複数路線は別の線として描き、乗換駅の異なるplatform間を直線でつながない。これは鉄道路線の表示であり運行状況・列車の走行実績ではない。
+
+unavailable時は形状なしでreasonを返す：route_unspecified / endpoint_mismatch / line_not_found / station_not_found / ambiguous_station / mode_mismatch / leg_connection_mismatch / repeated_station / disconnected / ambiguous_path / data_unavailable。FRMは状態を表示して既存リンクを残す。
+
+描画read時にローカルデータから抽出し、`Calendar_Local/rail/derived/<fingerprint>.json` へ再生成可能な派生データを保存する。元ZIPのSHA-256・抽出方式版・mode・railRoute・両端点全値をキーにし、変更前の形状を再利用しない。元データがない場合も古いcacheを表示しない。通常表示からネットワーク取得や正式Trip更新は行わず、SQLiteの更新lock外で生成する。
+
+既存の編集commandは `changes.rail_route`（nullで解除）を受け付ける。他fieldだけの部分更新では保持する。画面は既存 `apply_trip_operation`、Chatの部分変更は専用CLI `trip-operation` を使い、request_id・expected_revision・committed receipt・lookupは既存正式要求と同じ。新規生成・complete Trip更新も同じrailRouteを保持する。

@@ -33,6 +33,7 @@ def main(argv=None):
     read = sub.add_parser('read');read.add_argument('--start', required=True);read.add_argument('--end', required=True)
     get = sub.add_parser('get');get.add_argument('--kind', choices=['event','todo'], required=True);get.add_argument('--id', required=True)
     lookup = sub.add_parser('lookup');lookup.add_argument('--request-id', required=True)
+    sub.add_parser('trip-operation')
     apply = sub.add_parser('apply');apply.add_argument('--request-base64', help='UTF-8 JSON encoded as base64; otherwise read JSON from stdin')
     args = p.parse_args(argv)
     try:
@@ -82,6 +83,8 @@ def main(argv=None):
             result = dict(status='ok', **cal.get_schedule_item(args.kind,args.id))
         elif args.action == 'lookup':
             result = cal.lookup_chat_request(args.request_id)
+        elif args.action == 'trip-operation':
+            result = cal.apply_trip_operation(json.load(sys.stdin))
         else:
             raw = base64.b64decode(args.request_base64, validate=True).decode('utf-8') if args.request_base64 else sys.stdin.read()
             request = json.loads(raw)
