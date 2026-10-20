@@ -9,7 +9,17 @@ from .errors import ValidationError, ConflictError, NotFoundError
 from .google_calendar import after_save
 
 CATEGORIES = ('general','air','shinkansen','rail','ship','car','lodging','food','reservation','medical','finance','anniversary','pet','travel','other')
-TRANSPORTS = ('air','rail','ship','car','other')
+TRANSPORTS = ('air','shinkansen','rail','ship','car','other')
+METADATA = ('nights', 'participants')
+
+def validate_metadata(data):
+    nights = data.get('nights')
+    people = data.get('participants', [])
+    if nights is not None and (type(nights) is not int or nights < 0):
+        raise ValidationError('invalid_travel_nights')
+    if not isinstance(people, list) or any(not isinstance(p, str) or not p.strip() for p in people) or len(set(people)) != len(people):
+        raise ValidationError('invalid_travel_participants')
+
 
 
 def validate_common(c, values):
@@ -46,6 +56,8 @@ class TravelMixin:
             trip = self.get_effective_trip(tid)
             data = dict(title=trip['title'],start_date=trip['dateRange']['start'],end_date=trip['dateRange']['end'],date_status='confirmed',transport='other')
             has = True
+            data.update({k: trip[k] for k in METADATA if k in trip})
+        data.setdefault('nights', None); data.setdefault('participants', [])
         return dict(data,trip_id=tid,id=tid,dateRange=dict(start=data['start_date'],end=data['end_date']),has_itinerary=has,itinerary_id=tid if has else None,
                     revision=schedule_revision(dict(registry)|dict(basics=data,has_itinerary=has)))
 
@@ -87,6 +99,8 @@ class TravelMixin:
         if row:
             data=json.loads(row['data_json'])
             trip['title']=data['title']
+            for key in METADATA:
+                if key in data: trip[key] = copy.deepcopy(data[key])
             # Itinerary day dates remain structural; managed period is applied to the view.
         return trip
 
@@ -102,7 +116,7 @@ class TravelMixin:
             raise ValidationError('invalid_travel_request')
         identity=request_id(request.get('request_id')); digest=self._digest(encoded(request).encode())
         tid=request.get('id'); values=request.get('values')
-        if not isinstance(values,dict) or set(values)-{'title','start_date','end_date','date_status','transport'}: raise ValidationError('invalid_travel_values')
+        if not isinstance(values,dict) or set(values)-{'title','start_date','end_date','date_status','transport','nights','participants'}: raise ValidationError('invalid_travel_values')
         with self._command() as c:
             c.execute('BEGIN IMMEDIATE')
             prior=c.execute('SELECT * FROM schedule_receipts WHERE request_id=?',(identity,)).fetchone()
@@ -111,8 +125,9 @@ class TravelMixin:
                 return dict(status='committed',resolution='replayed',receipt=json.loads(prior['receipt_json']))
             old=self._travel_basic(c,tid) if tid else None
             if old and request.get('expected_revision')!=old['revision']: raise ConflictError('revision_conflict')
-            data={k:old[k] for k in ('title','start_date','end_date','date_status','transport')} if old else dict(title=None,start_date=None,end_date=None,date_status='undecided',transport='other')
+            data={k:old[k] for k in ('title','start_date','end_date','date_status','transport','nights','participants')} if old else dict(title=None,start_date=None,end_date=None,date_status='undecided',transport='other')
             data.update(values)
+            validate_metadata(data)
             if not isinstance(data['title'],str) or not data['title'].strip(): raise ValidationError('travel_title_required')
             if data['date_status'] not in ('confirmed','tentative','undecided') or data['transport'] not in TRANSPORTS: raise ValidationError('invalid_travel_state')
             if data['date_status']=='undecided':
@@ -143,6 +158,7 @@ class TravelMixin:
     def _connect_travel(self,c,candidate):
         if not c.execute("SELECT 1 FROM sqlite_master WHERE name='travel_basics'").fetchone(): return
         data=dict(title=candidate['title'],start_date=candidate['dateRange']['start'],end_date=candidate['dateRange']['end'],date_status='confirmed',transport='other')
+        data.update({k: candidate[k] for k in METADATA if k in candidate})
         c.execute('INSERT INTO travel_basics VALUES (?,?,1) ON CONFLICT(trip_id) DO UPDATE SET has_itinerary=1',(candidate['id'],json.dumps(data,ensure_ascii=False)))
 
     def _update_travel_fields(self,c,tid,changes):

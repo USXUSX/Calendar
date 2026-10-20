@@ -27,7 +27,9 @@ python3 scripts/migrate_schedule.py /explicit/path/to/calendar.sqlite3
 
 `list_travel()`は全旅行を返す。`get_travel(id, start=None, end=None)`は基本情報・関連単発Event/Todoと、指定した有限期間の関連定期回を返す。省略時は現在月、最大366日。旅行期間や日付未定に依存しない。`recurrence_window`に実際の期間、`related_series`に関連条件（各segment/exceptionの既存series read）を返すため、期間外や終了済みの関連条件も消えない。各回のID/revisionと編集・完了契約は従来どおり。CLI `travel-get --start YYYY-MM-DD --end YYYY-MM-DD`で期間を指定できる。`change_travel(values, item_id=None, expected_revision=None, request_id=None)`は共通receiptで保存する。更新は最新revision必須。
 
-基本情報はtitle、start_date/end_date、date_status（confirmed / tentative / undecided）、transport（air / rail / ship / car / other）。undecidedは両日付null、tentativeは仮日付あり。readにはtrip_id、dateRange、has_itinerary、itinerary_id、revisionを含む。日付未定は期間グリッドに出さず全旅行一覧に残す。`list_trips()`は旅程接続済みだけを返す。
+泊数・参加者の保存・移行は[旅行メタデータ契約](trip-detail-model.md#旅行の泊数参加者cal-250)を参照。
+
+基本情報はtitle、start_date/end_date、date_status（confirmed / tentative / undecided）、transport（air / shinkansen / rail / ship / car / other）。undecidedは両日付null、tentativeは仮日付あり。readにはtrip_id、dateRange、has_itinerary、itinerary_id、revisionを含む。日付未定は期間グリッドに出さず全旅行一覧に残す。`list_trips()`は旅程接続済みだけを返す。
 
 旅行は既存trips registry内に先行作成し、`travel_basics`が基本情報の正本になる。旅程create/importは同じIDの未接続旅行へ接続する。同名・同期間（または日付未定）の未接続旅行が別IDにあれば重複登録を拒否し、その旅行IDを使う。既存旅程はmigrationで1対1に接続する。
 
