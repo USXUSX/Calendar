@@ -218,3 +218,7 @@ PlaceとDay.areasの任意googlePlaceIdは、Google Placesで実際に取得し�
 ## 旅行管理への接続（#221）
 
 complete Trip生成前に[Chat専用CLI](chat-schedule.md)のtravelsで既存旅行を確認する。旅行があればそのIDをTrip.idに使い、createで旅程を接続する。該当がなければ新規旅程登録と共に旅行管理を作成する。名称・期間・日程状態・主要移動手段はCAL旅行基本情報を正本とし、旅程表示に反映する。日付未定の旅行に仮旅程を作る必要はない。
+
+## 地図に表示する国内鉄道（#244）
+
+表示するTransportはshowOnMap=trueとし、[CAL鉄道路線契約](map-locations.md#国内鉄道路線の形状244)のrailRoute.legsに運営会社・N02路線名・出発/到着駅・必要な経由駅を指定する。駅と路線が確認できた区間だけ設定する。新幹線と在来線を区別し、複数路線は接続駅で分ける。列車名・時刻は既存serviceName/timeへ保持し、N02からダイヤや運行可否を推定しない。経路形状はJSONへ埋め込まない。既存更新では対象外Transportの指定を落とさない。

@@ -63,3 +63,17 @@ Place補完は対象施設と保存値を確認して採用します。取得で
 通常の画面/Chat保存後に専用CALへ反映する。未反映の確認・再試行・初回本人認証は[Google連携契約](google-calendar.md)を参照。CAL保存receiptとGoogle反映を区別する。
 
 旅程画面の直接操作は[正式要求・版照合・receipt契約](direct-schedule.md#画面の正式要求calendar-238)を使用する。指示保存とAI処理、正式保存とview/Google/DSP反映を区別する。
+
+## 鉄道N02元データの配置と更新（#244）
+
+国土交通省[鉄道データ2025年度版](https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N02-2025.html)（2025-12-31基準、CC BY 4.0）を使用する。取得元・出典・加工表示は[表示契約](map-locations.md#国内鉄道路線の形状244)を参照。全国データ・派生形状はGit/共有コピーへ入れない。
+
+初回はMacで次を一度実行する（新しいJob・常駐・外部鉄道APIは不要）。既存ファイルを更新する場合は別の一時pathへ取得し、ZIP内のUTF-8 RailroadSection/Station GeoJSONと公式版を確認してから置換する。
+
+```sh
+mkdir -p /Users/us/Tools/LocalData/Calendar_Local/rail/N02-25
+curl -fL https://nlftp.mlit.go.jp/ksj/gml/data/N02/N02-25/N02-25_GML.zip -o /Users/us/Tools/LocalData/Calendar_Local/rail/N02-25/N02-25_GML.zip
+shasum -a 256 /Users/us/Tools/LocalData/Calendar_Local/rail/N02-25/N02-25_GML.zip
+```
+
+同版の修正版は置換後のreadでSHAとcacheキーが変わる。別年度は公式の属性・構造を確認し、rail_routes.pyのVERSION/読込path/出典とこの手順を同時に更新し、代表4区間を確認する。旧派生cacheは再利用されず、必要に応じてrail/derivedだけ削除して再生成できる。元データ取得不能時は線なし・リンク利用とし、別providerへ切り替えない。コード切戻し時も正式Trip・Override・receiptは保持する。

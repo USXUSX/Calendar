@@ -193,3 +193,13 @@ Chat/Gmail登録では、明確な新幹線はshinkansen、その他の鉄道は
 CAL正式保存→旅行関連付け→Google反映の順。旅行が既知なら同じ正式保存にtrip_idを含め、保存commit後のGoogle送信を使う。後から関連付ける場合は最新revisionで追加saveする。CAL receipt、外部予定参照、Google送信結果を区別する。既存スケジュールタスクの指示文変更はこの機能導入とは別に扱う。
 
 旅程画面の直接操作は[正式要求・版照合・receipt契約](direct-schedule.md#画面の正式要求calendar-238)を使用する。指示保存とAI処理、正式保存とview/Google/DSP反映を区別する。
+
+## 鉄道経路の部分更新（#244）
+
+新規complete Tripと既存saveは[railRoute契約](map-locations.md#国内鉄道路線の形状244)に従う。既存Tripの一部の鉄道指定だけを変える場合は、trip-getから最新revisionと対象Transport IDを取得し、`cal_schedule.py trip-operation` のstdinへ次の形式を渡す。show_on_mapは既存指定を尊重し、表示を依頼された区間だけtrueとする。
+
+```json
+{"request_id":"example-new-uuid","trip_id":"取得済みTrip ID","operation":"item","expected_revision":{"trip_hash":"取得したrevision全体をそのまま指定"},"values":{"source_type":"transport","source_item_id":"取得済みTransport ID","changes":{"rail_route":{"legs":[{"operator":"東日本旅客鉄道","line":"東北新幹線","from":"東京","to":"新白河","via":[]}]}}}}
+```
+
+上のrevisionは形式説明用。実行時はtrip-getのrevisionオブジェクト全体を改変せず使う。要求ID/送信内容を保持し、exit 0・committed receiptの要求ID/対象/values/revisionを照合、同じlookupから確定結果を再確認する。再送とstale拒否は既存正式要求と共通。路線名の自然言語解釈はChatで行い、分からない区間は指定せず未確定を報告する。CLIは正式JSON/DBの直接編集の代替となる所有入口である。

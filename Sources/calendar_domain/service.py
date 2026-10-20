@@ -978,7 +978,7 @@ class CalendarDomain(TripRequestMixin, TravelMixin, GoogleCalendarMixin, Recurre
         if isinstance(target, dict):
             optional_query = field_path in {"/searchQuery", "/mapPlaceId"} and any(
                 target is item for day in trip["days"] for item in day["scheduleItems"])
-            if leaf not in target and not (target is trip and field_path == "/photoAlbumName") and not optional_query and leaf not in {"areas", "candidateJudgments", "serviceName", "important", "importantComment", "googlePlaceId", "mapDisplayName", "showOnMap"}:
+            if leaf not in target and not (target is trip and field_path == "/photoAlbumName") and not optional_query and leaf not in {"areas", "candidateJudgments", "serviceName", "important", "importantComment", "googlePlaceId", "mapDisplayName", "showOnMap", "railRoute"}:
                 raise ValidationError(f"field_path does not exist: {field_path}")
             target[leaf] = copy.deepcopy(value)
         elif isinstance(target, list) and leaf.isdigit() and int(leaf) < len(target):
@@ -1661,10 +1661,11 @@ class CalendarDomain(TripRequestMixin, TravelMixin, GoogleCalendarMixin, Recurre
         return self._build_trip_edit_view(context, basic, candidate_judgments=candidate_judgments,
                                           weather_by_day=weather_by_day, today=today)
 
-    @staticmethod
-    def _build_trip_edit_view(context, basic, *, candidate_judgments=None, weather_by_day=None, today=None):
+    def _build_trip_edit_view(self, context, basic, *, candidate_judgments=None, weather_by_day=None, today=None):
         result = build_trip_detail_view(context['trip'], candidate_judgments=candidate_judgments,
                                         weather_by_day=weather_by_day, today=today)
+        from .rail_routes import add_rail_routes
+        add_rail_routes(result, context["trip"], self.trip_root)
         result["title"] = basic["title"]
         result["date_range"] = basic["dateRange"]
         result["date_status"] = basic["date_status"]

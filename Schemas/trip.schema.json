@@ -76,14 +76,34 @@
         "order": { "type": "integer", "minimum": 0 },
         "status": { "enum": ["confirmed", "tentative", "undecided"] },
         "important": { "type": "boolean" },
-        "showOnMap": { "type": "boolean", "description": "Explicitly selected inter-area route; omitted means false. No route geometry is stored." },
+        "showOnMap": { "type": "boolean", "description": "Explicitly selected inter-area route; omitted means false. Railway shapes are stored separately as derived data." },
         "mode": { "enum": ["walk", "train", "shinkansen", "bus", "car", "ferry", "flight", "other"] },
+        "railRoute": { "anyOf": [{ "$ref": "#/$defs/railRoute" }, { "type": "null" }] },
         "serviceName": { "$ref": "#/$defs/nullableString" },
         "fromPlaceId": { "$ref": "#/$defs/id" },
         "toPlaceId": { "$ref": "#/$defs/id" },
         "importantComment": { "$ref": "#/$defs/nullableString" },
         "time": { "$ref": "#/$defs/time" },
         "bookingId": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] }
+      }
+    },
+    "railRoute": {
+      "type": "object", "additionalProperties": false, "required": ["legs"],
+      "properties": {
+        "legs": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["operator", "line", "from", "to"],
+            "properties": {
+              "operator": { "type": "string", "minLength": 1 },
+              "line": { "type": "string", "minLength": 1 },
+              "from": { "type": "string", "minLength": 1 },
+              "to": { "type": "string", "minLength": 1 },
+              "via": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+            }
+          }
+        }
       }
     },
     "location": {
