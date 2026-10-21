@@ -12,6 +12,7 @@ CALが既存SQLiteの追加table `sightseeing_places` と `place_receipts` を�
 - aliases / related_ids: 同一地点の別名と別地点の関連を分ける。
 - tags: label / source_url。選定や称号を推測しない。
 - sources: label / url / checked_at。updated_atは紹介の更新日。
+- official_url: 確認済みの公式・公的な地点案内ページ。任意項目で、未知はnull。既存の案内URLを明示して渡し、FRMは出典の並びやドメインから推測しない。代表13地点は収録済みの公式/観光協会/JNTOの案内を指定する。schema migrationは不要。
 - seasons: category / typical / source_url / checked_at / annual配列。annualはyear / kind / text / source_url / checked_at。kindはactual（実績）、forecast（予想）、unannounced（確認先で未発表）、unverified（未確認）。平年情報から年別予想を作らない。2026年桜の終了済み実績が不明なら未確認とし、2027年未発表とは区別する。自動更新なし。表示は常に年を併記する。
 - image: null、または代表画像の表示情報。簡単に利用できる直接画像・提供元が認める外部表示を優先し、未取得はnullのまま。法令・提供元の明確な利用制限には従い、無断コピーを前提とする収集はしない。毎回の本人確認や一律の作者・ライセンス一覧を登録条件にしない。
   - 外部表示はurl（http/https）が必須。displayはimage（省略時）または提供元が認めるembed。source_url、credit、license、license_url、conditions、captured_at、changes、checked_atは参照できるものを保持する。既存reusable=falseの画像は表示しない。既存11画像と帰属・利用条件を保持し、必要な作者・ライセンス・変更表示を省略しない。長い説明は補足へ収める。
@@ -60,3 +61,9 @@ JPEG / PNG / HEIC（HEIF）/ WebP、入力12MiBまで・50百万画素まで。M
 追加schema・本番地点の書換えは不要。両mainの公式同期後、既存Frame再起動で適用。登録画像のLocal folderは初回の本人画像保存時に作成する。本番に合成画像を登録して試験しない。外部公開先・認証を変更しない。
 
 最小確認：`sh Tests/place-images.test.sh`（Macで実変換・縮小・向き/metadata・登録/差替え/解除・再送/lookup/競合・保存失敗・既存記録保持）、`sh Tests/places.test.sh`、`sh Tests/castles.test.sh`。Linux CIではMac標準変換だけをskipし、解除・CLI・要求検証を実行する。
+
+## 紹介文の整理（#258）
+
+紹介は地点固有の見どころ・歴史・特徴・重要な現地情報を簡潔に記す。「最新情報を確認して訪ねてください」「混雑状況や交通案内を確認してください」等、どの観光地にも使える定型注記や写真の一般的な注意を繰り返し付けない。古木の保護区画、境内の段差や狭い道路、弘前城の石垣修理に伴う制限、吉野山の代表点など、その場所に必要な具体情報は保持する。FRMで文字列を削るのではなく、CALの既存description/summary自体を正式更新する。
+
+今回の代表13地点はSamples/sightseeing-phase2.jsonのdescriptionだけを必要部分で整理し、短文は維持。公式案内リンクのためofficial_urlを追加する。出典・画像・季節・タグ・分類・位置・本人の訪問情報を変更しない。実データは各地点の最新getとrevisionで変更fieldだけをCLI applyし、committed receipt/lookupを確認する。既存の他属性が変わらないことを照合する。定期生成や自動一括収集は追加しない。

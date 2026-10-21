@@ -66,6 +66,22 @@ class PlacesTest(unittest.TestCase):
         p=subprocess.run(command+['apply'],input=json.dumps(dict(cli,request_id='stale-cli')),capture_output=True,text=True)
         self.assertEqual(p.returncode,3)
 
+    def test_optional_official_url_and_partial_description_preserve_content(self):
+        self.assertIsNone(self.cal.get_place(1)['official_url'])
+        values=copy.deepcopy(self.samples[5]['values']);values.pop('official_url')
+        self.apply(1001,values,'old-content')
+        before=self.cal.get_place(1001)
+        self.assertIsNone(before['official_url'])
+        self.apply(1001,{'description':'地点固有の紹介','official_url':'https://example.com/official'},'concise')
+        after=self.cal.get_place(1001)
+        for key in before:
+            if key not in ('description','official_url','revision'):self.assertEqual(before[key],after[key],key)
+        for bad in ('javascript:bad','',123):
+            with self.assertRaises(ValidationError):self.apply(1001,{'official_url':bad},'bad-url')
+        self.apply(1,{'official_url':'https://example.com/castle'},'unintroduced')
+        self.apply(1,{'official_url':None},'clear-url')
+        self.assertIsNone(self.cal.get_place(1)['official_url'])
+
     def test_seed_contract_and_rejected_content_is_atomic(self):
         before=self.cal.list_castles()
         for r in self.samples:

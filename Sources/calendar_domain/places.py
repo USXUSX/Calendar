@@ -10,7 +10,7 @@ from .errors import ConflictError, NotFoundError, ValidationError
 from .schedule_chat import encoded, request_id
 
 MASTER = {'name', 'prefecture', 'city', 'longitude', 'latitude'}
-CONTENT = MASTER | {'categories', 'aliases', 'related_ids', 'summary', 'description', 'tags', 'sources', 'seasons', 'image', 'updated_at'}
+CONTENT = MASTER | {'categories', 'aliases', 'related_ids', 'summary', 'description', 'tags', 'sources', 'seasons', 'image', 'updated_at', 'official_url'}
 VISIT = {'visited', 'visit_date', 'comment'}
 
 
@@ -65,6 +65,7 @@ def validate_content(data, identity):
         if related == identity: raise ValidationError('self_relation')
     for key in ('summary', 'description'):
         if not isinstance(data[key], str): raise ValidationError('invalid_description')
+    if data['official_url'] is not None:url(data['official_url'])
     iso_day(data['updated_at'])
     if not isinstance(data['sources'], list) or not data['sources']: raise ValidationError('sources_required')
     for s in data['sources']:
@@ -87,7 +88,7 @@ def validate_content(data, identity):
 
 def content_defaults(master, identity):
     return dict(**{k: master[k] for k in MASTER}, categories=['castle'] if identity <= 100 else [],
-                aliases=[], related_ids=[], summary='', description='', tags=[], sources=[], seasons=[], image=None, updated_at=None)
+                aliases=[], related_ids=[], summary='', description='', tags=[], sources=[], seasons=[], image=None, updated_at=None, official_url=None)
 
 
 def read_item(c, identity):
@@ -96,6 +97,7 @@ def read_item(c, identity):
     if not row and not castle: raise NotFoundError('place_not_found')
     legacy = castle_item(castle) if castle else None
     content = json.loads(row['data_json']) if row else content_defaults(legacy, identity)
+    content.setdefault('official_url', None)
     record = {k: legacy[k] for k in VISIT} if castle else json.loads(row['record_json'])
     version = row['version'] if row else 0
     return dict(id=identity, **content, **record, castle_id=identity if castle else None,
@@ -154,9 +156,10 @@ class PlacesMixin:
             if identity <= 100 and any(content[k] != old[k] for k in MASTER):
                 raise ValidationError('castle_master_read_only')
             # Visit-only edits also work for the 95 castles without an introduction.
-            if old and set(values)=={'image'}:
+            if old and set(values)<={'image','official_url'}:
                 from .place_images import validate_image, LOCAL_IMAGE
                 validate_image(content['image'])
+                if content['official_url'] is not None:url(content['official_url'])
                 if content['image'] and content['image'].get('source')=='upload':
                     key=LOCAL_IMAGE.fullmatch(content['image']['url']).group(1)
                     if not (self.trip_root/'place-images'/(key+'.jpg')).is_file():raise ValidationError('local_image_not_found')
