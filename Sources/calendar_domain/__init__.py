@@ -4,6 +4,7 @@ import copy
 
 from scripts.validate_trip import validation_stage_errors
 
+from .places import PlacesMixin
 from .castles import CastlesMixin
 from .errors import ConflictError, DomainError, GenerationWriteError, NotFoundError, ValidationError
 from .models import UnifiedEvent
@@ -13,7 +14,7 @@ from .trip_lifecycle import is_trip_completed
 from .weather import JmaAdapter, build_weather_by_day
 
 
-class CalendarDomain(CastlesMixin, _CalendarDomain):
+class CalendarDomain(PlacesMixin, CastlesMixin, _CalendarDomain):
     """Calendar domain with transient Goal 1 weather context on ordinary detail views."""
 
     def __init__(self, db_path, trip_root, *, chat_root=None, weather_adapter=None, weather_today=None):
