@@ -21,12 +21,14 @@ def main():
     get = sub.add_parser('get'); get.add_argument('--id', type=int, required=True)
     lookup = sub.add_parser('lookup'); lookup.add_argument('--request-id', required=True)
     sub.add_parser('apply')
+    sub.add_parser('image')
     a = p.parse_args()
     try:
         cal = CalendarDomain(a.database, a.local_root)
         if a.action == 'read': result = dict(status='ok', places=cal.list_places())
         elif a.action == 'get': result = dict(status='ok', item=cal.get_place(a.id))
         elif a.action == 'lookup': result = cal.lookup_place_request(a.request_id)
+        elif a.action == 'image': result = cal.apply_place_image_request(json.load(sys.stdin))
         else: result = cal.apply_place_request(json.load(sys.stdin))
         print(json.dumps(result, ensure_ascii=False))
         return 4 if result['status'] == 'not_found' else 0

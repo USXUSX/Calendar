@@ -2,7 +2,7 @@
 
 CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb表示・操作はFrameが担当し、正式Trip JSONとSQLiteの更新・ValidationはCALが所有します。
 
-探訪の桜・紅葉・代表城の共通紹介・画像・年別季節情報と正式Chat保存は[共通観光地点](docs/places.md)を参照。
+探訪の桜・紅葉・代表城の共通紹介・代表画像の本人登録／差替え／解除・年別季節情報と正式Chat保存は[共通観光地点](docs/places.md)を参照。
 
 100名城の正式記録・Chat更新・初回移行は[所有契約](docs/castles.md)を参照。旅程データから独立して管理します。
 

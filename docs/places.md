@@ -13,12 +13,15 @@ CALが既存SQLiteの追加table `sightseeing_places` と `place_receipts` を�
 - tags: label / source_url。選定や称号を推測しない。
 - sources: label / url / checked_at。updated_atは紹介の更新日。
 - seasons: category / typical / source_url / checked_at / annual配列。annualはyear / kind / text / source_url / checked_at。kindはactual（実績）、forecast（予想）、unannounced（確認先で未発表）、unverified（未確認）。平年情報から年別予想を作らない。2026年桜の終了済み実績が不明なら未確認とし、2027年未発表とは区別する。自動更新なし。表示は常に年を併記する。
-- image: null、またはurl / source_url / credit / license / license_url / reusable / conditions / captured_at / changes / checked_at。権利を確認できたreusable=trueのみ表示。画像と同じ位置に作者・出典・ライセンス・変更の有無を表示し、縦横比を維持する。過去の撮影日を併記し、現在の開花・復旧状況と混同しない。今回11点はCommonsの明示ライセンスによる外部縮小画像（CC BY / CC BY-SA / CC0）。永観堂・紅葉谷公園は権利確認済み画像未取得のため非表示。本人撮影写真の保存・アルバムではない。
+- image: null、または代表画像の表示情報。簡単に利用できる直接画像・提供元が認める外部表示を優先し、未取得はnullのまま。法令・提供元の明確な利用制限には従い、無断コピーを前提とする収集はしない。毎回の本人確認や一律の作者・ライセンス一覧を登録条件にしない。
+  - 外部表示はurl（http/https）が必須。displayはimage（省略時）または提供元が認めるembed。source_url、credit、license、license_url、conditions、captured_at、changes、checked_atは参照できるものを保持する。既存reusable=falseの画像は表示しない。既存11画像と帰属・利用条件を保持し、必要な作者・ライセンス・変更表示を省略しない。長い説明は補足へ収める。
+  - 本人登録はsource=upload、CAL画像url、表示width/height、uploaded_at、source_sha256。画像実体や元のファイル名を地点JSONやGitへ埋め込まない。代表画像は常に1枚。登録画像を解除するとnullになり、以前の外部画像へ自動復帰しない。
+
 
 ## 正式Chat保存
 
 既存RDCから `/usr/bin/python3 -B /Users/us/Tools/Development/Calendar_Dev/scripts/cal_places.py`。
-`read` / `get --id 4` / `apply`（stdin JSON）/ `lookup --request-id UUID`。
+`read` / `get --id 4` / `apply`（stdin JSON）/ `image`（本人画像、下記）/ `lookup --request-id UUID`。
 
 ```json
 {"request_id":"new-uuid","id":4,"expected_revision":"place:4:1:1","values":{"summary":"更新する紹介文","updated_at":"2026-10-21"}}
@@ -39,3 +42,21 @@ exit 0 + committed receiptの対象・内容一致で保存確定。競合exit 3
 既存 `com.usxusx.frame` の再起動でCAL/Frameを反映する。公開先・認証・Job・通知設定は変更しない。切戻しは画面編集を止めて旧コードへ戻し、追加地点・城の記録とreceiptは保持する。自動migration・自動収集なし。
 
 最小Validation: `PYTHONPATH=. python3 -B -m unittest discover -s Tests -p test_places.py` と `sh Tests/castles.test.sh`。合成DBで正式CLI新規/更新/replay/lookup/競合、alias重複、100城保持、旧経路との競合を確認。Frameで375pxの共通表示を確認する。Phase 2終了後は本人が紹介・写真・表示の品質を振り返り、全国収集や残り95城への拡張はその後の判断を待つ。
+
+## 本人画像の正式保存（#256）
+
+`apply_place_image_request(request)` / CLI `cal_places.py image` は登録・差替え・解除を所有する。stdin JSONはrequest_id / id / expected_revision / action（setまたはremove）。setではimage_base64（ファイル全体のBase64）を追加する。removeに画像データは渡さない。現在のgetでrevisionを取得し、応答は通常のcommitted receiptと同じlookupで照合する。
+
+```json
+{"request_id":"new-uuid","id":4,"expected_revision":"place:4:1:1","action":"remove"}
+```
+
+setのreceiptはimage_action=set、元入力のsource_sha256と、保存された表示画像urlを含む。要求のhashは元画像bytes・地点・操作・expected_revisionに基づき、同じ要求ID/同じ画像を再送しても変換を繰り返さず元receiptを返す。ID再利用の異内容と古いrevisionは競合。紹介なしの城にも登録できる。画像操作では紹介・訪問日・コメント・castlesのrevisionを変えない。
+
+JPEG / PNG / HEIC（HEIF）/ WebP、入力12MiBまで・50百万画素まで。Mac標準 `/usr/bin/sips` で実画像を検証し、長辺1600px以内のJPEGに変換する（小さい画像を拡大しない）。表示画像からEXIF/GPS/XMP・コメントを除き、必要な向き情報と色profileだけを維持。写真ライブラリ・元ファイルは変更しない。対応外や壊れた画像・容量超過は拒否し、既存画像を保持する。Mac本番以外ではnative変換を実施済みと扱わない。
+
+実体は既存CAL Local rootの `place-images/<表示画像SHA256>.jpg`。CALが一時書込→確定file配置→既存地点/receipt transactionで関連を保存し、commit後だけ成功を返す。FRMはDBやfileを直接書かない。`read_place_image(key)` が画像bytesを返す。keyはSHA256.jpg形式のみで、任意pathは受け付けない。DB保存失敗時も既存の関連を変えず、失敗時に未参照fileが残る場合はそのまま保持する。差替え・解除は関連の変更で、過去receiptの画像実体は削除しない。backup/切戻しでは既存DBとplace-imagesを一緒に保持する。
+
+追加schema・本番地点の書換えは不要。両mainの公式同期後、既存Frame再起動で適用。登録画像のLocal folderは初回の本人画像保存時に作成する。本番に合成画像を登録して試験しない。外部公開先・認証を変更しない。
+
+最小確認：`sh Tests/place-images.test.sh`（Macで実変換・縮小・向き/metadata・登録/差替え/解除・再送/lookup/競合・保存失敗・既存記録保持）、`sh Tests/places.test.sh`、`sh Tests/castles.test.sh`。Linux CIではMac標準変換だけをskipし、解除・CLI・要求検証を実行する。
