@@ -537,3 +537,9 @@ complete Trip JSONにも同名の任意fieldを受け付け、Chatの正式creat
 適用は既存`apply_trip_operation`へ`operation=ai`、生成時の要求ID・Trip ID・元revision、`values={proposal_id, confirmed:true}`を渡す。確認済み要求との照合後、既存`apply_trip_request`のsave・journal・receiptへ委譲する。明示的な座標変更が保存時に旧座標へ戻らないよう、この経路だけ確認済み案の座標を使用する。既存Chat/RDCの座標保持既定は維持する。保存直前の元版照合、同一要求のpayload照合、`lookup_chat_request`による復旧も同じ契約。生成中・確認後の競合は再生成が必要で、旧提案へ新版を付け替えない。
 
 責務は、FRMが入力・概要表示・本人承認・処理状態と結果照合、AIが曖昧な指示の解釈と案作成、CALが旅程Schema・意味Validation・差分・正式保存を所有する。この流れを他画面へ適用する際も各所有ツールに検証・保存を残す。今回の実装はCAL Tripだけとし、実際の次利用先が生じるまで汎用APIや共通サービスへ抽出しない。
+
+### 生成の短時間受付と結果照合（#269）
+
+長時間のHTTP応答をAI生成完了まで保持せず、`start_trip_ai_update(generation_id, trip_id, expected_revision, instruction)`で即時受付する。既存Macプロセスのthreadで同じ生成処理を1回だけ実行し、CAL Localへ固定した生成要求と提案を`get_trip_ai_generation(generation_id)`で照合する。同じID/入力の再受付は既存状態を返し、別入力は拒否する。通信失敗はAI失敗と断定せず、照合だけを再開する。新サービス、AI自動retry、正式保存は追加しない。
+
+stateはgenerating/proposed/failed/conflict/not_found。完了した提案はprocess再起動後も取得できる。生成途中のprocess停止は中断を返し、自動再実行しない。`latest_trip_ai_proposal(trip_id)`は、元revisionが現在と一致し未保存の最新提案を読み取るだけで、今回の通信失敗前に既に生成された提案も確認できる。正式保存は従来どおり本人承認後の既存save/receipt契約のみを使う。

@@ -6,6 +6,10 @@ import copy
 import json
 from pathlib import Path
 from uuid import uuid4
+import threading
+
+_GENERATION_LOCK = threading.Lock()
+_ACTIVE_GENERATIONS = set()
 
 from .errors import ConflictError, ValidationError
 from .map_locations import complete, prepare
@@ -61,7 +65,7 @@ def change_label(change, before, after):
 
 
 class TripAIMixin:
-    def propose_trip_update(self, trip_id, expected_revision, instruction, transport=None):
+    def propose_trip_update(self, trip_id, expected_revision, instruction, transport=None, *, generation_id=None):
         if not isinstance(instruction, str) or not instruction.strip():
             raise ValidationError('AI指示を入力してください。')
         context = self.get_trip_command_context(trip_id)
@@ -77,7 +81,8 @@ class TripAIMixin:
                 transport = command_transport(argv, 240)
             except (ValueError, TypeError):
                 raise ValidationError('AI生成の実行設定がありません。CAL_TRIP_AI_COMMANDを設定してください。') from None
-        identity = str(uuid4())
+        identity = generation_id or str(uuid4())
+        self._trip_ai_path(identity)
         baseline = context['trip']
         # Reuse only AIG's existing stateless complete-Trip transport envelope.
         # These compatibility fields do not read or write legacy Working state.
@@ -126,6 +131,68 @@ class TripAIMixin:
         # survives a server restart. This is never a formal Trip or shared data.
         self._write_file(self._trip_ai_path(identity), self._canonical_json(dict(proposal=proposal, request=save_request)))
         return dict(status='proposed', **proposal)
+
+    def start_trip_ai_update(self, generation_id, trip_id, expected_revision, instruction, transport=None):
+        """Start once in this existing process; HTTP callers need not wait for AI."""
+        path = self._trip_ai_path(generation_id).with_suffix('.generation.json')
+        if not isinstance(instruction, str) or not instruction.strip():
+            raise ValidationError('AI指示を入力してください。')
+        request = dict(generation_id=generation_id, trip_id=trip_id,
+                       expected_revision=expected_revision, instruction=instruction)
+        key = str(path.resolve())
+        with _GENERATION_LOCK:
+            if path.exists():
+                if json.loads(path.read_text()) != request:
+                    raise ConflictError('generation_id_payload_conflict')
+                return self.get_trip_ai_generation(generation_id)
+            if self.get_trip_command_context(trip_id)['revision'] != expected_revision:
+                raise ConflictError('revision_conflict')
+            self._write_file(path, self._canonical_json(request))
+            _ACTIVE_GENERATIONS.add(key)
+            def run():
+                try:
+                    self.propose_trip_update(trip_id, expected_revision, instruction,
+                                             transport=transport, generation_id=generation_id)
+                except Exception as error:
+                    # No provider response or Trip payload in diagnostics.
+                    code = 'conflict' if isinstance(error, ConflictError) else 'failed'
+                    message = str(error) if isinstance(error, (ValidationError, ConflictError)) else 'AI生成に失敗しました。'
+                    self._write_file(path.with_suffix('.error.json'), self._canonical_json(
+                        dict(status=code, error=message, generation_id=generation_id)))
+                finally:
+                    with _GENERATION_LOCK:
+                        _ACTIVE_GENERATIONS.discard(key)
+            threading.Thread(target=run, daemon=True, name='cal-trip-ai').start()
+        return dict(status='generating', generation_id=generation_id, trip_id=trip_id)
+
+    def get_trip_ai_generation(self, generation_id):
+        proposal_path = self._trip_ai_path(generation_id)
+        if proposal_path.exists():
+            return dict(status='proposed', **json.loads(proposal_path.read_text())['proposal'])
+        path = proposal_path.with_suffix('.generation.json')
+        if not path.exists():
+            return dict(status='not_found', generation_id=generation_id)
+        error_path = path.with_suffix('.error.json')
+        if error_path.exists():
+            return json.loads(error_path.read_text())
+        # An unfinished job after process restart is not automatically rerun.
+        if str(path.resolve()) not in _ACTIVE_GENERATIONS:
+            return dict(status='failed', generation_id=generation_id,
+                        error='生成処理が中断されました。指示を確認して改めて生成してください。')
+        return dict(status='generating', generation_id=generation_id,
+                    trip_id=json.loads(path.read_text())['trip_id'])
+
+    def latest_trip_ai_proposal(self, trip_id):
+        context = self.get_trip_command_context(trip_id)
+        directory = self.trip_root / '.trip-ai'
+        for path in sorted(directory.glob('*.json'), key=lambda p:p.stat().st_mtime, reverse=True):
+            if path.name.count('.') != 1:
+                continue
+            proposal = json.loads(path.read_text())['proposal']
+            if proposal['trip_id'] == trip_id and proposal['expected_revision'] == context['revision']:
+                if self.lookup_chat_request(proposal['request_id'])['status'] == 'not_found':
+                    return dict(status='proposed', **proposal)
+        return dict(status='not_found')
 
     def _trip_ai_path(self, identity):
         request_id(identity)
