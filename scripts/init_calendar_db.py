@@ -51,6 +51,8 @@ def initialize(database_path: Path) -> None:
         extend_travel(connection)
         from Sources.calendar_domain.castles import extend_castles
         extend_castles(connection)
+        from Sources.calendar_domain.places import extend_places
+        extend_places(connection)
         from Sources.calendar_domain.google_calendar import extend_google
         extend_google(connection)
         connection.commit()

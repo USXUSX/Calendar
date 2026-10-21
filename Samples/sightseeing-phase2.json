@@ -1,0 +1,857 @@
+[
+  {
+    "id": 4,
+    "values": {
+      "name": "弘前城",
+      "prefecture": "青森県",
+      "city": "弘前市",
+      "longitude": 140.464182,
+      "latitude": 40.607448,
+      "categories": [
+        "castle",
+        "sakura",
+        "autumn"
+      ],
+      "aliases": [
+        "弘前公園"
+      ],
+      "related_ids": [],
+      "summary": "城郭の濠と古木の桜が重なる弘前公園。春の花筏、秋のカエデやイチョウを、城門とともに歩いて楽しめます。",
+      "description": "弘前城を含む弘前公園は、濠や城門が残る城郭と四季の植栽を一緒に巡れる場所です。春は枝いっぱいの桜に加え、散った花びらが水面を覆う花筏も見どころ。秋はカエデ、サクラ、イチョウが園内を彩ります。品種と場所で時期がずれるため、園内の開花・紅葉情報を見て散策範囲を選ぶと楽しめます。天守は石垣修理に伴う移動・入館制限があるため、当日の見学可能範囲を公式案内で確認してください。城と公園を別の訪問地点には分けていません。",
+      "tags": [
+        {
+          "label": "日本100名城",
+          "source_url": "https://jokaku.jp/business/castles-search/"
+        },
+        {
+          "label": "さくら名所100選",
+          "source_url": "https://www.sakuranokai.or.jp/wp-sakuranokai/wp-content/themes/sakuranokai/images/2024/01/sakura_100sen_202402.pdf"
+        }
+      ],
+      "sources": [
+        {
+          "label": "弘前市みどりの協会",
+          "url": "https://www.hirosakipark.or.jp/hirosakipark/",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "既存100名城の位置・選定（日本城郭協会）",
+          "url": "https://jokaku.jp/business/castles-search/",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "弘前公園の桜・2026年実績",
+          "url": "https://www.hirosaki-kanko.or.jp/edit.html?id=cat02_spring_sakura_kaika",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "弘前公園の紅葉情報",
+          "url": "https://www.hirosakipark.or.jp/sakura/",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "さくら名所100選（日本さくらの会）",
+          "url": "https://www.sakuranokai.or.jp/wp-sakuranokai/wp-content/themes/sakuranokai/images/2024/01/sakura_100sen_202402.pdf",
+          "checked_at": "2026-10-21"
+        }
+      ],
+      "seasons": [
+        {
+          "category": "sakura",
+          "typical": "4月下旬～5月上旬を中心（品種で差あり）",
+          "source_url": "https://www.hirosaki-kanko.or.jp/edit.html?id=cat02_spring_sakura_kaika",
+          "checked_at": "2026-10-21",
+          "annual": [
+            {
+              "year": 2026,
+              "kind": "actual",
+              "text": "園内ソメイヨシノ：開花4月11日、満開4月17～20日、花筏4月20～23日。2026年の実績。",
+              "source_url": "https://www.hirosaki-kanko.or.jp/edit.html?id=cat02_spring_sakura_kaika",
+              "checked_at": "2026-10-21"
+            },
+            {
+              "year": 2027,
+              "kind": "unannounced",
+              "text": "2027年の開花・満開予想は確認先で未発表（確認日時点）。",
+              "source_url": "https://www.hirosaki-kanko.or.jp/edit.html?id=cat02_spring_sakura_kaika",
+              "checked_at": "2026-10-21"
+            }
+          ]
+        },
+        {
+          "category": "autumn",
+          "typical": "10月下旬～11月上旬を目安",
+          "source_url": "https://www.hirosakipark.or.jp/sakura/",
+          "checked_at": "2026-10-21",
+          "annual": [
+            {
+              "year": 2026,
+              "kind": "unverified",
+              "text": "対象年の予想・実績は未確認。出典の最新情報を参照。",
+              "source_url": "https://www.hirosakipark.or.jp/sakura/",
+              "checked_at": "2026-10-21"
+            }
+          ]
+        }
+      ],
+      "image": {
+        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Cherry_blossoms_along_the_moat_of_Hirosaki_Castle_at_night_20260420d.jpg/960px-Cherry_blossoms_along_the_moat_of_Hirosaki_Castle_at_night_20260420d.jpg",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Cherry_blossoms_along_the_moat_of_Hirosaki_Castle_at_night_20260420d.jpg",
+        "credit": "掬茶",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "reusable": true,
+        "conditions": "作者名・出典・ライセンスを併記。改変時は変更を明記し、CC BY-SA作品の改変物は同一条件で共有。",
+        "captured_at": "2026-04-20 20:17:21",
+        "changes": "Wikimediaの縮小表示のみ。トリミング・色補正なし。",
+        "checked_at": "2026-10-21"
+      },
+      "updated_at": "2026-10-21"
+    }
+  },
+  {
+    "id": 29,
+    "values": {
+      "name": "松本城",
+      "prefecture": "長野県",
+      "city": "松本市",
+      "longitude": 137.968862,
+      "latitude": 36.238625,
+      "categories": [
+        "castle"
+      ],
+      "aliases": [],
+      "related_ids": [],
+      "summary": "黒と白の天守が水濠に映る国宝の城。北アルプスを背景に、外周の散策と現存天守の見学を組み合わせられます。",
+      "description": "松本城は、黒い下見板と白壁の対比が印象的な現存天守を持つ城です。水濠越しには城の姿が映り、天候がよければ北アルプスの山並みも背景になります。外周では角度を変えて天守の姿を眺め、内部では木造の構造や階ごとの空間を見比べられます。天守見学は外周の散策と分けて時間を取り、入場方法や混雑状況を訪問前に公式案内で確認してください。",
+      "tags": [
+        {
+          "label": "日本100名城",
+          "source_url": "https://jokaku.jp/business/castles-search/"
+        },
+        {
+          "label": "国宝",
+          "source_url": "https://www.japan.travel/en/spot/1356/"
+        }
+      ],
+      "sources": [
+        {
+          "label": "JNTO 松本城",
+          "url": "https://www.japan.travel/en/spot/1356/",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "既存100名城の位置・選定（日本城郭協会）",
+          "url": "https://jokaku.jp/business/castles-search/",
+          "checked_at": "2026-10-21"
+        }
+      ],
+      "seasons": [],
+      "image": {
+        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/130608_Matsumoto_Castle_Matsumoto_Nagano_pref_Japan01bs5.jpg/960px-130608_Matsumoto_Castle_Matsumoto_Nagano_pref_Japan01bs5.jpg",
+        "source_url": "https://commons.wikimedia.org/wiki/File:130608_Matsumoto_Castle_Matsumoto_Nagano_pref_Japan01bs5.jpg",
+        "credit": "663highland",
+        "license": "CC BY 2.5",
+        "license_url": "https://creativecommons.org/licenses/by/2.5",
+        "reusable": true,
+        "conditions": "作者名・出典・ライセンスを併記。改変時は変更を明記し、CC BY-SA作品の改変物は同一条件で共有。",
+        "captured_at": "2013-06-08",
+        "changes": "Wikimediaの縮小表示のみ。トリミング・色補正なし。",
+        "checked_at": "2026-10-21"
+      },
+      "updated_at": "2026-10-21"
+    }
+  },
+  {
+    "id": 43,
+    "values": {
+      "name": "犬山城",
+      "prefecture": "愛知県",
+      "city": "犬山市",
+      "longitude": 136.939248,
+      "latitude": 35.388329,
+      "categories": [
+        "castle"
+      ],
+      "aliases": [],
+      "related_ids": [],
+      "summary": "木曽川を背にした小高い城山の国宝天守。城下町から歩いて上がると、川と町を見渡す眺めが広がります。",
+      "description": "犬山城は木曽川沿いの城山に立ち、背後の断崖を守りに使った城です。現存する天守の姿と、川・城下町との位置関係を一度に感じられるのが特徴です。城下町から大手道をたどり、残された石垣や空堀にも目を向けると城の地形が分かります。天守内の階段や最上階の見学は足元に気をつけ、混雑や入場案内を確認して余裕を持って訪ねてください。",
+      "tags": [
+        {
+          "label": "日本100名城",
+          "source_url": "https://jokaku.jp/business/castles-search/"
+        },
+        {
+          "label": "国宝",
+          "source_url": "https://inuyama-castle.jp/about/access/castle-town-map"
+        }
+      ],
+      "sources": [
+        {
+          "label": "国宝犬山城 公式",
+          "url": "https://inuyama-castle.jp/about/access/castle-town-map",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "既存100名城の位置・選定（日本城郭協会）",
+          "url": "https://jokaku.jp/business/castles-search/",
+          "checked_at": "2026-10-21"
+        }
+      ],
+      "seasons": [],
+      "image": {
+        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/Inuyama_Castle_Keep_Tower_20170409.jpg/960px-Inuyama_Castle_Keep_Tower_20170409.jpg",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Inuyama_Castle_Keep_Tower_20170409.jpg",
+        "credit": "Suicasmo",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "reusable": true,
+        "conditions": "作者名・出典・ライセンスを併記。改変時は変更を明記し、CC BY-SA作品の改変物は同一条件で共有。",
+        "captured_at": "2017-04-09 13:36:33",
+        "changes": "Wikimediaの縮小表示のみ。トリミング・色補正なし。",
+        "checked_at": "2026-10-21"
+      },
+      "updated_at": "2026-10-21"
+    }
+  },
+  {
+    "id": 59,
+    "values": {
+      "name": "姫路城",
+      "prefecture": "兵庫県",
+      "city": "姫路市",
+      "longitude": 134.693985,
+      "latitude": 34.839426,
+      "categories": [
+        "castle"
+      ],
+      "aliases": [],
+      "related_ids": [],
+      "summary": "白壁の大天守と連立する小天守が印象的な世界遺産。三の丸からの全景と、城内の門・曲輪を巡る道が見どころです。",
+      "description": "姫路城は白鷺城の名で親しまれ、白い壁と重なる屋根が美しい現存城郭です。三の丸からは天守群の全体像を眺め、城内では門や曲がりくねった通路をたどりながら防御の工夫を見られます。春は城を背景にした桜も魅力です。外から眺める散策と天守への登閣は必要な時間が異なるため、見たい範囲を先に決め、現在の公開範囲・入場方法を公式案内で確かめてください。",
+      "tags": [
+        {
+          "label": "日本100名城",
+          "source_url": "https://jokaku.jp/business/castles-search/"
+        },
+        {
+          "label": "世界文化遺産",
+          "source_url": "https://www.japan.travel/en/spot/1030/"
+        },
+        {
+          "label": "国宝",
+          "source_url": "https://www.japan.travel/en/spot/1030/"
+        }
+      ],
+      "sources": [
+        {
+          "label": "JNTO 姫路城",
+          "url": "https://www.japan.travel/en/spot/1030/",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "既存100名城の位置・選定（日本城郭協会）",
+          "url": "https://jokaku.jp/business/castles-search/",
+          "checked_at": "2026-10-21"
+        }
+      ],
+      "seasons": [],
+      "image": {
+        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Himeji_castle_in_may_2015.jpg/960px-Himeji_castle_in_may_2015.jpg",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Himeji_castle_in_may_2015.jpg",
+        "credit": "Nikos Kitsakis",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "reusable": true,
+        "conditions": "作者名・出典・ライセンスを併記。改変時は変更を明記し、CC BY-SA作品の改変物は同一条件で共有。",
+        "captured_at": "2015-05-10 10:39:07",
+        "changes": "Wikimediaの縮小表示のみ。トリミング・色補正なし。",
+        "checked_at": "2026-10-21"
+      },
+      "updated_at": "2026-10-21"
+    }
+  },
+  {
+    "id": 92,
+    "values": {
+      "name": "熊本城",
+      "prefecture": "熊本県",
+      "city": "熊本市",
+      "longitude": 130.705892,
+      "latitude": 32.806028,
+      "categories": [
+        "castle"
+      ],
+      "aliases": [],
+      "related_ids": [],
+      "summary": "黒い天守と高い石垣が城の力強さを伝える熊本城。復旧が進む城内では、歴史と震災からの歩みを合わせて知ることができます。",
+      "description": "熊本城は市街地にある大規模な城郭で、黒い外観の天守と高くそびえる石垣が特徴です。城の姿を眺めるだけでなく、2016年の熊本地震で受けた被害と復旧の過程にも目を向けられます。見学は現在の公開ルートに沿って行い、石垣や建物の復旧状況を当日の案内で確認してください。以前の写真に写った景観をそのまま現在の状態とは考えず、天守見学と周辺散策に余裕を取るとよいでしょう。",
+      "tags": [
+        {
+          "label": "日本100名城",
+          "source_url": "https://jokaku.jp/business/castles-search/"
+        }
+      ],
+      "sources": [
+        {
+          "label": "JNTO 熊本城",
+          "url": "https://www.japan.travel/en/spot/638/",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "既存100名城の位置・選定（日本城郭協会）",
+          "url": "https://jokaku.jp/business/castles-search/",
+          "checked_at": "2026-10-21"
+        }
+      ],
+      "seasons": [],
+      "image": {
+        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/65/Kumamoto_Castle_Keep_Tower_20230103.jpg/960px-Kumamoto_Castle_Keep_Tower_20230103.jpg",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Kumamoto_Castle_Keep_Tower_20230103.jpg",
+        "credit": "Suicasmo",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "reusable": true,
+        "conditions": "作者名・出典・ライセンスを併記。改変時は変更を明記し、CC BY-SA作品の改変物は同一条件で共有。",
+        "captured_at": "2023-01-03 14:04:30",
+        "changes": "Wikimediaの縮小表示のみ。トリミング・色補正なし。",
+        "checked_at": "2026-10-21"
+      },
+      "updated_at": "2026-10-21"
+    }
+  },
+  {
+    "id": 1001,
+    "values": {
+      "name": "三春滝桜",
+      "prefecture": "福島県",
+      "city": "三春町",
+      "longitude": 140.49982778,
+      "latitude": 37.40803889,
+      "categories": [
+        "sakura"
+      ],
+      "aliases": [],
+      "related_ids": [],
+      "summary": "四方へ伸びる枝から花が流れ落ちるような一本桜。大きなベニシダレザクラを周囲から眺め、樹形の違いを楽しめます。",
+      "description": "三春滝桜は、推定樹齢千年を超えるエドヒガン系のベニシダレザクラです。枝に連なる薄紅色の花が滝のように見えることが名の由来とされ、日本三大桜の一つに数えられます。正面だけでなく周囲から枝の広がりを見比べると、一本の木の大きさがよく分かります。花の時期は道路や駐車場が混雑するため、その年の交通規制や臨時交通の案内を確認し、樹木保護の区画を守って観賞してください。",
+      "tags": [
+        {
+          "label": "日本三大桜",
+          "source_url": "https://miharukoma.com/experience/183"
+        },
+        {
+          "label": "国指定天然記念物",
+          "source_url": "https://miharukoma.com/experience/183"
+        }
+      ],
+      "sources": [
+        {
+          "label": "みはる観光協会",
+          "url": "https://miharukoma.com/experience/183",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "代表座標（WGS84・景勝地の代表点）",
+          "url": "https://ja.wikipedia.org/wiki/三春滝桜",
+          "checked_at": "2026-10-21"
+        }
+      ],
+      "seasons": [
+        {
+          "category": "sakura",
+          "typical": "4月中旬ごろ（気候によって前後）",
+          "source_url": "https://www.city.fukushima.fukushima.jp/material/files/group/3/20210324bessi1-2_1.pdf",
+          "checked_at": "2026-10-21",
+          "annual": [
+            {
+              "year": 2026,
+              "kind": "actual",
+              "text": "開花4月2日、満開4月6日。2026年の実績。",
+              "source_url": "https://miharukoma.com/experience/183",
+              "checked_at": "2026-10-21"
+            },
+            {
+              "year": 2027,
+              "kind": "unannounced",
+              "text": "2027年の開花・満開予想は確認先で未発表（確認日時点）。",
+              "source_url": "https://www.city.fukushima.fukushima.jp/material/files/group/3/20210324bessi1-2_1.pdf",
+              "checked_at": "2026-10-21"
+            }
+          ]
+        }
+      ],
+      "image": {
+        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/88/Miharu_Takizakura_02.jpg/960px-Miharu_Takizakura_02.jpg",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Miharu_Takizakura_02.jpg",
+        "credit": "Σ64",
+        "license": "CC BY 3.0",
+        "license_url": "https://creativecommons.org/licenses/by/3.0",
+        "reusable": true,
+        "conditions": "作者名・出典・ライセンスを併記。改変時は変更を明記し、CC BY-SA作品の改変物は同一条件で共有。",
+        "captured_at": "2014-04-21",
+        "changes": "Wikimediaの縮小表示のみ。トリミング・色補正なし。",
+        "checked_at": "2026-10-21"
+      },
+      "updated_at": "2026-10-21"
+    }
+  },
+  {
+    "id": 1002,
+    "values": {
+      "name": "山高神代桜",
+      "prefecture": "山梨県",
+      "city": "北杜市",
+      "longitude": 138.36772222,
+      "latitude": 35.78047222,
+      "categories": [
+        "sakura"
+      ],
+      "aliases": [
+        "神代桜"
+      ],
+      "related_ids": [],
+      "summary": "実相寺に根を張るエドヒガンの古木。太い幹と支えられた枝に咲く花が、長い年月を感じさせる日本三大桜の一つです。",
+      "description": "山高神代桜は、北杜市武川町の実相寺境内にあるエドヒガンの古木です。推定樹齢二千年ともいわれ、国の天然記念物に指定されています。大きな幹や枝ぶりを間近に眺め、境内の花々と合わせて春を感じられます。見頃は例年3月下旬から4月上旬で、満開の期間は長くありません。境内には一部段差があり、周辺道路も狭いため、現地の誘導と寺の観賞ルールに従って訪ねてください。",
+      "tags": [
+        {
+          "label": "日本三大桜",
+          "source_url": "https://www.hokuto-kanko.jp/spot/sakura_jindai/"
+        },
+        {
+          "label": "国指定天然記念物",
+          "source_url": "https://www.hokuto-kanko.jp/spot/sakura_jindai/"
+        }
+      ],
+      "sources": [
+        {
+          "label": "北杜市観光協会",
+          "url": "https://www.hokuto-kanko.jp/spot/sakura_jindai/",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "代表座標（WGS84・景勝地の代表点）",
+          "url": "https://www.wikidata.org/wiki/Q10860801",
+          "checked_at": "2026-10-21"
+        }
+      ],
+      "seasons": [
+        {
+          "category": "sakura",
+          "typical": "3月下旬～4月上旬",
+          "source_url": "https://www.hokuto-kanko.jp/spot/sakura_jindai/",
+          "checked_at": "2026-10-21",
+          "annual": [
+            {
+              "year": 2026,
+              "kind": "unverified",
+              "text": "対象年の予想・実績は未確認。出典の最新情報を参照。",
+              "source_url": "https://www.hokuto-kanko.jp/spot/sakura_jindai/",
+              "checked_at": "2026-10-21"
+            },
+            {
+              "year": 2027,
+              "kind": "unannounced",
+              "text": "2027年の開花・満開予想は確認先で未発表（確認日時点）。",
+              "source_url": "https://www.hokuto-kanko.jp/spot/sakura_jindai/",
+              "checked_at": "2026-10-21"
+            }
+          ]
+        }
+      ],
+      "image": {
+        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Hokuto_Yamanashi_Yamatakajindaizakura_1.jpg/960px-Hokuto_Yamanashi_Yamatakajindaizakura_1.jpg",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Hokuto_Yamanashi_Yamatakajindaizakura_1.jpg",
+        "credit": "京浜にけ at Japanese Wikipedia",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+        "reusable": true,
+        "conditions": "作者名・出典・ライセンスを併記。改変時は変更を明記し、CC BY-SA作品の改変物は同一条件で共有。",
+        "captured_at": "2008-04-11",
+        "changes": "Wikimediaの縮小表示のみ。トリミング・色補正なし。",
+        "checked_at": "2026-10-21"
+      },
+      "updated_at": "2026-10-21"
+    }
+  },
+  {
+    "id": 1003,
+    "values": {
+      "name": "根尾谷淡墨桜",
+      "prefecture": "岐阜県",
+      "city": "本巣市",
+      "longitude": 136.60877778,
+      "latitude": 35.63222222,
+      "categories": [
+        "sakura"
+      ],
+      "aliases": [
+        "淡墨桜",
+        "根尾谷淡墨ザクラ"
+      ],
+      "related_ids": [],
+      "summary": "つぼみ、満開、散り際で花の色が移ろうエドヒガンの巨木。淡墨公園で大きな枝張りを眺める、日本三大桜の一つです。",
+      "description": "根尾谷淡墨桜は、樹齢千五百年余りとされる国指定天然記念物の一本桜です。薄いピンクのつぼみから白い満開の花へ、散り際には淡い墨色へと変わると伝えられます。木を支える保存の工夫にも目を向けると、地域が守ってきた長い歴史を感じられます。樽見駅からは徒歩で訪ねられますが、開花期の交通や催しは年ごとに確認してください。平年の開花時期と、その年の満開情報を分けて計画するのがよいでしょう。",
+      "tags": [
+        {
+          "label": "日本三大桜",
+          "source_url": "https://www.kankou-gifu.jp/event/detail_921.html"
+        },
+        {
+          "label": "国指定天然記念物",
+          "source_url": "https://www.kankou-gifu.jp/event/detail_921.html"
+        }
+      ],
+      "sources": [
+        {
+          "label": "岐阜県観光連盟",
+          "url": "https://www.kankou-gifu.jp/event/detail_921.html",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "代表座標（WGS84・景勝地の代表点）",
+          "url": "https://ja.wikipedia.org/wiki/淡墨桜",
+          "checked_at": "2026-10-21"
+        }
+      ],
+      "seasons": [
+        {
+          "category": "sakura",
+          "typical": "4月中旬ごろ（年により早まる）",
+          "source_url": "https://online.bunka.go.jp/heritages/detail/172095",
+          "checked_at": "2026-10-21",
+          "annual": [
+            {
+              "year": 2026,
+              "kind": "unverified",
+              "text": "対象年の予想・実績は未確認。出典の最新情報を参照。",
+              "source_url": "https://online.bunka.go.jp/heritages/detail/172095",
+              "checked_at": "2026-10-21"
+            },
+            {
+              "year": 2027,
+              "kind": "unannounced",
+              "text": "2027年の開花・満開予想は確認先で未発表（確認日時点）。",
+              "source_url": "https://online.bunka.go.jp/heritages/detail/172095",
+              "checked_at": "2026-10-21"
+            }
+          ]
+        }
+      ],
+      "image": {
+        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Usuzumi_zakura.jpg/960px-Usuzumi_zakura.jpg",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Usuzumi_zakura.jpg",
+        "credit": "Alpsdake",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "reusable": true,
+        "conditions": "作者名・出典・ライセンスを併記。改変時は変更を明記し、CC BY-SA作品の改変物は同一条件で共有。",
+        "captured_at": "Taken on 3 April 2018, 14:48:44",
+        "changes": "Wikimediaの縮小表示のみ。トリミング・色補正なし。",
+        "checked_at": "2026-10-21"
+      },
+      "updated_at": "2026-10-21"
+    }
+  },
+  {
+    "id": 1004,
+    "values": {
+      "name": "吉野山",
+      "prefecture": "奈良県",
+      "city": "吉野町",
+      "longitude": 135.8706,
+      "latitude": 34.3564,
+      "categories": [
+        "sakura"
+      ],
+      "aliases": [],
+      "related_ids": [],
+      "summary": "山の斜面を桜が染める、面的な花見の名所。下千本から奥千本へと標高を上げるにつれ、花の時期も移っていきます。",
+      "description": "吉野山の桜は山桜を中心とし、下千本・中千本・上千本・奥千本の広い範囲に分布しています。例年4月初旬から末にかけて、山下から山上へ順に開花するため、一か所の満開日だけでは見頃を表せません。斜面を覆う桜と寺社のある町並みを、歩く高さを変えながら楽しめます。地図の点は山域の代表位置で、一本の桜や入口を示すものではありません。目的のエリアを決め、開花状況と交通規制を確認してから訪ねてください。",
+      "tags": [
+        {
+          "label": "さくら名所100選",
+          "source_url": "https://www.sakuranokai.or.jp/wp-sakuranokai/wp-content/themes/sakuranokai/images/2024/01/sakura_100sen_202402.pdf"
+        }
+      ],
+      "sources": [
+        {
+          "label": "吉野山観光協会",
+          "url": "https://yoshinoyama-kankou.com/sakura/",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "代表座標（WGS84・景勝地の代表点）",
+          "url": "https://ja.wikipedia.org/wiki/吉野山",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "さくら名所100選（日本さくらの会）",
+          "url": "https://www.sakuranokai.or.jp/wp-sakuranokai/wp-content/themes/sakuranokai/images/2024/01/sakura_100sen_202402.pdf",
+          "checked_at": "2026-10-21"
+        }
+      ],
+      "seasons": [
+        {
+          "category": "sakura",
+          "typical": "4月初旬～末（下千本→中千本→上千本→奥千本）",
+          "source_url": "https://yoshinoyama-kankou.com/sakura/",
+          "checked_at": "2026-10-21",
+          "annual": [
+            {
+              "year": 2026,
+              "kind": "unverified",
+              "text": "対象年の予想・実績は未確認。出典の最新情報を参照。",
+              "source_url": "https://yoshinoyama-kankou.com/sakura/",
+              "checked_at": "2026-10-21"
+            },
+            {
+              "year": 2027,
+              "kind": "unannounced",
+              "text": "2027年の開花・満開予想は確認先で未発表（確認日時点）。",
+              "source_url": "https://yoshinoyama-kankou.com/sakura/",
+              "checked_at": "2026-10-21"
+            }
+          ]
+        }
+      ],
+      "image": {
+        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/15/Yoshino-yama-cherry-blossom-2018-Luka-Peternel.jpg/960px-Yoshino-yama-cherry-blossom-2018-Luka-Peternel.jpg",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Yoshino-yama-cherry-blossom-2018-Luka-Peternel.jpg",
+        "credit": "Luka Peternel",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "reusable": true,
+        "conditions": "作者名・出典・ライセンスを併記。改変時は変更を明記し、CC BY-SA作品の改変物は同一条件で共有。",
+        "captured_at": "2018-04-03 06:23:16",
+        "changes": "Wikimediaの縮小表示のみ。トリミング・色補正なし。",
+        "checked_at": "2026-10-21"
+      },
+      "updated_at": "2026-10-21"
+    }
+  },
+  {
+    "id": 1005,
+    "values": {
+      "name": "鳴子峡",
+      "prefecture": "宮城県",
+      "city": "大崎市",
+      "longitude": 140.692222,
+      "latitude": 38.736389,
+      "categories": [
+        "autumn"
+      ],
+      "aliases": [],
+      "related_ids": [],
+      "summary": "深い峡谷の岩壁を赤や黄の木々が彩る鳴子峡。大深沢橋の周辺では、谷の奥行きと紅葉を一緒に眺められます。",
+      "description": "鳴子峡は大谷川の浸食でつくられた峡谷で、岩壁と広葉樹の色の対比が見どころです。秋は見晴台周辺から、谷をまたぐ大深沢橋と斜面の紅葉を望めます。場所によって色づきが異なるので、一枚の写真だけで全域の状態は判断できません。遊歩道の開放範囲や季節の交通案内を確認し、歩ける範囲に合わせて行程を組んでください。写真は過去の代表景観で、現在の紅葉状況ではありません。",
+      "tags": [],
+      "sources": [
+        {
+          "label": "鳴子温泉郷観光協会",
+          "url": "https://www.naruko.gr.jp/鳴子温泉郷の観光/",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "代表座標（WGS84・景勝地の代表点）",
+          "url": "https://ja.wikipedia.org/wiki/鳴子峡",
+          "checked_at": "2026-10-21"
+        }
+      ],
+      "seasons": [
+        {
+          "category": "autumn",
+          "typical": "10月下旬～11月上旬",
+          "source_url": "https://www.naruko.gr.jp/鳴子温泉郷の観光/",
+          "checked_at": "2026-10-21",
+          "annual": [
+            {
+              "year": 2026,
+              "kind": "unverified",
+              "text": "対象年の予想・実績は未確認。出典の最新情報を参照。",
+              "source_url": "https://www.naruko.gr.jp/鳴子温泉郷の観光/",
+              "checked_at": "2026-10-21"
+            }
+          ]
+        }
+      ],
+      "image": {
+        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f9/Naruko_Gorge_-_Naruko6277.jpg/960px-Naruko_Gorge_-_Naruko6277.jpg",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Naruko_Gorge_-_Naruko6277.jpg",
+        "credit": "lumoplank",
+        "license": "CC0",
+        "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "reusable": true,
+        "conditions": "作者名・出典・ライセンスを併記。改変時は変更を明記し、CC BY-SA作品の改変物は同一条件で共有。",
+        "captured_at": "30 October 2025",
+        "changes": "Wikimediaの縮小表示のみ。トリミング・色補正なし。",
+        "checked_at": "2026-10-21"
+      },
+      "updated_at": "2026-10-21"
+    }
+  },
+  {
+    "id": 1006,
+    "values": {
+      "name": "香嵐渓",
+      "prefecture": "愛知県",
+      "city": "豊田市",
+      "longitude": 137.31336944,
+      "latitude": 35.13184167,
+      "categories": [
+        "autumn"
+      ],
+      "aliases": [],
+      "related_ids": [],
+      "summary": "巴川沿いと飯盛山を多彩なカエデが包む紅葉の名所。川辺の散策で葉の形や色の違いを楽しめます。",
+      "description": "香嵐渓は飯盛山と巴川に沿って広がり、香積寺の和尚が植えたと伝わるカエデから紅葉の名所になりました。多くの品種があるため、同じ時期でも色づきや葉の形を見比べられます。橋の周辺だけでなく川辺の道を歩くと、流れと斜面の紅葉が重なる景色に出会えます。秋の催しやライトアップの予定は見頃予想とは別です。公共交通の時刻や道路の混雑を確認して、日中の散策にも時間を取ってください。",
+      "tags": [],
+      "sources": [
+        {
+          "label": "豊田市足助観光協会",
+          "url": "https://asuke.info/korankei/",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "代表座標（WGS84・景勝地の代表点）",
+          "url": "https://www.wikidata.org/wiki/Q11667254",
+          "checked_at": "2026-10-21"
+        }
+      ],
+      "seasons": [
+        {
+          "category": "autumn",
+          "typical": "11月を中心（色づきは木・場所で異なる）",
+          "source_url": "https://www.japan.travel/en/spot/137/",
+          "checked_at": "2026-10-21",
+          "annual": [
+            {
+              "year": 2026,
+              "kind": "unverified",
+              "text": "対象年の予想・実績は未確認。出典の最新情報を参照。",
+              "source_url": "https://www.japan.travel/en/spot/137/",
+              "checked_at": "2026-10-21"
+            }
+          ]
+        }
+      ],
+      "image": {
+        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/22/K%C5%8Drankei3.jpg/960px-K%C5%8Drankei3.jpg",
+        "source_url": "https://commons.wikimedia.org/wiki/File:K%C5%8Drankei3.jpg",
+        "credit": "Bariston",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "reusable": true,
+        "conditions": "作者名・出典・ライセンスを併記。改変時は変更を明記し、CC BY-SA作品の改変物は同一条件で共有。",
+        "captured_at": "20 November 2019, 11:14:33",
+        "changes": "Wikimediaの縮小表示のみ。トリミング・色補正なし。",
+        "checked_at": "2026-10-21"
+      },
+      "updated_at": "2026-10-21"
+    }
+  },
+  {
+    "id": 1007,
+    "values": {
+      "name": "永観堂（禅林寺）",
+      "prefecture": "京都府",
+      "city": "京都市",
+      "longitude": 135.79529167,
+      "latitude": 35.014525,
+      "categories": [
+        "autumn"
+      ],
+      "aliases": [
+        "永観堂",
+        "禅林寺"
+      ],
+      "related_ids": [],
+      "summary": "「もみじの永観堂」と親しまれる京都の寺院。池の周りの紅葉と、多宝塔や堂宇が重なる景色を巡ります。",
+      "description": "永観堂の通称で知られる禅林寺は、古くから紅葉の名所として親しまれてきました。池泉回遊式庭園の周囲を木々が彩り、多宝塔や御影堂を引き立てます。昼は建物と庭のつながりを見ながら歩き、夜間特別拝観が行われる時期には異なる表情も楽しめます。昼夜の拝観方法や公開範囲は別に確認し、催しの日程をそのまま紅葉の見頃と読み替えないようにしてください。",
+      "tags": [],
+      "sources": [
+        {
+          "label": "京都市観光協会 京都観光Navi",
+          "url": "https://ja.kyoto.travel/event/single.php?event_id=5019",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "代表座標（WGS84・景勝地の代表点）",
+          "url": "https://ja.wikipedia.org/wiki/禅林寺_(京都市)",
+          "checked_at": "2026-10-21"
+        }
+      ],
+      "seasons": [
+        {
+          "category": "autumn",
+          "typical": "11月中旬からを目安",
+          "source_url": "https://ja.kyoto.travel/event/single.php?event_id=5019",
+          "checked_at": "2026-10-21",
+          "annual": [
+            {
+              "year": 2026,
+              "kind": "unverified",
+              "text": "対象年の予想・実績は未確認。出典の最新情報を参照。",
+              "source_url": "https://ja.kyoto.travel/event/single.php?event_id=5019",
+              "checked_at": "2026-10-21"
+            }
+          ]
+        }
+      ],
+      "image": null,
+      "updated_at": "2026-10-21"
+    }
+  },
+  {
+    "id": 1008,
+    "values": {
+      "name": "宮島・紅葉谷公園",
+      "prefecture": "広島県",
+      "city": "廿日市市",
+      "longitude": 132.324057,
+      "latitude": 34.294191,
+      "categories": [
+        "autumn"
+      ],
+      "aliases": [
+        "紅葉谷公園"
+      ],
+      "related_ids": [],
+      "summary": "弥山の麓で谷川に沿って紅葉を楽しむ公園。イロハカエデやオオモミジが、橋と水辺の散策路を彩ります。",
+      "description": "紅葉谷公園は宮島の弥山山麓にあり、谷川沿いを歩きながら紅葉を観賞できる場所です。イロハカエデやオオモミジが多く、橋や水の流れと葉の色を組み合わせて眺められます。例年は11月中旬から色づく木が増え、20日前後にピークを迎えますが、気候で変動します。神社周辺の海辺とは違う落ち着いた景観を、宮島散策の一部として楽しめます。最新の色づきと現地の通行案内を確認して訪ねてください。",
+      "tags": [],
+      "sources": [
+        {
+          "label": "宮島観光協会",
+          "url": "https://www.miyajima.or.jp/nature/nature_hana.html",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "代表座標（WGS84・景勝地の代表点）",
+          "url": "https://www.wikidata.org/wiki/Q6897278",
+          "checked_at": "2026-10-21"
+        }
+      ],
+      "seasons": [
+        {
+          "category": "autumn",
+          "typical": "11月中旬～下旬（20日前後がピークの目安）",
+          "source_url": "https://www.miyajima.or.jp/nature/nature_hana.html",
+          "checked_at": "2026-10-21",
+          "annual": [
+            {
+              "year": 2026,
+              "kind": "unverified",
+              "text": "対象年の予想・実績は未確認。出典の最新情報を参照。",
+              "source_url": "https://www.miyajima.or.jp/nature/nature_hana.html",
+              "checked_at": "2026-10-21"
+            }
+          ]
+        }
+      ],
+      "image": null,
+      "updated_at": "2026-10-21"
+    }
+  }
+]
