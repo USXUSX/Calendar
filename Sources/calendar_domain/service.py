@@ -23,6 +23,7 @@ from .schedule_chat import ScheduleChatMixin
 from .recurrence import RecurrenceMixin
 from .trip_chat import TripChatMixin
 from .trip_requests import TripRequestMixin
+from .trip_ai import TripAIMixin
 from .errors import ConflictError, GenerationWriteError, NotFoundError, ValidationError
 from .models import UnifiedEvent
 from .trip_lifecycle import is_trip_completed, lodging_nights
@@ -61,7 +62,7 @@ def _now() -> str:
 from .travel import TravelMixin
 
 
-class CalendarDomain(TripRequestMixin, TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChatMixin, ScheduleChatMixin, ScheduleMixin, ChatExchangeMixin):
+class CalendarDomain(TripAIMixin, TripRequestMixin, TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChatMixin, ScheduleChatMixin, ScheduleMixin, ChatExchangeMixin):
     """Semantic CAL interface; formal storage paths are explicit, Chat root is separate."""
 
     def __init__(self, db_path: str | Path, trip_root: str | Path, *, chat_root: str | Path | None = None):

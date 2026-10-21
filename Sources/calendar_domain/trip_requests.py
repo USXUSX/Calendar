@@ -34,6 +34,8 @@ class TripRequestMixin:
 
     @after_save
     def apply_trip_operation(self, request):
+        if isinstance(request, dict) and request.get('operation') == 'ai':
+            return self.apply_trip_ai_update(request)
         allowed = {'request_id', 'trip_id', 'operation', 'expected_revision', 'values'}
         if not isinstance(request, dict) or set(request) != allowed:
             raise ValidationError('invalid_trip_operation')

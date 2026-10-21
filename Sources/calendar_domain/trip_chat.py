@@ -50,7 +50,7 @@ class TripChatMixin:
                 self._recover_rdc_trip(c, path.stem, journal)
 
     @after_save
-    def apply_trip_request(self, request):
+    def apply_trip_request(self, request, *, preserve_locations=True):
         allowed = {'request_id','kind','action','trip','expected_revision','handled_instruction_ids','coordinate_results'}
         if not isinstance(request, dict) or set(request)-allowed or request.get('kind') != 'trip':
             raise ValidationError('invalid_trip_request')
@@ -103,7 +103,7 @@ class TripChatMixin:
             candidate, _ = self._validated_candidate(trip_id, supplied)
             if action == 'create' and connected:
                 candidate['title']=json.loads(connected['data_json'])['title']
-            candidate, counts = complete(candidate,request['coordinate_results'],existing,require_attempts=True)
+            candidate, counts = complete(candidate,request['coordinate_results'],existing if preserve_locations else None,require_attempts=True)
             candidate, payload = self._validated_candidate(trip_id,candidate)
             timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
             if action == 'create':
