@@ -49,6 +49,8 @@ def initialize(database_path: Path) -> None:
         extend_schedule_receipts(connection)
         extend_recurrence(connection)
         extend_travel(connection)
+        from Sources.calendar_domain.castles import extend_castles
+        extend_castles(connection)
         from Sources.calendar_domain.google_calendar import extend_google
         extend_google(connection)
         connection.commit()

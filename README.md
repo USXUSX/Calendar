@@ -2,6 +2,8 @@
 
 CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb表示・操作はFrameが担当し、正式Trip JSONとSQLiteの更新・ValidationはCALが所有します。
 
+100名城の正式記録・Chat更新・初回移行は[所有契約](docs/castles.md)を参照。旅程データから独立して管理します。
+
 ## 現在の利用経路
 
 - Chatの新規・既存Trip更新は既存RDCから[CAL専用コマンド](docs/chat-schedule.md)を呼び、CALで検証・正式保存してreceiptを受け取る。Frameの手動JSON取込も保持する。
