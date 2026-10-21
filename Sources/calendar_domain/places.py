@@ -81,12 +81,8 @@ def validate_content(data, identity):
             if type(a['year']) is not int or a['kind'] not in ('actual', 'forecast', 'unannounced', 'unverified'):
                 raise ValidationError('invalid_annual_kind')
             text(a['text']); url(a['source_url']); iso_day(a['checked_at'])
-    image = data['image']
-    if image is not None:
-        if type(image['reusable']) is not bool: raise ValidationError('invalid_image_permission')
-        for key in ('url', 'source_url', 'license_url'): url(image[key])
-        for key in ('credit', 'license', 'conditions', 'captured_at', 'changes'): text(image[key])
-        iso_day(image['checked_at'])
+    from .place_images import validate_image
+    validate_image(data['image'])
 
 
 def content_defaults(master, identity):
@@ -131,6 +127,10 @@ class PlacesMixin:
         if request['expected_revision'] is not None and not isinstance(request['expected_revision'], str):
             raise ValidationError('invalid_expected_revision')
         digest = hashlib.sha256(encoded(request).encode()).hexdigest()
+        return self._commit_place_request(request, digest)
+
+    def _commit_place_request(self, request, digest, receipt_fields=None):
+        identity=request['id']; rid=request['request_id']; values=request['values']
         with self._command() as c:
             c.execute('BEGIN IMMEDIATE')
             prior = c.execute('SELECT * FROM place_receipts WHERE request_id=?', (rid,)).fetchone()
@@ -154,7 +154,13 @@ class PlacesMixin:
             if identity <= 100 and any(content[k] != old[k] for k in MASTER):
                 raise ValidationError('castle_master_read_only')
             # Visit-only edits also work for the 95 castles without an introduction.
-            if set(values) & CONTENT or not old:
+            if old and set(values)=={'image'}:
+                from .place_images import validate_image, LOCAL_IMAGE
+                validate_image(content['image'])
+                if content['image'] and content['image'].get('source')=='upload':
+                    key=LOCAL_IMAGE.fullmatch(content['image']['url']).group(1)
+                    if not (self.trip_root/'place-images'/(key+'.jpg')).is_file():raise ValidationError('local_image_not_found')
+            elif set(values) & CONTENT or not old:
                 try: validate_content(content, identity)
                 except (KeyError, TypeError): raise ValidationError('invalid_place_content') from None
             validate_record(record)
@@ -173,5 +179,6 @@ class PlacesMixin:
             receipt = dict(status='committed', request_id=rid, receipt_id=str(uuid4()), entity_id=identity,
                            committed_at=datetime.now(timezone.utc).isoformat(), previous_revision=old['revision'] if old else None,
                            revision=saved['revision'], item=saved)
+            if receipt_fields:receipt.update(receipt_fields)
             c.execute('INSERT INTO place_receipts VALUES (?,?,?)', (rid, digest, encoded(receipt)))
         return dict(status='committed', resolution='new', receipt=receipt)
