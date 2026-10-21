@@ -94,6 +94,11 @@ class PlaceImagesTest(unittest.TestCase):
     def test_native_formats_invalid_file_and_orientation_metadata(self):
         data,w,h=prepare_image(png(),self.root/'images')
         self.assertEqual((w,h),(24,12))  # Small images are not enlarged.
+        self.assertEqual(prepare_image(data,self.root/'images')[1:],(24,12))
+        source=self.root/'synthetic.png';source.write_bytes(png())
+        heic=self.root/'synthetic.heic'
+        subprocess.run(['/usr/bin/sips','-s','format','heic',str(source),'--out',str(heic)],capture_output=True,check=True)
+        self.assertEqual(prepare_image(heic.read_bytes(),self.root/'images')[1:],(24,12))
         with self.assertRaises(ValidationError):prepare_image(b'<svg onload="bad"></svg>',self.root/'images')
         # A minimal orientation record survives; GPS/comments/XMP do not.
         tiff=b'Exif\0\0II*\0\x08\0\0\0\x01\0'+struct.pack('<HHI',274,3,1)+b'\x06\0\0\0'+b'\0'*4
