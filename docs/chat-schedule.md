@@ -203,3 +203,5 @@ CAL正式保存→旅行関連付け→Google反映の順。旅行が既知な�
 ```
 
 上のrevisionは形式説明用。実行時はtrip-getのrevisionオブジェクト全体を改変せず使う。要求ID/送信内容を保持し、exit 0・committed receiptの要求ID/対象/values/revisionを照合、同じlookupから確定結果を再確認する。再送とstale拒否は既存正式要求と共通。路線名の自然言語解釈はChatで行い、分からない区間は指定せず未確定を報告する。CLIは正式JSON/DBの直接編集の代替となる所有入口である。
+
+100名城の訪問状態・日付・コメントは別の[CAL城専用CLI](castles.md)を使う。日程applyへ混在させない。
