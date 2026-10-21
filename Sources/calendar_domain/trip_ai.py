@@ -34,6 +34,32 @@ def changes(before, after, path=""):
     return [dict(path=path or '/', before=before, after=after)]
 
 
+def change_label(change, before, after):
+    """Keep CAL field/identity meaning out of Frame's proposal renderer."""
+    objects = {}
+    for trip in (after, before):
+        for collection in ('days', 'transports', 'places', 'bookings'):
+            for obj in trip.get(collection, []):
+                objects[obj['id']] = obj
+                for item in obj.get('scheduleItems', []):
+                    objects[item['id']] = item
+    parts = change['path'].strip('/').split('/')
+    names = []
+    for part in parts:
+        if part in objects:
+            obj = objects[part]
+            names.append(obj.get('action') or obj.get('name') or obj.get('date') or obj.get('title') or part)
+    fields = dict(summary='コメント', details='補足', importantComment='重要コメント',
+                  title='旅行名・タイトル', action='予定本文', name='地点名',
+                  mapDisplayName='地図表示名', location='位置', latitude='緯度', longitude='経度',
+                  status='状態', time='時刻', start='開始', end='終了', mode='形式',
+                  candidatePlaceIds='候補', selection='採用地点', placeSelection='地点・候補',
+                  category='区分', officialUrl='公式URL', address='住所', notes='予約メモ',
+                  fromPlaceId='出発地点', toPlaceId='到着地点')
+    field = fields.get(parts[-1], parts[-1] if parts[-1] not in objects else '構成')
+    return ' / '.join(names + [field])
+
+
 class TripAIMixin:
     def propose_trip_update(self, trip_id, expected_revision, instruction, transport=None):
         if not isinstance(instruction, str) or not instruction.strip():
@@ -88,6 +114,8 @@ class TripAIMixin:
         if self.get_trip_command_context(trip_id)['revision'] != expected_revision:
             raise ConflictError('revision_conflict')
         summary = changes(baseline, candidate)
+        for change in summary:
+            change['label'] = change_label(change, baseline, candidate)
         if not summary:
             raise ValidationError('変更はありません。指示を確認してください。')
         proposal = dict(proposal_id=identity, request_id=identity, trip_id=trip_id,
