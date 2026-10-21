@@ -31,6 +31,7 @@ class TripAITest(unittest.TestCase):
     def test_preview_cancel_approval_and_replay(self):
         proposal = self.generate()
         self.assertTrue(proposal['changes'])
+        self.assertIn('コメント', proposal['changes'][0]['label'])
         self.assertEqual(self.cal.get_trip_command_context(self.tid), self.context)
         self.assertEqual(self.cal.lookup_chat_request(proposal['request_id'])['status'], 'not_found')
         request = self.approval(proposal)
