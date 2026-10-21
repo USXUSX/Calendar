@@ -1581,11 +1581,6 @@
           "checked_at": "2026-10-21"
         },
         {
-          "label": "管理者・自治体・公式観光案内",
-          "url": "https://maruoka-castle.jp/",
-          "checked_at": "2026-10-21"
-        },
-        {
           "label": "季節の公式観光案内",
           "url": "https://www.japan.travel/en/spot/1381/",
           "checked_at": "2026-10-21"
@@ -1600,7 +1595,7 @@
           "annual": []
         }
       ],
-      "official_url": "https://maruoka-castle.jp/",
+      "official_url": "https://www.japan.travel/en/spot/1381/",
       "updated_at": "2026-10-21",
       "image": {
         "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c6/Maruoka_Castle_Keep_Tower%2C_Maruoka-cho_Sakai_2013.jpg/960px-Maruoka_Castle_Keep_Tower%2C_Maruoka-cho_Sakai_2013.jpg",
