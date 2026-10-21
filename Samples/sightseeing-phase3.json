@@ -23,12 +23,12 @@
         },
         {
           "label": "管理者・自治体・公式観光案内",
-          "url": "https://nemuro-kankou.com/",
+          "url": "https://www.nemuro-kankou.com/tourism/ainuchashi/",
           "checked_at": "2026-10-21"
         }
       ],
       "seasons": [],
-      "official_url": "https://nemuro-kankou.com/",
+      "official_url": "https://www.nemuro-kankou.com/tourism/ainuchashi/",
       "updated_at": "2026-10-21",
       "image": {
         "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/86/Nemurohanto_chashiatogun_onnemotochashi.jpg/960px-Nemurohanto_chashiatogun_onnemotochashi.jpg",
@@ -1391,12 +1391,12 @@
         },
         {
           "label": "管理者・自治体・公式観光案内",
-          "url": "https://www.city.joetsu.niigata.jp/",
+          "url": "https://www.city.joetsu.niigata.jp/site/cultural-property/cultural-property-jpn002.html",
           "checked_at": "2026-10-21"
         }
       ],
       "seasons": [],
-      "official_url": "https://www.city.joetsu.niigata.jp/",
+      "official_url": "https://www.city.joetsu.niigata.jp/site/cultural-property/cultural-property-jpn002.html",
       "updated_at": "2026-10-21",
       "image": {
         "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ea/Kasaugayama_Castle.jpg/960px-Kasaugayama_Castle.jpg",
@@ -1582,7 +1582,7 @@
         },
         {
           "label": "管理者・自治体・公式観光案内",
-          "url": "https://www.city.fukui-sakai.lg.jp/",
+          "url": "https://maruoka-castle.jp/",
           "checked_at": "2026-10-21"
         },
         {
@@ -1600,7 +1600,7 @@
           "annual": []
         }
       ],
-      "official_url": "https://www.city.fukui-sakai.lg.jp/",
+      "official_url": "https://maruoka-castle.jp/",
       "updated_at": "2026-10-21",
       "image": {
         "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c6/Maruoka_Castle_Keep_Tower%2C_Maruoka-cho_Sakai_2013.jpg/960px-Maruoka_Castle_Keep_Tower%2C_Maruoka-cho_Sakai_2013.jpg",
@@ -1715,12 +1715,12 @@
         },
         {
           "label": "管理者・自治体・公式観光案内",
-          "url": "https://www.city.gifu.lg.jp/",
+          "url": "https://www.gifucvb.or.jp/sightseeing/gifu-castle.php?eid=00001",
           "checked_at": "2026-10-21"
         }
       ],
       "seasons": [],
-      "official_url": "https://www.city.gifu.lg.jp/",
+      "official_url": "https://www.gifucvb.or.jp/sightseeing/gifu-castle.php?eid=00001",
       "updated_at": "2026-10-21",
       "image": {
         "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/69/%E5%B2%90%E9%98%9C%E5%9F%8E_%E5%A4%A9%E5%AE%88%E9%96%A3.jpg/960px-%E5%B2%90%E9%98%9C%E5%9F%8E_%E5%A4%A9%E5%AE%88%E9%96%A3.jpg",
@@ -1987,12 +1987,12 @@
         },
         {
           "label": "管理者・自治体・公式観光案内",
-          "url": "https://www.city.shinshiro.lg.jp/",
+          "url": "https://www.city.shinshiro.lg.jp/mokuteki/shisetu/shiryokan/nagashinojyoshi/yokoso.html",
           "checked_at": "2026-10-21"
         }
       ],
       "seasons": [],
-      "official_url": "https://www.city.shinshiro.lg.jp/",
+      "official_url": "https://www.city.shinshiro.lg.jp/mokuteki/shisetu/shiryokan/nagashinojyoshi/yokoso.html",
       "updated_at": "2026-10-21",
       "image": {
         "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/%E5%8F%B2%E8%B7%A1_%E9%95%B7%E7%AF%A0%E5%9F%8E%E5%9D%80.jpg/960px-%E5%8F%B2%E8%B7%A1_%E9%95%B7%E7%AF%A0%E5%9F%8E%E5%9D%80.jpg",
@@ -2253,13 +2253,18 @@
       ],
       "sources": [
         {
-          "label": "管理者・自治体・公式観光案内",
+          "label": "日本城郭協会・日本100名城一覧",
           "url": "https://jokaku.jp/business/great-castles/",
+          "checked_at": "2026-10-21"
+        },
+        {
+          "label": "管理者・自治体・公式観光案内",
+          "url": "https://www.biwako-visitors.jp/spot/detail/886/",
           "checked_at": "2026-10-21"
         }
       ],
       "seasons": [],
-      "official_url": "https://jokaku.jp/business/great-castles/",
+      "official_url": "https://www.biwako-visitors.jp/spot/detail/886/",
       "updated_at": "2026-10-21",
       "image": null
     }
@@ -2391,12 +2396,12 @@
         },
         {
           "label": "管理者・自治体・公式観光案内",
-          "url": "https://www.chihayaakasaka.org/",
+          "url": "https://www.chihayaakasaka.org/spot/castle.html",
           "checked_at": "2026-10-21"
         }
       ],
       "seasons": [],
-      "official_url": "https://www.chihayaakasaka.org/",
+      "official_url": "https://www.chihayaakasaka.org/spot/castle.html",
       "updated_at": "2026-10-21",
       "image": {
         "url": "https://upload.wikimedia.org/wikipedia/commons/4/43/%E5%8D%83%E6%97%A9%E5%9F%8E%E5%9D%80%E3%81%AE%E7%A2%91.JPG",
@@ -2477,12 +2482,12 @@
         },
         {
           "label": "管理者・自治体・公式観光案内",
-          "url": "https://tourism.sasayama.jp/",
+          "url": "https://tourism.sasayama.jp/history-tambasasayama/",
           "checked_at": "2026-10-21"
         }
       ],
       "seasons": [],
-      "official_url": "https://tourism.sasayama.jp/",
+      "official_url": "https://tourism.sasayama.jp/history-tambasasayama/",
       "updated_at": "2026-10-21",
       "image": {
         "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bf/Sasaymajyo01.jpg/960px-Sasaymajyo01.jpg",
@@ -2604,12 +2609,12 @@
         },
         {
           "label": "管理者・自治体・公式観光案内",
-          "url": "https://www.ako-hyg.ed.jp/bunkazai/akojo/",
+          "url": "https://ako-kankou.jp/sightseeing/ako-castle.html",
           "checked_at": "2026-10-21"
         }
       ],
       "seasons": [],
-      "official_url": "https://www.ako-hyg.ed.jp/bunkazai/akojo/",
+      "official_url": "https://ako-kankou.jp/sightseeing/ako-castle.html",
       "updated_at": "2026-10-21",
       "image": {
         "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6f/141115_Ako_Castle_Ako_Hyogo_pref_Japan01bs3.jpg/960px-141115_Ako_Castle_Ako_Hyogo_pref_Japan01bs3.jpg",
@@ -2923,12 +2928,12 @@
         },
         {
           "label": "管理者・自治体・公式観光案内",
-          "url": "https://www.kankou-shimane.com/",
+          "url": "https://www.kankou-shimane.com/destination/20242",
           "checked_at": "2026-10-21"
         }
       ],
       "seasons": [],
-      "official_url": "https://www.kankou-shimane.com/",
+      "official_url": "https://www.kankou-shimane.com/destination/20242",
       "updated_at": "2026-10-21",
       "image": {
         "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/TsuwanoJo.JPG/960px-TsuwanoJo.JPG",
@@ -2968,6 +2973,11 @@
           "checked_at": "2026-10-21"
         },
         {
+          "label": "管理者・自治体・公式観光案内",
+          "url": "https://www.okayama-kanko.jp/spot/detail_12928.html",
+          "checked_at": "2026-10-21"
+        },
+        {
           "label": "季節の公式観光案内",
           "url": "https://www.tsuyamakan.jp/rcCEUdxa/9Rqhbi-p",
           "checked_at": "2026-10-21"
@@ -2987,7 +2997,7 @@
           "annual": []
         }
       ],
-      "official_url": "https://www.tsuyamakan.jp/rcCEUdxa/9Rqhbi-p",
+      "official_url": "https://www.okayama-kanko.jp/spot/detail_12928.html",
       "updated_at": "2026-10-21",
       "image": null
     }
@@ -3016,12 +3026,12 @@
         },
         {
           "label": "管理者・自治体・公式観光案内",
-          "url": "https://www.takahasikanko.or.jp/",
+          "url": "https://www.pref.okayama.jp/site/kodai/654613.html",
           "checked_at": "2026-10-21"
         }
       ],
       "seasons": [],
-      "official_url": "https://www.takahasikanko.or.jp/",
+      "official_url": "https://www.pref.okayama.jp/site/kodai/654613.html",
       "updated_at": "2026-10-21",
       "image": {
         "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/%E5%82%99%E4%B8%AD%E6%9D%BE%E5%B1%B1%E5%9F%8E2.jpg/960px-%E5%82%99%E4%B8%AD%E6%9D%BE%E5%B1%B1%E5%9F%8E2.jpg",
@@ -3102,12 +3112,12 @@
         },
         {
           "label": "管理者・自治体・公式観光案内",
-          "url": "https://okayama-kanko.net",
+          "url": "https://okayama-castle.jp/",
           "checked_at": "2026-10-21"
         }
       ],
       "seasons": [],
-      "official_url": "https://okayama-kanko.net",
+      "official_url": "https://okayama-castle.jp/",
       "updated_at": "2026-10-21",
       "image": {
         "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Okayama_Castle_main_keep_2023-10-18.jpg/960px-Okayama_Castle_main_keep_2023-10-18.jpg",
@@ -4242,12 +4252,12 @@
         },
         {
           "label": "管理者・自治体・公式観光案内",
-          "url": "https://www.city.nichinan.lg.jp/",
+          "url": "https://www.city.nichinan.lg.jp/museum/mishiteibunnkazai/iseki_shiseki/5/3861.html",
           "checked_at": "2026-10-21"
         }
       ],
       "seasons": [],
-      "official_url": "https://www.city.nichinan.lg.jp/",
+      "official_url": "https://www.city.nichinan.lg.jp/museum/mishiteibunnkazai/iseki_shiseki/5/3861.html",
       "updated_at": "2026-10-21",
       "image": {
         "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/Obi_Castle_Otemon.jpg/960px-Obi_Castle_Otemon.jpg",
