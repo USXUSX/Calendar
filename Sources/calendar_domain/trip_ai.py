@@ -152,7 +152,7 @@ class TripAIMixin:
             def run():
                 try:
                     self.propose_trip_update(trip_id, expected_revision, instruction,
-                                             transport, generation_id=generation_id)
+                                             transport=transport, generation_id=generation_id)
                 except Exception as error:
                     # No provider response or Trip payload in diagnostics.
                     code = 'conflict' if isinstance(error, ConflictError) else 'failed'
