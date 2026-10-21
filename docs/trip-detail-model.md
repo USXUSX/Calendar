@@ -525,3 +525,15 @@ Trip JSONには任意の文字列`photoAlbumName`を追加する。SQLiteの構�
 complete Trip JSONにも同名の任意fieldを受け付け、Chatの正式create/saveと既存採用journalから基本情報へ反映する。既存JSONで省略したfieldは保存済み基本情報を保持する。effective Tripは基本情報を重ね、`list_travel` / `list_trips`は `nights`・`participants`・`transport` を供給する。日数は管理期間の日付差から表示側で算出し、保存しない。泊数は宿泊予定の追加・削除で自動変更しない。機内泊は泊数に含めず、Chat/手動更新時に確認した明示値を渡す。
 
 既存 `lodging_nights` は宿泊予定の集計として互換保持するが、明示泊数の代用にしない。未登録の泊数から「0泊」を作らない。既存旅行の移行はSQLite backup後 `python3 -B scripts/migrate_travel_metadata.py <DB> <Calendar_Local root>` を実行する。既存明示値を保持し、全宿泊対象日に宿泊または明示機内泊が揃う場合だけ宿泊数を確定する。未確認の泊数はnull、参加者は空配列を保持する。旅行内容・正式JSONを変更せず、再実行で値やrevisionを変えない。
+
+## 承認付き旅程AI更新（#265）
+
+`propose_trip_update(trip_id, expected_revision, instruction, transport=None)`は、同一snapshotのeffective Trip/revisionと自然文指示を使い、complete Tripの変更案を作る。AIには現行Schema・生成ガイドと非対象データ保持の指示を渡し、返却identity、Schema、意味ValidationをCALで確認する。元版からのstable ID単位の差分（path・変更前・変更後）を`changes`として返す。自然文の意味が正しく反映されたかは本人が概要で確認する。地点・候補・地図表示名・座標も対象にできるが、不明な事実や座標は創作しない。
+
+生成は既存AIG complete Tripのstateless command transportを1回呼ぶだけで、旧Working state・candidate自動採用・queueを使わない。互換envelopeの`working`はrevision情報だけで、Workingの読書きや有効化はしない。実行設定`CAL_TRIP_AI_COMMAND`はJSON argv配列。provider/model/credentialは既存command側の設定とし、未設定・失敗時は生成失敗を返し正式Tripは変更しない。新サービス・retry・fallbackは追加しない。
+
+返却は`status=proposed`、`proposal_id`、固定の`request_id`、`trip_id`、`expected_revision`、`instruction`、`changes`。確認済みcomplete Tripと正式要求はCAL Localの`.trip-ai/<UUID>.json`へ固定する。正式JSON・DB・未処理指示は未変更。取消は提案を破棄して表示を戻すだけで保存を呼ばない。提案ファイルは結果不明時の同一要求再送に使うため保持する。共有コピーへ同期しない。
+
+適用は既存`apply_trip_operation`へ`operation=ai`、生成時の要求ID・Trip ID・元revision、`values={proposal_id, confirmed:true}`を渡す。確認済み要求との照合後、既存`apply_trip_request`のsave・journal・receiptへ委譲する。明示的な座標変更が保存時に旧座標へ戻らないよう、この経路だけ確認済み案の座標を使用する。既存Chat/RDCの座標保持既定は維持する。保存直前の元版照合、同一要求のpayload照合、`lookup_chat_request`による復旧も同じ契約。生成中・確認後の競合は再生成が必要で、旧提案へ新版を付け替えない。
+
+責務は、FRMが入力・概要表示・本人承認・処理状態と結果照合、AIが曖昧な指示の解釈と案作成、CALが旅程Schema・意味Validation・差分・正式保存を所有する。この流れを他画面へ適用する際も各所有ツールに検証・保存を残す。今回の実装はCAL Tripだけとし、実際の次利用先が生じるまで汎用APIや共通サービスへ抽出しない。
