@@ -1,6 +1,9 @@
 import copy
 import json
 import unittest
+import threading
+import time
+from uuid import uuid4
 from unittest.mock import patch
 
 import test_trip_chat
@@ -105,5 +108,58 @@ class TripAITest(unittest.TestCase):
         result = self.cal.lookup_chat_request(proposal['request_id'])
         self.assertEqual(result['status'], 'committed')
         self.assertEqual(self.cal.apply_trip_operation(self.approval(proposal))['receipt'], result['receipt'])
+
+    def wait_generation(self, identity):
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            result = self.cal.get_trip_ai_generation(identity)
+            if result['status'] != 'generating':
+                return result
+            time.sleep(0.01)
+        self.fail('generation did not finish')
+
+    def test_async_disconnect_lookup_restart_and_no_duplicate_generation(self):
+        entered = threading.Event(); release = threading.Event(); calls = []
+        def transport(e):
+            calls.append(e); entered.set(); release.wait(3)
+            candidate = copy.deepcopy(e['working_export_package']['effective_trip'])
+            candidate['summary'] = '合成の生成済み案'
+            return dict(status='succeeded', generation_id=e['generation_id'], trip_id=self.tid, candidate=candidate)
+        identity = str(uuid4())
+        args = (identity, self.tid, self.context['revision'], '旅程概要変更')
+        result = self.cal.start_trip_ai_update(*args, transport=transport)
+        self.assertEqual(result['status'], 'generating')
+        self.assertTrue(entered.wait(1))
+        self.assertEqual(self.cal.start_trip_ai_update(*args, transport=transport)['status'], 'generating')
+        with self.assertRaises(ConflictError):
+            self.cal.start_trip_ai_update(identity, self.tid, self.context['revision'], '別指示', transport)
+        with patch('Sources.calendar_domain.trip_ai._ACTIVE_GENERATIONS', set()):
+            self.assertEqual(self.cal.get_trip_ai_generation(identity)['status'], 'failed')
+        release.set()
+        proposed = self.wait_generation(identity)
+        self.assertEqual(proposed['status'], 'proposed')
+        self.assertEqual(len(calls), 1)
+        restarted = CalendarDomain(self.db, self.root)
+        self.assertEqual(restarted.get_trip_ai_generation(identity), proposed)
+        self.assertEqual(restarted.latest_trip_ai_proposal(self.tid), proposed)
+        self.assertEqual(self.cal.get_trip_command_context(self.tid), self.context)
+        self.assertEqual(self.cal.start_trip_ai_update(*args, transport=transport), proposed)
+        self.cal.apply_trip_operation(self.approval(proposed))
+        self.assertEqual(restarted.latest_trip_ai_proposal(self.tid)['status'], 'not_found')
+
+    def test_async_generation_failure_and_stale_are_terminal(self):
+        def fail(_): raise RuntimeError('private')
+        identity = str(uuid4())
+        self.cal.start_trip_ai_update(identity, self.tid, self.context['revision'], '変更', fail)
+        self.assertEqual(self.wait_generation(identity)['status'], 'failed')
+        self.assertEqual(self.cal.get_trip_command_context(self.tid), self.context)
+        identity = str(uuid4())
+        def stale(e):
+            self.cal.apply_trip_operation(dict(request_id='async-other', trip_id=self.tid,
+                operation='instruction', expected_revision=self.context['revision'], values={'instruction':'別変更'}))
+            t = copy.deepcopy(e['working_export_package']['effective_trip']); t['summary'] = '変更'
+            return dict(status='succeeded', generation_id=e['generation_id'], trip_id=self.tid, candidate=t)
+        self.cal.start_trip_ai_update(identity, self.tid, self.context['revision'], '変更', stale)
+        self.assertEqual(self.wait_generation(identity)['status'], 'conflict')
 
 if __name__ == '__main__': unittest.main()
