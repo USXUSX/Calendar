@@ -93,6 +93,28 @@ class TripAITest(unittest.TestCase):
         remove(expected)
         self.assertEqual(self.cal.get_effective_trip(self.tid), expected)
 
+    def test_unlocated_added_stop_requires_query_and_preserves_other_data(self):
+        def add_stop(trip, query):
+            day = trip['days'][0]
+            item = copy.deepcopy(day['scheduleItems'][0])
+            item.update(id='ai-unlocated-stop', action='合成の途中立寄り',
+                        placeSelection=dict(candidatePlaceIds=[], selection=[], minSelections=None, maxSelections=None))
+            item['order'] = max([i['order'] for i in day['scheduleItems']] +
+                                [t['order'] for t in trip['transports'] if t['dayId']==day['id']]) + 1
+            if query is None: item.pop('searchQuery', None)
+            else: item['searchQuery'] = query
+            day['scheduleItems'].append(item)
+        for query in (None, '', '  '):
+            with self.subTest(query=query):
+                with self.assertRaisesRegex(ValidationError, 'searchQuery' if query == '' else 'empty candidatePlaceIds requires a nonblank searchQuery'):
+                    self.generate(lambda trip:add_stop(trip, query))
+                self.assertEqual(self.cal.get_trip_command_context(self.tid), self.context)
+        proposal = self.generate(lambda trip:add_stop(trip, '合成の途中立寄り先'))
+        self.assertEqual(self.cal.get_trip_command_context(self.tid), self.context)
+        self.cal.apply_trip_operation(self.approval(proposal))
+        expected = copy.deepcopy(self.context['trip']);add_stop(expected, '合成の途中立寄り先')
+        self.assertEqual(self.cal.get_effective_trip(self.tid), expected)
+
     def test_generation_finishes_after_concurrent_edit(self):
         def transport(e):
             candidate = copy.deepcopy(e['working_export_package']['effective_trip'])
