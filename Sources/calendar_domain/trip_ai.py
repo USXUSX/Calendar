@@ -93,6 +93,9 @@ class TripAIMixin:
                          current_effective_revision=expected_revision, stale=False),
             user_intent=dict(instruction=instruction, item_changes=[], temporary_items=[], day_instructions=[]),
             task=dict(instruction=instruction, rules=[
+                'Before returning, check every existing and added ScheduleItem against the CAL generation guide as well as the JSON Schema. The Schema alone does not express all semantic constraints.',
+                'If placeSelection.candidatePlaceIds is empty, selection must be empty, minSelections and maxSelections must be null, and searchQuery must contain the nonblank original place/search conditions. Never emit an empty-candidate item with missing, null or blank searchQuery.',
+                'When adding a stop, add a separate ScheduleItem with its own stable ID and consistent dayId/order. Preserve existing items and their candidatePlaceIds/selection unless the user explicitly requests changing them. A known place can be referenced by a real Place entry; unknown address/coordinates must stay unknown.',
                 'Apply only the requested changes. Preserve all unrelated data and stable IDs, bookings, adopted selections, locations and references.',
                 'Do not invent facts, reservations or coordinates. Do not automatically adopt candidates.',
                 'Return one complete Trip; CAL validates and the user approves before saving.']),

@@ -80,7 +80,7 @@ ScheduleItem.status / Transport.statusはその行動を行うかどうかの判
 | 旅行全体と日別 | Tripのtitle / dateRange / summary、Dayのdate / title / routeSummary。titleは短いテーマ、routeSummaryは代表エリア・主経路 |
 | 行動 | ScheduleItem.action / category。actionはユーザー向けの自然な予定本文。採用済み / 確定済みPlaceは名前を含める（例: `すし善で昼食`）。時刻はtime、移動はTransportだけにする |
 | 候補と採用場所 | Placeを1地点1件にしてcandidatePlaceIdsで参照。selectionは明示された採用場所だけ。1候補でも未採用なら空配列。未選択の本文は `小樽で昼食` のような自然文とし、候補名の列挙と分ける |
-| 場所未定 | candidatePlaceIdsとselectionを空配列、非空searchQueryに元条件、minSelections / maxSelectionsはnull。架空の「未定」というPlaceは作らない |
+| 場所未定 | candidatePlaceIdsとselectionを空配列、非空searchQueryに元条件、minSelections / maxSelectionsはnull。架空の「未定」というPlaceは作らない。既存Tripへの立寄り追加でも同じで、候補なし・searchQueryなしの予定を返さない |
 | 地点情報 | Place.name / category / address / location / urls / ratingと任意officialUrl。公式と確認済みのURLだけofficialUrlへ設定する。未確認の住所・座標・評価はnull、URLは空配列。locationがある場合は緯度経度の両方が必要 |
 | コメント | 通常コメントはScheduleItem.summary、追加事実・出典等はdetails、施設自体の補足はPlace.summary。予定の重要コメントは予約の有無によらずScheduleItem.importantComment。予約番号・取消条件・予約上の連絡事項等はBooking.notesに保持し、予定の重要コメントへ自動展開しない。Transportの予約に属さない重要コメントは任意importantComment。情報の所有箇所に置き、他へ複製しない |
 | 時刻 | fixedは開始必須、rangeは開始・終了必須、undecidedは時刻未定、noneは時刻設定が不要。どちらもstart / end / durationMinutesはnullとし、順序はorderで表す。所要時間不明はdurationMinutes=null。列車の発着時刻と提案枠を混同しない |
