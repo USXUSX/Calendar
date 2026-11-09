@@ -1,4 +1,5 @@
 import copy
+from datetime import date
 import json
 import shutil
 import sqlite3
@@ -36,6 +37,28 @@ class TravelTest(unittest.TestCase):
         detail=self.cal.get_trip_detail_view(tid,weather_by_day={})
         self.assertEqual(detail['title'],'旅行');self.assertEqual(detail['date_range'],changed['dateRange'])
         self.assertEqual(self.cal.lookup_chat_request('connect')['receipt'],saved['receipt'])
+    def test_undated_itinerary_preserves_content_and_stays_out_of_calendar(self):
+        path=self.root/'trips'/'trip-setouchi-2027.json'
+        path.parent.mkdir()
+        shutil.copyfile(ROOT/'Samples/synthetic-trip.json',path)
+        self.cal.register_trip('trip-setouchi-2027')
+        tid='trip-setouchi-2027';before=path.read_bytes()
+        travel=self.cal.get_travel(tid)
+        self.cal.change_travel(dict(date_status='undecided',start_date=None,end_date=None),tid,travel['revision'])
+        for today in (date(2027,5,1),date(2028,1,1)):
+            summary=self.cal.list_trips(today=today)[0]
+            self.assertFalse(summary['is_completed'])
+            self.assertEqual(summary['dateRange'],dict(start=None,end=None))
+        self.assertTrue(self.cal.get_travel(tid)['has_itinerary'])
+        self.assertEqual(path.read_bytes(),before)
+        self.assertFalse(self.cal.read_schedule('2027-01-01','2028-12-31')['items'])
+        current=self.cal.get_travel(tid)
+        self.cal.change_travel(dict(date_status='confirmed',start_date='2028-06-01',end_date='2028-06-03'),tid,current['revision'])
+        self.assertFalse(self.cal.list_trips(today=date(2028,6,3))[0]['is_completed'])
+        self.assertTrue(self.cal.list_trips(today=date(2028,6,4))[0]['is_completed'])
+        self.assertEqual(len(self.cal.read_schedule('2028-06-01','2028-06-03')['items']),1)
+        self.assertEqual(path.read_bytes(),before)
+
     def test_common_fields_links_and_related_items(self):
         travel=self.create();tid=travel['id'];url='https://mail.google.com/mail/u/0/#all/abc123'
         event=self.cal.apply_schedule_request(dict(request_id='mail',kind='event',action='save',values=dict(title='予約',start_date='2027-01-01',category='lodging',gmail_url=url,trip_id=tid)))['receipt']['item']

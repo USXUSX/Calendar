@@ -3,7 +3,8 @@ from datetime import date
 
 
 def is_trip_completed(trip, *, today=None):
-    return date.fromisoformat(trip["dateRange"]["end"]) < (today or date.today())
+    end = trip["dateRange"]["end"]
+    return bool(end and date.fromisoformat(end) < (today or date.today()))
 
 
 def lodging_nights(trip):
