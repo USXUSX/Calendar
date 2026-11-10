@@ -6,7 +6,7 @@ CALが通常Event/Todoの正本と検証・保存を所有し、Frameが月間�
 
 - `read_schedule(start, end, include_completed=False, include_trips=True)`：両端を含むISO日付期間。登録済みTripはeffective `dateRange`の1件、通常Eventは期間と重なるもの、Todoは期間内の未完了かつ日付付きのものを返す。旅行内の予定は展開しない。Trip選択肢も返す。include_trips=Falseでは旅程を読み込まず通常Event/Todoだけを返す。通常項目には正本行の内容ハッシュrevisionを付ける。候補採用・context生成等の書込みを伴わない。include_completed=Trueのときのみ完了Todoもcompleted_at付きで返す（Frame #189の一覧用）。
 - `change_schedule(kind, action, item_id=None, values={}, expected_revision=None, request_id=None)`：kindはevent/todo、actionはsave/delete/complete。saveはID省略時にCALがUUIDを採番、指定時は既存対象を更新し、未指定fieldは保持する。completeはTodoの明示booleanを受ける。既存参照を壊す削除は拒否する。保存は単一SQLite transactionのcommit後に結果を返す。既存単発・定期回ともexpected_revisionを必須とする。単発はapply_schedule_request、定期回はscope=thisの共通定期処理へ委譲する。返却のreceipt/status/resolution/googleは正式結果で、単発のトップレベル保存fieldは従来呼出し用。定期回は従来receipt fieldも保持する。request_id省略時のCAL採番は内部の一回限り操作用であり、画面/Chatは送信前に要求IDを確保し、照合・再送で同じIDと内容を使う。画面からfollowingや条件の変更は受け付けない。
-- Event入力：title/start_date/start_time/end_date/end_time/notes/trip_id。Todo入力：label/due_date/due_time/notes。任意値はnullで解除。空の件名、不正日時、終了が開始より前、存在しないTrip参照、未対応fieldは保存しない。新しい画面から作るTodoは日付必須。既存の日付なしTodoは削除せず保持し、今回の画面対象から除く。
+- Event入力：title/start_date/start_time/end_date/end_time/notes/trip_id。Todo入力：label/due_date/due_time/notes。任意値はnullで解除。空の件名、不正日時、終了が開始より前、存在しないTrip参照、未対応fieldは保存しない。通常の日程画面から作るTodoは日付必須。旅行に紐づくTodoは期限なしで登録でき、旅行詳細に表示する。日付なしは期間日程に表示しない。既存の日付なしTodoの更新は保持できる。
 - 週開始は日曜、完了Todoは月間・複数月・日別で非表示、一覧では完了チェック付きで通常の日時順に表示（Frame #189）。Chatのreceipt/revision契約は[正式Chatコマンド](chat-schedule.md)を参照。定期日程の条件・保存契約は同文書の#207節を参照。Google連携は[専用一方向連携](google-calendar.md)を使う。従来CRUDは保持する。
 
 ## 追加schemaと既存値保持
@@ -48,3 +48,13 @@ Event/Todoに共通category、gmail_url、trip_idを追加する。categoryはge
 `<trip_root>/settings/change-notifier.json`に`database`（対象DBの絶対path）と`command`（固定argv array）を明示配置した場合だけ有効。shellは使わず、変更内容/日程payloadやFRM依存をCALへ加えない。consumerは通知で正式データを再保存せず、保存済み意味readと前回の表示入力から影響を判断する。複数commitの通知はconsumerで集約する。
 
 通知は描画/外部取得を同期実行せず、受付だけを行う短いコマンドを設定する。通知失敗でも正式保存/receipt/Google反映を繰り返さない。`settings/change-notification-state.json`はaccepted/failedを示す派生状態で、公開完了の証明ではない。通知/consumer停止中の保存内容は初回・復帰時の保存済みread照合で回復する。運用設定はFrameの別実運用Issueに対象・影響・切戻しを記録する。
+
+## 旅行準備Todo（#275 / Frame #442）
+
+旅行準備も既存todosのtrip_idを使う。同じTodoが旅行詳細と期限日の通常日程へ現れ、別正本や複製を作らない。期限なしはdue_date/due_timeともnull。旅行参照のない新規通常Todoは従来どおり日付必須、定期回は日付必須を維持する。notesと任意のrelated_url（http/https、認証情報なし）を保存できる。関連URLはTodo専用で、gmail_urlを変更せず共存する。URL未指定の更新でも既存値を保持する。
+
+get_travelは関連する全単発Todo（完了含む）と既存の表示月の定期回を返す。list_travelのpending_todo_countは未完了単発Todo全件＋当月の未完了定期回。詳細の初期表示と同じ範囲。定期条件そのものを1タスクとして数えず、詳細で表示月を変えた場合の件数はその月の各回を使う。完了/未完了への復帰と編集は既存change_scheduleのrevision/receipt契約を使う。
+
+追加列はtodos.related_urlだけ。initializerは列を含む。既存DBはSQLite backup後に `python3 -B scripts/migrate_travel_todos.py <既存DB>` を明示実行する。mode=rwで既存v3のみを対象にし、列があれば変更しない。既存行・receipt・正式Tripは変更しない。旧版へ切り戻す場合も列とデータを保持する。
+
+最小確認: `PYTHONPATH=.:Tests python3 -B -m unittest test_travel_todos test_schedule test_schedule_chat test_recurrence test_google_calendar`。合成DBで期限なし/期限付き/日程との同一性/完了と復帰/競合/再送/URL/追加migration/関連定期回を確認する。

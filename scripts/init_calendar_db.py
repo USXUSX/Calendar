@@ -35,6 +35,11 @@ def extend_travel(connection):
                 connection.execute(f'ALTER TABLE {table} ADD COLUMN {name} {declaration}')
 
 
+def extend_travel_todos(connection):
+    if 'related_url' not in {r[1] for r in connection.execute('PRAGMA table_info(todos)')}:
+        connection.execute('ALTER TABLE todos ADD COLUMN related_url TEXT')
+
+
 def initialize(database_path: Path) -> None:
     if database_path.exists() and database_path.stat().st_size != 0:
         raise FileExistsError(f"refusing to initialize non-empty file: {database_path}")
@@ -49,6 +54,7 @@ def initialize(database_path: Path) -> None:
         extend_schedule_receipts(connection)
         extend_recurrence(connection)
         extend_travel(connection)
+        extend_travel_todos(connection)
         from Sources.calendar_domain.castles import extend_castles
         extend_castles(connection)
         from Sources.calendar_domain.places import extend_places

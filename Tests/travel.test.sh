@@ -2,3 +2,5 @@
 set -eu
 cd "$(dirname "$0")/.."
 python3 -B -m unittest discover -s Tests -p test_travel.py
+
+python3 -B -m unittest discover -s Tests -p test_travel_todos.py

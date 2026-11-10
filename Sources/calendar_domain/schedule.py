@@ -74,6 +74,7 @@ class ScheduleMixin:
         table = 'events' if kind == 'event' else 'todos'
         allowed = {'title','start_date','start_time','end_date','end_time','notes','trip_id'} if kind == 'event' else {'label','due_date','due_time','notes','trip_id'}
         allowed |= {'category','gmail_url','google_calendar_id','google_event_id'}
+        if kind == 'todo': allowed.add('related_url')
         if action == 'save' and set(values) - allowed:
             raise ValidationError('未対応の項目があります。')
         timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -89,7 +90,10 @@ class ScheduleMixin:
             c.execute('UPDATE todos SET completed_at=?,updated_at=? WHERE id=?', (timestamp if values['completed'] else None,timestamp,item_id))
         else:
             merged = self._validate_schedule_values(c, kind, values, dict(old) if old else None)
-            fields = sorted(allowed)
+            columns = {r[1] for r in c.execute(f'PRAGMA table_info({table})')}
+            if merged.get('related_url') and 'related_url' not in columns:
+                raise ValidationError('旅行タスクの追加migrationが必要です。')
+            fields = sorted(allowed & columns)
             if old:
                 c.execute(f'UPDATE {table} SET '+','.join(f'{f}=?' for f in fields)+',updated_at=? WHERE id=?', [merged[f] for f in fields]+[timestamp,item_id])
             else:
@@ -103,6 +107,7 @@ class ScheduleMixin:
     def _validate_schedule_values(self, c, kind, values, old=None):
         allowed = {'title','start_date','start_time','end_date','end_time','notes','trip_id'} if kind == 'event' else {'label','due_date','due_time','notes','trip_id'}
         allowed |= {'category','gmail_url','google_calendar_id','google_event_id'}
+        if kind == 'todo': allowed.add('related_url')
         if not isinstance(values,dict) or set(values)-allowed:
             raise ValidationError('invalid_schedule_values')
         merged = dict(old) if old else dict.fromkeys(allowed)
@@ -118,7 +123,19 @@ class ScheduleMixin:
         title_field, date_field, time_field = ('title','start_date','start_time') if kind == 'event' else ('label','due_date','due_time')
         if not isinstance(merged[title_field],str) or not merged[title_field].strip():
             raise ValidationError('件名を入力してください。')
-        day(merged[date_field]); clock(merged[time_field])
+        if kind == 'todo' and merged[date_field] is None and (merged.get('trip_id') or (old and old.get('due_date') is None)):
+            if merged[time_field] is not None: raise ValidationError('期限なしのタスクには時刻を設定できません。')
+        else:
+            day(merged[date_field])
+        clock(merged[time_field])
+        url = merged.get('related_url')
+        if url is not None:
+            from urllib.parse import urlsplit
+            if not isinstance(url, str) or re.search(r'\s',url): raise ValidationError('関連URLを確認してください。')
+            try: parsed = urlsplit(url)
+            except ValueError: raise ValidationError('関連URLを確認してください。')
+            if parsed.scheme not in ('https','http') or not parsed.hostname or parsed.username or parsed.password:
+                raise ValidationError('関連URLを確認してください。')
         if merged['notes'] is not None and not isinstance(merged['notes'],str):
             raise ValidationError('メモを確認してください。')
         if kind == 'event':
