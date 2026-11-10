@@ -133,7 +133,7 @@ class RecurrenceMixin:
         if scope=='this':
             if 'recurrence' in request:raise ValidationError('single_occurrence_has_no_rule')
             existing=data['exceptions'].get(anchor,{})
-            current={key:item.get(key) for key in ({'title','start_date','start_time','end_date','end_time','notes','trip_id'} if kind=='event' else {'label','due_date','due_time','notes'}) | {'trip_id','category','gmail_url','google_calendar_id','google_event_id'}}
+            current={key:item.get(key) for key in ({'title','start_date','start_time','end_date','end_time','notes','trip_id'} if kind=='event' else {'label','due_date','due_time','notes'}) | ({'trip_id','category','gmail_url','google_calendar_id','google_event_id'} | ({'related_url'} if kind=='todo' else set()))}
             if action=='delete':
                 if values:raise ValidationError('delete_has_no_values')
                 data['exceptions'][anchor]=dict(deleted=True)
@@ -141,7 +141,9 @@ class RecurrenceMixin:
                 if kind!='todo' or set(values)!={'completed'} or type(values['completed'])!=bool:raise ValidationError('invalid_completion')
                 data['exceptions'][anchor]=dict(values=current,completed_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ') if values['completed'] else None)
             else:
-                data['exceptions'][anchor]=dict(values=self._validate_schedule_values(c,kind,values,current),completed_at=existing.get('completed_at'))
+                validated=self._validate_schedule_values(c,kind,values,current)
+                if validated[field] is None: raise ValidationError('定期タスクの期限は必要です。')
+                data['exceptions'][anchor]=dict(values=validated,completed_at=existing.get('completed_at'))
         else:
             if action=='complete':raise ValidationError('completion_is_per_occurrence')
             segment=next((s for s in data['segments'] if s['from']<=anchor and (s['until'] is None or anchor<=s['until'])),None)

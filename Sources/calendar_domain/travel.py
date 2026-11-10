@@ -64,6 +64,11 @@ class TravelMixin:
     def list_travel(self):
         with self._read() as c:
             items=[self._travel_basic(c,row[0]) for row in c.execute('SELECT id FROM trips ORDER BY id')]
+            current=date.today(); start=current.replace(day=1).isoformat()
+            end=current.replace(day=calendar.monthrange(current.year,current.month)[1]).isoformat()
+            recurring=self._read_recurrence(c,start,end,False)
+            for item in items:
+                item['pending_todo_count']=c.execute('SELECT count(*) FROM todos WHERE trip_id=? AND completed_at IS NULL',(item['id'],)).fetchone()[0] + sum(i['kind']=='todo' and i.get('trip_id')==item['id'] for i in recurring)
         return sorted(items,key=lambda t:(t['start_date'] or '9999-12-31',t['id']))
 
     def get_travel(self, tid, start=None, end=None):
