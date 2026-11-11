@@ -1,4 +1,5 @@
 """Resolve CAL location plans through the existing Frame Google Maps connection."""
+from Sources.calendar_domain.timing import stage, count
 import json
 import urllib.error
 import urllib.request
@@ -12,6 +13,7 @@ def _read_json(response):
     return json.loads(response.read().decode("utf-8"))
 
 
+@stage('map_connection')
 def _map_key(map_config_url=DEFAULT_MAP_CONFIG_URL, *, opener=urllib.request.urlopen):
     try:
         with opener(map_config_url, timeout=3) as response:
@@ -24,6 +26,7 @@ def _map_key(map_config_url=DEFAULT_MAP_CONFIG_URL, *, opener=urllib.request.url
     return key
 
 
+@stage('places_search')
 def _search(query, key, *, opener=urllib.request.urlopen):
     body = json.dumps(
         {"textQuery": query, "languageCode": "ja", "maxResultCount": 1},
@@ -60,6 +63,7 @@ def _search(query, key, *, opener=urllib.request.urlopen):
     }
 
 
+@stage('location_resolve')
 def resolve_location_plan(plan, map_config_url=DEFAULT_MAP_CONFIG_URL, *, opener=urllib.request.urlopen):
     if not isinstance(plan, list):
         raise ValueError("location_plan_required")
@@ -69,6 +73,7 @@ def resolve_location_plan(plan, map_config_url=DEFAULT_MAP_CONFIG_URL, *, opener
         and point.get("location") is None
         and not point.get("skip_search")
     ]
+    count(search_targets=len(targets), plan_points=len(plan))
     if not targets:
         return {
             "coordinate_results": {},

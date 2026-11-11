@@ -1,4 +1,5 @@
 """CAL-owned one-way projection. Google failures never roll back a CAL save."""
+from .timing import span
 import fcntl
 import functools
 import hashlib
@@ -138,7 +139,9 @@ def after_save(method):
         finally:
             state.depth = depth
         if depth==0 and getattr(self._trip_write_state, 'connection', None) is None:
-            try:google = self.google_status() if isinstance(result, dict) and result.get('resolution') == 'replayed' else self.sync_google()
+            try:
+                with span('post_commit_google_status' if isinstance(result, dict) and result.get('resolution') == 'replayed' else 'post_commit_google_sync'):
+                    google = self.google_status() if isinstance(result, dict) and result.get('resolution') == 'replayed' else self.sync_google()
             except Exception:google = dict(status='unreflected',reason='delivery_failed',pending=0)
             if isinstance(result,dict):
                 result = dict(result,google=google)
