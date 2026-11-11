@@ -2,9 +2,11 @@ import json
 import shutil
 import tempfile
 import unittest
+import subprocess
+from unittest.mock import patch
 from pathlib import Path
 
-from Sources.aig_trip_generation import command_transport, run_started_generation
+from Sources.aig_trip_generation import AIGTransportError, command_transport, run_started_generation
 from Sources.calendar_domain import CalendarDomain, ConflictError
 from scripts.init_calendar_db import initialize
 
@@ -203,6 +205,43 @@ class AIGTripGenerationTests(unittest.TestCase):
             command_transport([], 60)
         with self.assertRaises(ValueError):
             command_transport(["aig-trip-generation"], 0)
+
+
+class CommandDiagnosticTests(unittest.TestCase):
+    def test_only_fixed_diagnostic_reasons_cross_command_boundary(self):
+        for code in ('timeout', 'credentials', 'access_denied', 'rate_limit', 'quota',
+                     'provider_unavailable', 'invalid_response', 'command_failed'):
+            for returncode in (0, 1):
+                result = subprocess.CompletedProcess([], returncode,
+                    '{"status":"failed"}', 'private-secret-response\ncal-trip-ai-error: '+code+'\n')
+                with self.subTest(code=code, returncode=returncode), patch('subprocess.run', return_value=result):
+                    with self.assertRaises(AIGTransportError) as caught:
+                        command_transport(['synthetic-aig'], 270)({})
+                    self.assertEqual(caught.exception.reason, code)
+                    self.assertNotIn('private-secret', str(caught.exception))
+
+    def test_unknown_diagnostic_never_exposes_raw_text(self):
+        result = subprocess.CompletedProcess([], 1, '', 'cal-trip-ai-error: private-secret-response')
+        with patch('subprocess.run', return_value=result):
+            with self.assertRaises(AIGTransportError) as caught:
+                command_transport(['synthetic-aig'], 270)({})
+        self.assertEqual(caught.exception.reason, 'command_failed')
+        self.assertNotIn('private-secret', str(caught.exception))
+
+    def test_timeout_and_invalid_json_are_specific_and_success_is_unchanged(self):
+        with patch('subprocess.run', side_effect=subprocess.TimeoutExpired('private-secret', 270)):
+            with self.assertRaises(AIGTransportError) as caught:
+                command_transport(['synthetic-aig'], 270)({})
+        self.assertEqual(caught.exception.reason, 'timeout')
+        result = subprocess.CompletedProcess([], 0, 'private-invalid-json', '')
+        with patch('subprocess.run', return_value=result):
+            with self.assertRaises(AIGTransportError) as caught:
+                command_transport(['synthetic-aig'], 270)({})
+        self.assertEqual(caught.exception.reason, 'invalid_response')
+        result.stdout = '{"status":"succeeded","candidate":{}}'
+        result.stderr = 'private-secret-response'
+        with patch('subprocess.run', return_value=result):
+            self.assertEqual(command_transport(['synthetic-aig'], 270)({}), json.loads(result.stdout))
 
 
 if __name__ == "__main__":

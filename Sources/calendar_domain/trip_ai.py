@@ -68,6 +68,7 @@ class TripAIMixin:
     def propose_trip_update(self, trip_id, expected_revision, instruction, transport=None, *, generation_id=None):
         if not isinstance(instruction, str) or not instruction.strip():
             raise ValidationError('AI指示を入力してください。')
+        from Sources.aig_trip_generation import AIGTransportError
         context = self.get_trip_command_context(trip_id)
         if expected_revision != context['revision']:
             raise ConflictError('revision_conflict')
@@ -78,7 +79,7 @@ class TripAIMixin:
                 argv = json.loads(os.environ.get('CAL_TRIP_AI_COMMAND', 'null'))
                 if not isinstance(argv, list):
                     raise ValueError
-                transport = command_transport(argv, 240)
+                transport = command_transport(argv, 270)
             except (ValueError, TypeError):
                 raise ValidationError('AI生成の実行設定がありません。CAL_TRIP_AI_COMMANDを設定してください。') from None
         identity = generation_id or str(uuid4())
@@ -106,6 +107,8 @@ class TripAIMixin:
                         generation_id=identity, trip_id=trip_id, working_export_package=package)
         try:
             result = transport(envelope)
+        except AIGTransportError as error:
+            raise ValidationError(str(error) + '旅程は変更していません。') from None
         except Exception:
             raise ValidationError('AI生成に失敗しました。旅程は変更していません。') from None
         if not isinstance(result, dict) or result.get('generation_id') != identity or result.get('trip_id') != trip_id:
