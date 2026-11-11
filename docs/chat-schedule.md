@@ -240,3 +240,36 @@ python3 -B scripts/measure_chat_timing.py --output /tmp/calendar-synthetic-timin
 各条件で初回1回と後続3回（中央値・範囲）を記録し、fresh保存、同一要求のreplay、lookup、trip-getを分ける。毎回別の一時DB・fresh Python processを使う。「初回」は最初の観測でありOS cacheを消去したcold測定ではない。process_wall_msは起動・import・test guard・出力取得・終了を含むローカルsubprocess時間で、RDC時間やAI推論時間へ読み替えない。
 
 区間値・失敗・mockされた地図／通知／同期待ちの切分けは `Tests/test_chat_timing.py` で確認する。RDC実往復を行う場合は既存verbose_timingのtotal・time-to-first-output・exit detectionのうち取得できた値を別記し、PID返却後のread_process_outputも記録する。コマンド間の空白をAI推論時間と断定しない。合成結果は実地図API・実Google同期・本番データ量・実Chat全体の性能を証明しない。
+
+## Chat実行開始から反映までの経路計測（#281）
+
+CAL内部計測だけでChat全体を完了扱いにしない。正式保存・Google反映・Frame API・利用端末の表示は別の到達点である。ブラウザAI生成はこのChat→RDC→CLI経路と混ぜない。
+
+### 次の通常Chat操作で採る最小記録
+
+1. 対象の通常更新／新規作成を始める直前を開始境界とし、観測元と時計を記す。Chatクライアントの単調時計や操作記録が使えなければ、その境界は未観測とする。手動ストップウォッチなら精度と開始／終了操作を併記し、ツール内時間とは別指標にする。
+2. 一連の操作にUUIDを1つ発行し、既存専用CLIへ `--timing --timing-group <UUID>` を付ける。必要時だけ `--timing-file /tmp/<診断用ファイル>.jsonl` を使う。RDCは `verbose_timing=true`。正式request_id、revision、receiptの照合は従来どおり行い、診断には転記しない。
+3. 既存更新は取得→案の準備→trip-resolve→apply→lookup→trip-get、新規は既存旅行の確認→complete Trip作成→trip-resolve→apply→lookup→trip-get。送受信境界を採れる場合は、各start_processの直前／受取直後と、PID返却後の各read_process_outputの直前／受取直後を同じ持続する時計で記録する。poll間の空白も残す。通常のtimeout指定を記録し、poll確認用に短縮した試行は別条件として報告する。取得できなければnull／未観測にし、RDCのTotal Durationを外側往復の代用にしない。
+4. 取得結果の受取→案の送出は観測できても「Chat側処理・準備等」の区間である。ツール選択・入力準備・待機を含み得る。AI推論テレメトリがなければAI内部時間は未観測のままとする。ユーザー確認待ちには別の開始／終了を記し、未取得なら0としない。
+5. CAL応答のtotal／内部区間、RDCのtotal／time-to-first-output／exit detection／runtimeを別欄へ記す。入れ子のCAL区間は単純合算しない。再送・lookupの今回の時間を元の保存時間へ付け替えない。地図接続・実検索、通知・Google同期は、実行／既存座標利用／未設定／未観測を区別する。
+6. 保存のreceipt照合と再取得後、既存Frameの `GET /api/calendar/trips/<id>/effective` で現在revisionと意図した変更を確認し、その受取境界を記す。画面は実際の再読込・描画確認の終了を別に記す。API応答だけで端末表示済みとしない。本番旅程やGoogle予定を測定のためだけに作成／変更しない。
+7. 最初の開始境界から最後に観測した到達点までを全体時間として示す。異なる時計のtimestampを差し引かず、同一時計の各durationと相関IDを照合する。各段階の時計・精度・未観測の隙間、初回／後続、成否、入力件数を併記する。Chat開始や画面確認が欠ければ全体時間は未観測であり、観測済み部分経路の時間だけを示す。
+
+記録は固定の段階名・数値・状態・ランダム診断IDだけとし、本文・住所・query・credential・原文receiptをログ／Gitへ残さない。診断のために新規常駐・監視DB・外部ログを作らず、RDC設定やモデルを変更しない。外側のツール呼出時間は純粋な回線伝送時間ではなく、transport・queue・tool処理・結果検出等を含み得る。外側とCALの差を全てAI時間にしない。
+
+### 隔離した旅程経路の確認
+
+`scripts/measure_chat_route.py` はRDCへ各段階を**別の呼出**として送るための合成fixture。通常のChat実行やAI作成を再現したものではない。空の一時rootを明示してprepareし、以降同じroot・caseで実行する。
+
+```sh
+python3 -B scripts/measure_chat_route.py --root /tmp/cal-route-unique prepare
+python3 -B scripts/measure_chat_route.py --root /tmp/cal-route-unique --case small-save acquire
+```
+
+caseは `small-save`、`small-create`、`large-create`。`acquire → draft → resolve → apply → lookup → reread → frame` を各々RDCのstart_processから送る。`draft` はMac上の決定論的な合成案準備でありChat推論ではない。`frame` には `--frame-source <現行FrameのGit checkout>` を明示し、既存Frame用のPython環境を使う。既存FrameのadapterとHTTP handlerを一時loopback serverで起動し、effective APIのrevision・no-storeを確認して終了する。HTTP取得時間はserver起動／終了を除く別区間。これは隔離したFrame APIの確認であり、本番の既存process／公開画面／端末表示の反映確認ではない。
+
+DB・Trip root・Chat root・要求・原文応答の照合用状態は全て指定した一時root内。地点座標は架空値を事前設定するため、実地図接続・検索は未実施。CLIの外部接続はguardで禁止、通知／Google同期は未設定。Frameは一時loopbackへのreadだけを許可し、既存の運用process・公開先・認証・LocalDataを変更しない。`replay` と `stale` は保存後の追加確認用で、前者は元receipt一致、後者は版競合拒否を確認する。
+
+`route.jsonl` とstdoutにはallowlistの診断・照合結果のみを出す。CAL内部totalとは別にfixtureのCLI subprocess wallを同じprocess内のmonotonic時計で測る。Pythonのmonotonic timestampを異なるprocess間で直接比較せず、外側マークは同じ持続する呼出元processで採る（予備観測ではMacのPython 3.9にprocess間の原点不一致があった）。呼出元の時計マーク自体を別ツールで採る場合、その記録コストも含む**境界を囲う時間**として表記する。異なる時計のtimestampをつないで全体timelineを作らない。
+
+合成fixtureのRDC往復が通っても、通常Chat開始・実際の案作成・実検索／Google同期・本番Frame・端末表示は証明されない。これらが未観測ならIssue #281のend-to-end実測は未完として残す。チューニングやブラウザ性能対応へは進まない。
