@@ -2,6 +2,8 @@
 """CAL schedule CLI for the existing RDC connection. One JSON response per invocation."""
 import sys
 sys.dont_write_bytecode = True
+from contextlib import nullcontext
+from uuid import UUID
 import argparse
 import base64
 import json
@@ -10,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from Sources.calendar_domain import CalendarDomain, DomainError, ConflictError
 from scripts.trip_location_resolver import resolve_location_plan
+from Sources.calendar_domain.timing import Timing, span, count, count_trip
 
 DEFAULT_ROOT = Path('/Users/us/Tools/LocalData/Calendar_Local')
 
@@ -18,6 +21,9 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--database', type=Path, default=DEFAULT_ROOT/'db/calendar.sqlite3', help='synthetic tests only: override the existing CAL database')
     p.add_argument('--local-root', type=Path, default=DEFAULT_ROOT, help='synthetic tests only: override the CAL local root')
+    p.add_argument('--timing', action='store_true', help='emit invocation timing JSON to stderr')
+    p.add_argument('--timing-file', type=Path, help='also append timing JSONL outside the source checkout')
+    p.add_argument('--timing-group', type=lambda value: str(UUID(value)), help='optional UUID correlating separate invocations')
     sub = p.add_subparsers(dest='action', required=True)
     sub.add_parser('doctor')
     sub.add_parser('google-status')
@@ -37,6 +43,28 @@ def main(argv=None):
     apply = sub.add_parser('apply');apply.add_argument('--request-base64', help='UTF-8 JSON encoded as base64; otherwise read JSON from stdin')
     args = p.parse_args(argv)
     try:
+        timing = Timing(args.action, args.timing_group) if args.timing or args.timing_file else None
+    except Exception:
+        timing = None
+    result, code = dict(status='unknown'), 5
+    try:
+        with timing.activate() if timing else nullcontext():
+            with span('command'):
+                result, code = execute(args)
+            with span('response_prepare'):
+                output = json.dumps(result, ensure_ascii=False, sort_keys=True)
+            with span('response_write'):
+                print(output, flush=True)
+        return code
+    finally:
+        if timing:
+            timing.finish(result, code)
+            timing.emit(sys.stderr, args.timing_file)
+
+
+
+def execute(args):
+    try:
         if not args.database.is_file():
             raise ValueError('database_unavailable')
         # Fail before calling CAL if the additive migration is missing. No implicit init/migration.
@@ -45,7 +73,8 @@ def main(argv=None):
                 raise ValueError('receipt_migration_required')
             if c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='schedule_series'").fetchone() is None:
                 raise ValueError('recurrence_migration_required')
-        cal = CalendarDomain(args.database, args.local_root, chat_root=args.local_root/'chat-unused')
+        with span('domain_init'):
+            cal = CalendarDomain(args.database, args.local_root, chat_root=args.local_root/'chat-unused')
         if args.action == 'google-status':
             result = cal.google_status()
         elif args.action in ('google-retry','google-reconcile'):
@@ -67,12 +96,16 @@ def main(argv=None):
             result = dict(status='ok', trips=cal.list_trips())
         elif args.action == 'trip-get':
             result = dict(status='ok', **cal.get_trip_command_context(args.id))
+            count_trip(result['trip'])
         elif args.action in ('trip-plan','trip-resolve'):
-            value = json.load(sys.stdin)
+            with span('input'):
+                value = json.load(sys.stdin)
             if not isinstance(value,dict) or not isinstance(value.get('trip'),dict):
                 raise ValueError('trip_required')
+            count_trip(value['trip'])
             cal._validated_candidate(value['trip'].get('id'),value['trip'])
-            plan = cal.prepare_import_locations(value['trip'], existing_trip_id=value.get('existing_trip_id'))
+            with span('location_plan'):
+                plan = cal.prepare_import_locations(value['trip'], existing_trip_id=value.get('existing_trip_id'))
             if args.action == 'trip-plan':
                 result = dict(status='ok', location_plan=plan)
             else:
@@ -86,8 +119,11 @@ def main(argv=None):
         elif args.action == 'trip-operation':
             result = cal.apply_trip_operation(json.load(sys.stdin))
         else:
-            raw = base64.b64decode(args.request_base64, validate=True).decode('utf-8') if args.request_base64 else sys.stdin.read()
-            request = json.loads(raw)
+            with span('input'):
+                raw = base64.b64decode(args.request_base64, validate=True).decode('utf-8') if args.request_base64 else sys.stdin.read()
+                request = json.loads(raw)
+            if isinstance(request, dict) and request.get('kind') == 'trip':
+                count(create=int(request.get('action') == 'create'), save=int(request.get('action') == 'save'))
             try:
                 if isinstance(request,dict) and 'scope' in request:
                     result=cal.apply_recurrence_request(request)
@@ -107,13 +143,11 @@ def main(argv=None):
                         pass
                 if isinstance(request,dict) and request.get('kind') == 'trip' and pending:
                     result = dict(status='unknown', reason='pending_trip_adoption',request_id=request.get('request_id'))
-                    print(json.dumps(result),flush=True)
-                    return 5
+                    return result, 5
                 raise
         if args.action in ('lookup','doctor'):
             result['google'] = cal.google_status()
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True), flush=True)
-        return 0 if result['status'] != 'not_found' else 4
+        return result, 0 if result['status'] != 'not_found' else 4
     except ConflictError as e:
         result = dict(status='rejected', reason=str(e));code=3
     except (DomainError, ValueError, TypeError, UnicodeError) as e:
@@ -121,8 +155,7 @@ def main(argv=None):
         result = dict(status='unknown' if unknown else 'rejected', reason=str(e));code=5 if unknown else 2
     except (OSError, sqlite3.Error):
         result = dict(status='unknown', reason='storage_unavailable');code=5
-    print(json.dumps(result, ensure_ascii=False), flush=True)
-    return code
+    return result, code
 
 
 if __name__ == '__main__':

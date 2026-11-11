@@ -205,3 +205,38 @@ CAL正式保存→旅行関連付け→Google反映の順。旅行が既知な�
 上のrevisionは形式説明用。実行時はtrip-getのrevisionオブジェクト全体を改変せず使う。要求ID/送信内容を保持し、exit 0・committed receiptの要求ID/対象/values/revisionを照合、同じlookupから確定結果を再確認する。再送とstale拒否は既存正式要求と共通。路線名の自然言語解釈はChatで行い、分からない区間は指定せず未確定を報告する。CLIは正式JSON/DBの直接編集の代替となる所有入口である。
 
 100名城の訪問状態・日付・コメントは別の[CAL城専用CLI](castles.md)を使う。日程applyへ混在させない。
+
+## 任意の区間計測（#279）
+
+通常はOFF。専用CLIのコマンド名より前に `--timing` を付けると、従来のstdout 1 JSON・exit codeを維持して、stderrへ `cal-timing-v1` の診断JSONを1行返す。`--timing-file /tmp/cal-timing.jsonl` は計測を有効にして同じ診断を指定先へ追記する。ファイルはGit管理外に置く。Git checkout内の指定や書込失敗ではファイル保存を省略し、正式操作の成否は変えない。親directoryは自動作成しない。
+
+各呼出のランダムな `diagnostic_id` は正式request_idと独立する。関連する複数コマンドには同じ `--timing-group <UUID>` を明示できる。診断は操作名、status、resolution（new/replayed）、exit codeに対応するfailure_class、件数、monotonic clockの区間msとtotal_msだけを持つ。旅程本文・タイトル・住所・検索query・Secret・原文応答・receipt・正式IDやhashを出さず、正式payloadのhash・receiptへ計測値を混ぜない。
+
+主な区間は以下のとおり。区間は入れ子になり、同名区間は複数回出現するため、全区間の単純合計をtotalと比較しない。区間のstatus=errorはその区間を例外で抜けたこと、最上位status/failure_classはCLIの返却結果を示す。
+
+| 区間 | 対象 |
+| --- | --- |
+| input / domain_init | 入力JSONの取得・decode、CAL初期化 |
+| trip_recovery / request_recovery | Tripの中断回復、要求に対応するjournal回復 |
+| trip_get / revision_context / trip_read / trip_effective | 読取、正式JSON、Override・自宅・旅行情報を含むeffective合成とrevision取得 |
+| trip_validation / location_plan / coordinate_completion | Schema・意味検証、地図補完plan、保存時の結果適用 |
+| location_resolve / map_connection / places_search | resolve全体、Frame接続設定取得、個別Places検索。現行の直列検索・同queryのcacheを維持 |
+| trip_apply / lock_wait / revision_check | 保存処理、BEGIN IMMEDIATE待ち、create対象・save版照合 |
+| formal_json_journal / receipt_finalize / db_commit / db_rollback / journal_cleanup | 正式JSON・journal、DBへのreceipt等の書込、transaction終了、確定後のjournal整理 |
+| post_commit_notification / post_commit_google_sync | commit後の通知とGoogle同期試行（未設定ならその確認時間）。応答待ちに含まれる |
+| post_commit_google_status / lookup | replay時のGoogle状態取得、今回のreceipt照合。元保存時間ではない |
+| response_prepare / response_write | stdout JSONの準備と書出し |
+
+`total_ms` は引数解析後からstdout書出しまで。Python起動・import・引数解析、診断自身の出力、RDC起動／通信／poll、Chat調査・AI推論・確認待ちは含まない。`committed_at`は確定日時であり所要時間ではない。計測中の例外でも取得済み区間を返すが、強制終了・電源断で最終診断を返せない場合はある。応答不明時は従来どおり同じrequest_idでlookup／再送し、今回の診断と元保存を区別する。
+
+### 合成測定の再実行
+
+```sh
+python3 -B scripts/measure_chat_timing.py --output /tmp/calendar-synthetic-timing.json
+```
+
+既存Samplesを基に、小規模create、タイトルだけのsave、地点・行動件数を増やしたcreateを比較する。全てのDB・Trip root・Chat rootは明示した一時directory内。外部通知／同期は未設定、ネットワーク接続はtest guardで禁止し、実credentialやCalendar_Localは使わない。正式応答は契約照合にのみ使い、出力ファイルには診断と集計だけを保存する。
+
+各条件で初回1回と後続3回（中央値・範囲）を記録し、fresh保存、同一要求のreplay、lookup、trip-getを分ける。毎回別の一時DB・fresh Python processを使う。「初回」は最初の観測でありOS cacheを消去したcold測定ではない。process_wall_msは起動・import・test guard・出力取得・終了を含むローカルsubprocess時間で、RDC時間やAI推論時間へ読み替えない。
+
+区間値・失敗・mockされた地図／通知／同期待ちの切分けは `Tests/test_chat_timing.py` で確認する。RDC実往復を行う場合は既存verbose_timingのtotal・time-to-first-output・exit detectionのうち取得できた値を別記し、PID返却後のread_process_outputも記録する。コマンド間の空白をAI推論時間と断定しない。合成結果は実地図API・実Google同期・本番データ量・実Chat全体の性能を証明しない。

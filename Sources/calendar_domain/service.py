@@ -1,6 +1,7 @@
 """Dependency-free CAL domain/service boundary over SQLite and Trip JSON."""
 
 from __future__ import annotations
+from .timing import CommitTiming, span, stage
 
 import copy
 import hashlib
@@ -108,7 +109,7 @@ class CalendarDomain(TripAIMixin, TripRequestMixin, TravelMixin, GoogleCalendarM
         connection.set_authorizer(authorize)
         committed = False
         try:
-            with connection:
+            with CommitTiming(connection):
                 yield connection
             committed = bool(changed and connection.total_changes)
         except sqlite3.IntegrityError as error:
@@ -119,7 +120,8 @@ class CalendarDomain(TripAIMixin, TripRequestMixin, TravelMixin, GoogleCalendarM
             connection.close()
         if committed:
             from .change_notification import notify_committed
-            notify_committed(self.db_path, self.trip_root)
+            with span('post_commit_notification'):
+                notify_committed(self.db_path, self.trip_root)
 
     @contextmanager
     def _read(self) -> Iterator[sqlite3.Connection]:
@@ -140,6 +142,7 @@ class CalendarDomain(TripAIMixin, TripRequestMixin, TravelMixin, GoogleCalendarM
             raise ValidationError("invalid trip_id")
         return self.trip_root / "trips" / f"{trip_id}.json"
 
+    @stage('trip_read')
     def _load_trip(self, trip_id: str) -> dict[str, Any]:
         path = self._trip_path(trip_id)
         try:
@@ -160,6 +163,7 @@ class CalendarDomain(TripAIMixin, TripRequestMixin, TravelMixin, GoogleCalendarM
     def _digest(value: bytes) -> str:
         return hashlib.sha256(value).hexdigest()
 
+    @stage('trip_validation')
     def _validated_candidate(
         self, trip_id: str, candidate: str | Path | dict[str, Any],
         *, diagnostic: Callable[[str], None] | None = None,
@@ -540,6 +544,7 @@ class CalendarDomain(TripAIMixin, TripRequestMixin, TravelMixin, GoogleCalendarM
     def _after_candidate_replace(self) -> None:
         """Test seam for a process stop after replacement and before SQLite update."""
 
+    @stage('trip_recovery')
     def recover_trip_adoption(self, trip_id: str) -> dict[str, Any] | None:
         """Converge one interrupted adoption from its private digest journal."""
         journal_path = self._journal_path(trip_id)
@@ -988,6 +993,7 @@ class CalendarDomain(TripAIMixin, TripRequestMixin, TravelMixin, GoogleCalendarM
         else:
             raise ValidationError(f"field_path does not exist: {field_path}")
 
+    @stage('trip_effective')
     def get_effective_trip(self, trip_id: str) -> dict[str, Any]:
         self._registered_trip(trip_id)
         trip = self._load_trip(trip_id)
