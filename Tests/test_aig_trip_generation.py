@@ -216,7 +216,7 @@ class CommandDiagnosticTests(unittest.TestCase):
                     '{"status":"failed"}', 'private-secret-response\ncal-trip-ai-error: '+code+'\n')
                 with self.subTest(code=code, returncode=returncode), patch('subprocess.run', return_value=result):
                     with self.assertRaises(AIGTransportError) as caught:
-                        command_transport(['synthetic-aig'], 270)({})
+                        command_transport(['synthetic-aig'], 450)({})
                     self.assertEqual(caught.exception.reason, code)
                     self.assertNotIn('private-secret', str(caught.exception))
 
@@ -224,24 +224,24 @@ class CommandDiagnosticTests(unittest.TestCase):
         result = subprocess.CompletedProcess([], 1, '', 'cal-trip-ai-error: private-secret-response')
         with patch('subprocess.run', return_value=result):
             with self.assertRaises(AIGTransportError) as caught:
-                command_transport(['synthetic-aig'], 270)({})
+                command_transport(['synthetic-aig'], 450)({})
         self.assertEqual(caught.exception.reason, 'command_failed')
         self.assertNotIn('private-secret', str(caught.exception))
 
     def test_timeout_and_invalid_json_are_specific_and_success_is_unchanged(self):
-        with patch('subprocess.run', side_effect=subprocess.TimeoutExpired('private-secret', 270)):
+        with patch('subprocess.run', side_effect=subprocess.TimeoutExpired('private-secret', 450)):
             with self.assertRaises(AIGTransportError) as caught:
-                command_transport(['synthetic-aig'], 270)({})
+                command_transport(['synthetic-aig'], 450)({})
         self.assertEqual(caught.exception.reason, 'timeout')
         result = subprocess.CompletedProcess([], 0, 'private-invalid-json', '')
         with patch('subprocess.run', return_value=result):
             with self.assertRaises(AIGTransportError) as caught:
-                command_transport(['synthetic-aig'], 270)({})
+                command_transport(['synthetic-aig'], 450)({})
         self.assertEqual(caught.exception.reason, 'invalid_response')
         result.stdout = '{"status":"succeeded","candidate":{}}'
         result.stderr = 'private-secret-response'
         with patch('subprocess.run', return_value=result):
-            self.assertEqual(command_transport(['synthetic-aig'], 270)({}), json.loads(result.stdout))
+            self.assertEqual(command_transport(['synthetic-aig'], 450)({}), json.loads(result.stdout))
 
 
 if __name__ == "__main__":

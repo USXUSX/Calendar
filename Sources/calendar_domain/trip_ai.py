@@ -79,7 +79,7 @@ class TripAIMixin:
                 argv = json.loads(os.environ.get('CAL_TRIP_AI_COMMAND', 'null'))
                 if not isinstance(argv, list):
                     raise ValueError
-                transport = command_transport(argv, 270)
+                transport = command_transport(argv, 450)
             except (ValueError, TypeError):
                 raise ValidationError('AI生成の実行設定がありません。CAL_TRIP_AI_COMMANDを設定してください。') from None
         identity = generation_id or str(uuid4())

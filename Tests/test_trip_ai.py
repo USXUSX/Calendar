@@ -126,7 +126,7 @@ class TripAITest(unittest.TestCase):
                 'Sources.aig_trip_generation.command_transport', return_value=timeout) as command:
             with self.assertRaises(ValidationError):
                 self.cal.propose_trip_update(self.tid, self.context['revision'], '合成変更')
-            command.assert_called_once_with(['synthetic-aig'], 270)
+            command.assert_called_once_with(['synthetic-aig'], 450)
         self.assertEqual(self.cal.get_trip_command_context(self.tid), self.context)
 
     def test_generation_finishes_after_concurrent_edit(self):

@@ -532,7 +532,7 @@ complete Trip JSONにも同名の任意fieldを受け付け、Chatの正式creat
 
 生成は既存AIG complete Tripのstateless command transportを1回呼ぶだけで、旧Working state・candidate自動採用・queueを使わない。互換envelopeの`working`はrevision情報だけで、Workingの読書きや有効化はしない。実行設定`CAL_TRIP_AI_COMMAND`はJSON argv配列。provider/model/credentialは既存command側の設定とし、未設定・失敗時は生成失敗を返し正式Tripは変更しない。新サービス・retry・fallbackは追加しない。
 
-#277ではcommandの固定診断分類だけを読取り、応答待ち時間超過・資格情報・アクセス拒否・利用制限・利用枠・サービス障害・応答形式を利用者へ説明する。未知のstderrやAPI本文は表示しない。CALのcommand待機は270秒とし、AIGの180秒idle/210秒total、wrapperの240秒より長くする。失敗は正式Tripを変更せず、本人が再生成するまで再実行しない。
+#277ではcommandの固定診断分類だけを読取り、応答待ち時間超過・資格情報・アクセス拒否・利用制限・利用枠・サービス障害・応答形式を利用者へ説明する。未知のstderrやAPI本文は表示しない。CALのcommand待機は450秒とし、AIGの360秒idle/390秒total、wrapperの420秒より長くする。失敗は正式Tripを変更せず、本人が再生成するまで再実行しない。
 
 返却は`status=proposed`、`proposal_id`、固定の`request_id`、`trip_id`、`expected_revision`、`instruction`、`changes`。確認済みcomplete Tripと正式要求はCAL Localの`.trip-ai/<UUID>.json`へ固定する。正式JSON・DB・未処理指示は未変更。取消は提案を破棄して表示を戻すだけで保存を呼ばない。提案ファイルは結果不明時の同一要求再送に使うため保持する。共有コピーへ同期しない。
 
