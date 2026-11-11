@@ -16,8 +16,31 @@ _AIG_FAILURE_CODES = {"invalid_request", "generation_failed", "invalid_candidate
 AIGTransport = Callable[[dict[str, Any]], Any]
 
 
+_AIG_REASON_MESSAGES = {
+    "timeout": "AIの応答待ちが制限時間を超えました。変更を分けるか、時間をおいて再生成してください。",
+    "credentials": "AI接続の資格情報を読み取れません。Mac側の接続設定を確認してください。",
+    "access_denied": "AIサービスへのアクセスが拒否されました。利用モデルと権限を確認してください。",
+    "rate_limit": "AIサービスの利用制限に達しました。時間をおいて再生成してください。",
+    "quota": "AIサービスの利用枠または残高が不足しています。契約・利用枠を確認してください。",
+    "provider_unavailable": "AIサービスで一時的な障害が発生しました。時間をおいて再生成してください。",
+    "invalid_response": "AI応答を旅程として読み取れませんでした。指示を見直して再生成してください。",
+    "command_failed": "AI生成に失敗しました。詳しい原因は取得できませんでした。",
+}
+
+
 class AIGTransportError(Exception):
-    """The replaceable AIG command failed without exposing its raw output."""
+    """Only a fixed reason crosses the command boundary; raw stderr stays private."""
+    def __init__(self, *, reason="command_failed"):
+        self.reason = reason if reason in _AIG_REASON_MESSAGES else "command_failed"
+        super().__init__(_AIG_REASON_MESSAGES[self.reason])
+
+
+def _command_failure_reason(stderr):
+    for line in (stderr or "").splitlines():
+        prefix = "cal-trip-ai-error: "
+        if line.startswith(prefix) and line[len(prefix):] in _AIG_REASON_MESSAGES:
+            return line[len(prefix):]
+    return "command_failed"
 
 
 def command_transport(argv: list[str], timeout: float) -> AIGTransport:
@@ -37,14 +60,19 @@ def command_transport(argv: list[str], timeout: float) -> AIGTransport:
                 timeout=timeout,
                 check=False,
             )
-        except (OSError, subprocess.TimeoutExpired) as error:
-            raise AIGTransportError("AIG command failed") from error
+        except subprocess.TimeoutExpired:
+            raise AIGTransportError(reason="timeout") from None
+        except OSError:
+            raise AIGTransportError() from None
         if completed.returncode != 0:
-            raise AIGTransportError("AIG command returned failure")
+            raise AIGTransportError(reason=_command_failure_reason(completed.stderr))
         try:
-            return json.loads(completed.stdout)
-        except json.JSONDecodeError as error:
-            raise AIGTransportError("AIG result is not valid JSON") from error
+            result = json.loads(completed.stdout)
+        except json.JSONDecodeError:
+            raise AIGTransportError(reason="invalid_response") from None
+        if isinstance(result, dict) and result.get("status") == "failed":
+            raise AIGTransportError(reason=_command_failure_reason(completed.stderr))
+        return result
 
     return send
 

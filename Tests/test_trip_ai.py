@@ -115,6 +115,20 @@ class TripAITest(unittest.TestCase):
         expected = copy.deepcopy(self.context['trip']);add_stop(expected, '合成の途中立寄り先')
         self.assertEqual(self.cal.get_effective_trip(self.tid), expected)
 
+    def test_safe_transport_reason_and_timeout_budget_preserve_formal_trip(self):
+        from Sources.aig_trip_generation import AIGTransportError
+        def timeout(_): raise AIGTransportError(reason='timeout')
+        with self.assertRaisesRegex(ValidationError, '制限時間') as caught:
+            self.generate(transport=timeout)
+        self.assertEqual(str(caught.exception).count('旅程は変更していません。'), 1)
+        self.assertEqual(self.cal.get_trip_command_context(self.tid), self.context)
+        with patch.dict('os.environ', {'CAL_TRIP_AI_COMMAND':'["synthetic-aig"]'}), patch(
+                'Sources.aig_trip_generation.command_transport', return_value=timeout) as command:
+            with self.assertRaises(ValidationError):
+                self.cal.propose_trip_update(self.tid, self.context['revision'], '合成変更')
+            command.assert_called_once_with(['synthetic-aig'], 450)
+        self.assertEqual(self.cal.get_trip_command_context(self.tid), self.context)
+
     def test_generation_finishes_after_concurrent_edit(self):
         def transport(e):
             candidate = copy.deepcopy(e['working_export_package']['effective_trip'])
