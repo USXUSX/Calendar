@@ -6,7 +6,7 @@ CALのChat更新は接続済みMacの標準実行経路（`exec_command`、継�
 
 通常のChat操作は[短い操作手順](chat-quick.md)と[旅行一覧](https://github.com/USXUSX/Calendar/blob/chat-index/trip-index.json)から始める。本書全文は詳細契約・例外・開発時の参照用で、毎回読み直さない。
 
-Gitで旅行を特定し、最初のMac実行で接続確認＋必要範囲の最新readを行う。項目ID既知なら--item-id、日付既知なら--date、全体の文脈が必要な場合だけ無指定trip-getを使う。AIが変更を準備し、次のMac実行で正式保存する。現在値・revision・未処理指示はMacの取得結果を使う。
+Gitで旅行を特定し、最初のMac実行で接続確認＋必要範囲の最新readを行う。項目単位の依頼は必要時だけGitの軽量項目索引でIDを選んで--item-id、日全体の依頼は項目索引を読まず--date、全体の文脈が必要な場合だけ無指定trip-getを使う。AIが変更を準備し、次のMac実行で正式保存する。現在値・revision・未処理指示はMacの取得結果を使う。
 
 ### 接続確認を一度に行う（#285）
 

@@ -1,11 +1,12 @@
 # CALの通常操作
 
-Gitは手順と[旅行一覧](https://github.com/USXUSX/Calendar/blob/chat-index/trip-index.json)（path=trip-index.json、ref=chat-index）を取得するために使う。現在値・revision・未処理指示はMacの専用CLIから必要な範囲だけ取得する。通常操作のためにソース・TDS・Issue・手順全文を探索し直さない。
+Gitは項目の検索用索引と手順と[旅行一覧](https://github.com/USXUSX/Calendar/blob/chat-index/trip-index.json)（path=trip-index.json、ref=chat-index）を取得するために使う。現在値・revision・未処理指示はMacの専用CLIから必要な範囲だけ取得する。通常操作のためにソース・TDS・Issue・手順全文を探索し直さない。
 
 ## 取得 → 判断 → 保存
 
 1. 計測する場合、最初のツール呼出し冒頭で呼出元の開始時刻を保持し、その後に手順/一覧を取得する。時計取得だけのMac往復は追加しない。
 2. 旅行名・日程からTrip IDを選ぶ。複数一致は推測せず確認する。一覧にない/古い場合だけMacのtrips/travelsで確認する。通常予定/Todoは旅行の旅程と分ける。
+   項目単位の依頼でIDが不明なら、日付既知はchat-indexのitem-index/by-date/YYYY-MM-DD.jsonを読む（手順・旅行一覧とまとめて取得可能）。日付不明は旅行特定後にitem-index/by-trip/<Trip ID>.jsonを読む。名称・時刻から正しい旅行内の項目IDを選ぶ。ID既知、日全体の依頼では項目索引を読まない。この選択は依頼の解釈と同時に行い、別の判定呼出しを増やさない。
 3. 対象MacはusMac-miniM4Pro.local。接続済みMacの標準実行を優先し、利用できなければ既存RDCを使う。Cloud shellでMacのCLIを探さない。接続確認と下表の取得を一つの実行にまとめる。
 4. 返った現在値と未処理指示を読み、対象項目を選んで変更するfieldだけを準備する。同じ応答のrevisionを使い、次のMac実行で正式保存する。
 5. 最終exit 0・committed receiptの要求ID/対象/内容一致を確認して保存完了を先に報告する。保存確定結果を受け取った直後の呼出元時刻を終了として保持し、後続チェックの時間は含めない。
@@ -13,9 +14,11 @@ Gitは手順と[旅行一覧](https://github.com/USXUSX/Calendar/blob/chat-index
 | 分かっている範囲 | 取得 |
 | --- | --- |
 | Trip IDと項目ID | trip-get --id <Trip ID> --item-id <項目ID> |
-| Trip IDと日付 | trip-get --id <Trip ID> --date YYYY-MM-DD |
+| 日全体の依頼、または項目を特定できない場合でTrip IDと日付が既知 | trip-get --id <Trip ID> --date YYYY-MM-DD |
 | 旅行全体の前後関係が必要 | trip-get --id <Trip ID> |
 | 通常予定/Todo | read --start YYYY-MM-DD --end YYYY-MM-DD。既知IDはget --kind event またはtodo --id <ID> |
+
+索引は検索の手掛かりであり、保存用の現在値/revisionではない。項目IDを選んだ場合も、Macの--item-id取得結果で依頼の名称・日付・時刻との対応を確認する。索引なし・複数候補・古いID・不一致なら日付限定等の既存readへ戻し、推測で保存しない。
 
 日付限定はその日のday（予定を含む）・transports・関連places/bookingsと、全未処理instructions・Trip全体revisionを返す。項目限定と日付限定はcomplete Tripではないので全体saveへ渡さない。--dateと--item-idは併用しない。日付不在/不正/曖昧は拒否され、全文を自動取得しない。必要な文脈が足りなければ取得範囲を広げる。
 
