@@ -60,7 +60,7 @@ Googleとcommit後通知は新規commitのみ。再送/lookupで再実行せず�
 
 ### Chatからの局所変更
 
-Chatの局所更新も `cal_schedule.py trip-operation` から上記の正式要求へ渡せる。最新trip-getのrevision全体とstable IDを使い、操作可能な項目だけを送る。表示名・時刻・通常コメントの編集は、変更しない地点の補完やcomplete Tripの再生成を必要としない。接続と保存後の扱いは[Chat操作入口](chat-schedule.md#通常操作の短い入口)に従う。
+Chatの局所更新も `cal_schedule.py trip-operation` から上記の正式要求へ渡せる。最新trip-getのrevision全体とstable IDを使い、操作可能な項目だけを送る。対象IDが既知なら `trip-get --id <Trip ID> --item-id <項目ID>` で対象・関連情報・未処理指示・元の全体revisionだけを取得できる。部分contextをcomplete Tripとしてsaveしない。表示名・時刻・通常コメントの編集は、変更しない地点の補完やcomplete Tripの再生成を必要としない。接続と保存後の扱いは[Chat操作入口](chat-schedule.md#通常操作の短い入口)に従う。
 
 予定の表示名だけを変える形式例（実データのID/revisionを入れるまで実行しない）：
 

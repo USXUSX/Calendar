@@ -34,6 +34,7 @@ def main(argv=None):
     travel = sub.add_parser('travel-get');travel.add_argument('--id', required=True);travel.add_argument('--start');travel.add_argument('--end')
     series=sub.add_parser('series');series.add_argument('--id')
     trip = sub.add_parser('trip-get');trip.add_argument('--id', required=True)
+    trip.add_argument('--item-id', help='return one schedule item or transport and its related context instead of the complete Trip')
     sub.add_parser('trip-plan')
     resolve = sub.add_parser('trip-resolve');resolve.add_argument('--map-config-url', default='http://127.0.0.1:8080/api/calendar/map-config')
     read = sub.add_parser('read');read.add_argument('--start', required=True);read.add_argument('--end', required=True)
@@ -61,6 +62,39 @@ def main(argv=None):
             timing.finish(result, code)
             timing.emit(sys.stderr, args.timing_file)
 
+
+
+def trip_item_context(context, item_id):
+    """Project one existing snapshot; never return a partial object as a Trip."""
+    trip = context['trip']
+    matches = [(day, 'scheduleItem', item) for day in trip['days']
+               for item in day['scheduleItems'] if item['id'] == item_id]
+    for item in trip['transports']:
+        if item['id'] == item_id:
+            days = [day for day in trip['days'] if day['id'] == item['dayId']]
+            if len(days) != 1:
+                raise ValueError('trip_item_day_not_found_or_ambiguous')
+            matches.append((days[0], 'transport', item))
+    if len(matches) != 1:
+        raise ValueError('trip_item_not_found_or_ambiguous')
+    day, source_type, item = matches[0]
+    selection = item.get('placeSelection', {})
+    place_ids = set(selection.get('candidatePlaceIds', [])) | set(selection.get('selection', []))
+    place_ids.update(item.get(key) for key in ('fromPlaceId', 'toPlaceId', 'mapPlaceId'))
+    place_ids.discard(None)
+    bookings = [booking for booking in trip.get('bookings', [])
+                if booking['id'] == item.get('bookingId')
+                or booking.get('placeId') in place_ids
+                or (source_type == 'transport' and booking.get('transportId') == item_id)]
+    place_ids.update(booking.get('placeId') for booking in bookings)
+    return dict(
+        trip_id=context['trip_id'], context_scope='item',
+        trip_summary={key: trip[key] for key in ('id', 'title', 'dateRange')},
+        day={key: value for key, value in day.items() if key not in {'scheduleItems', 'transportIds'}},
+        source_type=source_type, source_item_id=item_id, item=item,
+        places=[place for place in trip['places'] if place['id'] in place_ids],
+        bookings=bookings, instructions=context['instructions'], revision=context['revision'],
+    )
 
 
 def execute(args):
@@ -97,6 +131,8 @@ def execute(args):
         elif args.action == 'trip-get':
             result = dict(status='ok', **cal.get_trip_command_context(args.id))
             count_trip(result['trip'])
+            if args.item_id is not None:
+                result = dict(status='ok', **trip_item_context(result, args.item_id))
         elif args.action in ('trip-plan','trip-resolve'):
             with span('input'):
                 value = json.load(sys.stdin)
