@@ -41,7 +41,7 @@ launchctl kickstart -k gui/$(id -u)/com.usxusx.frame
 
 ## 既存TripのChat往復
 
-既存RDC＋専用CLIのtrip-get → apply → receipt/lookupを使います。通常load/reloadはcandidateを採用せず、contextも自動共有しません。残存ファイルは保持し、指示はCLI取得結果に含めます。詳細は[正式Chatコマンド](chat-schedule.md)を参照してください。
+接続済みMacの標準実行経路を優先し、利用できない場合は既存RDCから同じ専用CLIを使います。trip-get → 変更案の準備 → trip-resolve → apply → receipt照合 → lookup → trip-getで確認します。経路を戻す際も要求IDと送信内容を保持し、応答不明なら先にlookupで照合します。通常load/reloadはcandidateを採用せず、contextも自動共有しません。残存ファイルは保持し、指示はCLI取得結果に含めます。詳細は[正式Chatコマンド](chat-schedule.md)を参照してください。
 
 Place補完は対象施設と保存値を確認して採用します。取得できない値は未補完のまま扱います。天気は予報期間内の座標・対象日に対応する一時情報です。契約は[Place取得・採用](place-acquisition.md)と[表示・更新契約](trip-detail-model.md)を参照してください。
 
