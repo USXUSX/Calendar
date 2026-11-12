@@ -6,7 +6,7 @@ CALのChat更新は接続済みMacの標準実行経路（`exec_command`、継�
 
 通常のChat操作は[短い操作手順](chat-quick.md)と[旅行一覧](https://github.com/USXUSX/Calendar/blob/chat-index/trip-index.json)から始める。本書全文は詳細契約・例外・開発時の参照用で、毎回読み直さない。
 
-Gitで旅行を特定し、最初のMac実行で接続確認＋必要範囲の最新readを行う。項目単位の依頼は必要時だけGitの軽量項目索引でIDを選んで--item-id、日全体の依頼は項目索引を読まず--date、全体の文脈が必要な場合だけ無指定trip-getを使う。AIが変更を準備し、次のMac実行で正式保存する。現在値・revision・未処理指示はMacの取得結果を使う。
+Gitで旅行を特定し、最初のMac実行で接続確認＋必要範囲の最新readを行う。項目索引は取得せず、通常は--dateで対象日を読み、全体の文脈が必要な場合だけ無指定trip-getを使う。明示ID付き依頼と後続照合用の--item-idは保持する。AIが変更を準備し、次のMac実行で正式保存する。現在値・revision・未処理指示はMacの取得結果を使う。保存確定receipt受信で処理時間を回答し、終了確認・照合は後続へ分離する。正常な後続結果は報告しない。
 
 ### 接続確認を一度に行う（#285）
 
@@ -26,10 +26,10 @@ Gitで旅行を特定し、最初のMac実行で接続確認＋必要範囲の�
 
 | 経路 | 呼出し・継続・結果回収 |
 | --- | --- |
-| 標準Mac接続 | `exec_command`へ作業位置と上記Python・CLIを指定する。`session_id`が返れば同じIDの`write_stdin`で続きの出力を回収し、最終`exit_code`まで確認する。各回の出力をつなぎ、先頭だけ・最終chunkだけで判定しない |
-| 既存RDC | RDCで同じ対象Macを選び、`start_process`から同じ作業位置・Python・CLIを呼ぶ。PIDが返れば、そのPIDの`read_process_output`で未回収出力と終了コードを取得する。出力のoffset・lengthと残りを確認する |
+| 標準Mac接続 | `exec_command`へ作業位置と上記Python・CLIを指定する。`session_id`が返れば同じIDの`write_stdin`で続きの出力を回収し、最終`exit_code`まで確認する。各回の出力をつなぎ、先頭だけ・最終chunkだけで判定しない。完全な一致receiptで先に保存報告できる場合、終了確認は後続へ回す |
+| 既存RDC | RDCで同じ対象Macを選び、`start_process`から同じ作業位置・Python・CLIを呼ぶ。PIDが返れば、そのPIDの`read_process_output`で未回収出力と終了コードを取得する。出力のoffset・lengthと残りを確認する。完全な一致receiptで先に保存報告できる場合、終了確認は後続へ回す |
 
-標準の`session_id`とRDCのPIDは交換できない。受付成功、途中出力、timeout、出力欠落・打切りを完了としない。出力上限を確認し、JSONの解析成功や末尾・exit 0だけで全文の一致を判断しない。#281の隔離比較では、大きい日本語出力のRDC受信に文字置換があった（保存値は健全、原因は未確定）。不一致があれば保存成功と推測せず、同一要求のlookupと再取得で確認する。
+標準の`session_id`とRDCのPIDは交換できない。受付成功、途中出力、timeout、出力欠落・打切りを保存完了としない。ただし、完全な保存確定receiptを受信し要求との一致を確認した後のコマンド終了待ちは、保存完了報告を妨げない。出力上限を確認し、JSONの解析成功や末尾・exit 0だけで全文の一致を判断しない。#281の隔離比較では、大きい日本語出力のRDC受信に文字置換があった（保存値は健全、原因は未確定）。不一致があれば保存成功と推測せず、同一要求のlookupと再取得で確認する。
 
 標準経路が使えなければ既存RDCを選び直す。送信済み・送信した可能性がある操作は、経路を変える前後で要求ID・送信内容・expected_revisionを保持し、まず同じIDでlookupする。結果不明の操作を新しいIDで並行実行しない。再送時も同一ID・同内容を使う。接続不可やアクセス拒否を設定変更・別権限で迂回しない。RDC本体や設定を変更・停止せず、経路を戻すための自動fallbackやmigrationは追加しない。
 
@@ -82,9 +82,9 @@ CAL_SCHEDULE_REQUEST
 
 ### 保存確定の判定と応答不明
 
-- exit 0と`status=committed`、かつreceiptの要求ID・対象・操作・内容が一致して初めて保存確定。`receipt_id`、`entity_id`、`revision`（単発削除後はnull、定期は更新後のシリーズrevision）、`committed_at`を結果として会話へ残す。単発の削除receiptは削除前の内容とprevious_revisionを保持する。
-- 例：「CAL保存済み。対象ID …、要求ID …、receipt …、revision …」。保存内容も短く示す。標準execのsession返却やRDCの「Process started」、Frame画面の表示だけで成功扱いにしない。保存確定を確認した時点で先に知らせ、続けてlookup・再取得と必要な反映確認の結果を返す。保存後照合が済む前に照合完了とは報告しない。
-- 各経路の継続ハンドルから最終出力・終了コードを回収する。通信断・出力なし・timeout・`status=unknown`は結果不明。`lookup --request-id`で照合する。
+- 完全な`status=committed`とreceiptを受信し、要求ID・対象・操作・内容・revisionの対応を確認した時点で保存確定として報告する。exit 0は報告の前提にせず、後続で確認する。`receipt_id`、`entity_id`、`revision`（単発削除後はnull、定期は更新後のシリーズrevision）、`committed_at`を結果として会話へ残す。単発の削除receiptは削除前の内容とprevious_revisionを保持する。
+- 例：「CAL保存完了。変更前 … → 変更後 …。保存までの処理時間：XX.XXX秒。開始/終了（JST）…、対象ID …、要求ID …、receipt …、revision …」。保存内容も短く示す。標準execのsession返却やRDCの「Process started」、Frame画面の表示だけで成功扱いにしない。保存確定を確認した時点で先に知らせる。その後も同じturnで終了確認・lookup・再取得を継続するが、正常なら追加メッセージや成功一覧、照合完了の追記は出さない。問題や確認不能がある場合だけ、保存済みの事実と区別して異常と必要な対応を追加報告する。
+- 各経路の継続ハンドルから最終出力・終了コードを回収する。完全な一致receiptをまだ得ていない通信断・出力なし・timeout・`status=unknown`は結果不明。`lookup --request-id`で照合する。
 - lookupがcommittedなら元の確定receipt。`not_found`（exit 4）は現時点で確定receiptが見つからないだけで、未実行の証明ではない。同じ要求ID・同じ内容で再送できる。別IDで再作成しない。
 - 同一ID・同一内容の再送は`resolution=replayed`で元receiptを返し、二重更新しない。削除後や後続変更後でも元の操作結果を返す。**receiptはその操作時点の結果**であり、現在値が必要ならgetで読み直す。
 - 同一ID・異なる内容は`request_id_payload_conflict`（exit 3）で拒否。revision不一致は`revision_conflict`（exit 3）。同じ拒否応答のcurrentで最新内容を確認し（取得不能時のみ追加read）、依頼と照らして再確認した別操作には新しい要求IDを使う。staleを無条件上書きしない。
@@ -126,7 +126,7 @@ receiptは既存CAL DBの`schedule_receipts`に保持し、自動削除しない
 
 ## 旅程の局所変更
 
-名称・時刻・コメントなど、既存の意味操作で表せる変更は `trip-operation` を使う。最新 `trip-get` のTrip ID・対象stable ID・revisionオブジェクト全体をそのまま用いる。対象stable IDが分かる局所更新は、保存前・後続再取得とも `--item-id` で出力を絞る。Trip IDが既知ならtripsを重ねて実行しない。要求形式と対応fieldは[直接編集の正式要求](direct-schedule.md#画面の正式要求calendar-238)が正本で、CLIも同じCAL入口を呼ぶ。
+名称・時刻・コメントなど、既存の意味操作で表せる変更は `trip-operation` を使う。最新 `trip-get` のTrip ID・対象stable ID・revisionオブジェクト全体をそのまま用いる。通常の保存前は日付限定取得で対象stable IDを選ぶ。明示ID付き依頼の取得と後続再取得には `--item-id` を使える。Trip IDが既知ならtripsを重ねて実行しない。要求形式と対応fieldは[直接編集の正式要求](direct-schedule.md#画面の正式要求calendar-238)が正本で、CLIも同じCAL入口を呼ぶ。
 
 予定の表示名変更なら `operation=item`、`source_type=scheduleItem`、`changes.title` を使う。complete Tripの `action` をそのままchangesのキーにしない。具体例・コメントの保持は[Chatからの局所変更](direct-schedule.md#chatからの局所変更)を参照する。対応済みのfieldだけを指定し、未知fieldを推測して送らない。
 
@@ -241,7 +241,7 @@ CAL正式保存→旅行関連付け→Google反映の順。旅行が既知な�
 {"request_id":"example-new-uuid","trip_id":"取得済みTrip ID","operation":"item","expected_revision":{"trip_hash":"取得したrevision全体をそのまま指定"},"values":{"source_type":"transport","source_item_id":"取得済みTransport ID","changes":{"rail_route":{"legs":[{"operator":"東日本旅客鉄道","line":"東北新幹線","from":"東京","to":"新白河","via":[]}]}}}}
 ```
 
-上のrevisionは形式説明用。実行時はtrip-getのrevisionオブジェクト全体を改変せず使う。要求ID/送信内容を保持し、exit 0・committed receiptの要求ID/対象/values/revisionを照合、同じlookupから確定結果を再確認する。再送とstale拒否は既存正式要求と共通。路線名の自然言語解釈はChatで行い、分からない区間は指定せず未確定を報告する。CLIは正式JSON/DBの直接編集の代替となる所有入口である。
+上のrevisionは形式説明用。実行時はtrip-getのrevisionオブジェクト全体を改変せず使う。要求ID/送信内容を保持し、committed receiptの要求ID/対象/values/revisionを照合して先に報告し、exit 0とlookupの確認は後続で行う。正常な後続結果は追記しない。再送とstale拒否は既存正式要求と共通。路線名の自然言語解釈はChatで行い、分からない区間は指定せず未確定を報告する。CLIは正式JSON/DBの直接編集の代替となる所有入口である。
 
 100名城の訪問状態・日付・コメントは別の[CAL城専用CLI](castles.md)を使う。日程applyへ混在させない。
 
@@ -300,9 +300,11 @@ CAL内部計測だけでChat全体を完了扱いにしない。正式保存・G
 
 1. 最初のツール呼出しの先頭で、通常準備より前に開始時刻を記録する。code modeなら `store("cal_setup_started_at_ms", Date.now())` のように呼出元で保持し、その後同じ操作内で通常のツールを使う。時刻取得だけのMac往復や、事前に手順を読み込む準備runを追加しない。先に完了した準備がある場合はその範囲を明記する。
 2. 短い入口から必要な節を読み、接続確認・最新対象取得・操作選択・保存を行う。取得／保存等の通常呼出しの前後を同じ呼出元の時計で記録できる範囲で添え、呼出間も含める。計測のために別の重い往復を増やさない。正式要求には従来の要求ID・revisionを使い、必要なら既存 `--timing --timing-group <UUID>` を再利用する。
-3. session／PIDが返った場合は同じハンドルの最終出力・終了コードまで回収する。**保存確定出力を受け取った直後**を終了時刻として保持し、exit 0・committed receiptの一致を満たした結果に限って採用する。Macの `committed_at` やプロセス起動応答を「結果の受取時刻」で代用しない。
-4. 終了−開始を「初動→保存確定結果受取」として、経路・新規チャットであることと共に保存完了報告へ添える。保存確定を先に知らせ、その後lookup・再取得・必要なFrame反映を照合する。後続照合は別区間で、主指標へ加えない。開始準備・保存前・保存呼出しの内訳があれば、未分類を含め隣接区間で全体へ積み上げる。AI推論・純通信へ無理に分解しない。
+3. **完全な保存確定receiptを受け取った最初の応答の直後**を終了時刻として同じ呼出元で保持する。committed receiptが今回の要求と一致すれば、session／PIDが残っていても保存完了と所要時間を先に報告する。最終出力・終了コードの回収は同じハンドルで報告後に継続し、計測終了をその時点へずらさない。receipt未取得なら回収を続け、途中応答を計測終了にしない。Macの `committed_at` やプロセス起動応答を「結果の受取時刻」で代用しない。
+4. 終了−開始を「初動→保存確定結果受取」として、経路・新規チャットであることと共に保存完了報告へ添える。保存確定を先に知らせ、その後終了確認・lookup・再取得を行う。正常なら追加報告せず、異常・不一致・確認不能のみ通知する。要求されていないFrame/実機確認は追加しない。後続照合は別区間で、主指標へ加えない。開始準備・保存前・保存呼出しの内訳があれば、未分類を含め隣接区間で全体へ積み上げる。AI推論・純通信へ無理に分解しない。
 5. 秒単位の目安で十分。可能なら同一の持続する単調時計を用いる。`Date.now()` は呼出元の壁時計なので時刻補正があれば不採用にし、異なる端末・Macのtimestampを直接差し引かない。開始や受取境界を記録できない環境では未取得の試行を速度判定に使わず、その場で同じ試験を反復しない。測定可能な呼出元を先に決める。
+
+通常の保存でもこの呼出元計測と所要時間表示を行う（#299）。開始/終了を保持できない場合は「処理時間：計測不可」と表示し、Mac時刻やAIの推定で補わない。詳細な内訳やCLI内部診断は必要時だけ取得し、毎回の回答へ正常な後続チェック一覧を添えない。
 
 必要な具体的更新だけを行う。保存後チェックの優先度は低いが、定型処理をAIからMacへ移す別の改善を行う場合はチェックも含めて検討する。今回の入口整備は定型処理移管や後続チェック削除を実装するものではない。
 

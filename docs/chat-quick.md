@@ -1,26 +1,27 @@
 # CALの通常操作
 
-Gitは項目の検索用索引と手順と[旅行一覧](https://github.com/USXUSX/Calendar/blob/chat-index/trip-index.json)（path=trip-index.json、ref=chat-index）を取得するために使う。現在値・revision・未処理指示はMacの専用CLIから必要な範囲だけ取得する。通常操作のためにソース・TDS・Issue・手順全文を探索し直さない。
+Gitは手順と[旅行一覧](https://github.com/USXUSX/Calendar/blob/chat-index/trip-index.json)（path=trip-index.json、ref=chat-index）を取得するために使う。現在値・revision・未処理指示はMacの専用CLIから必要な範囲だけ取得する。通常操作のためにソース・TDS・Issue・手順全文を探索し直さない。
 
 ## 取得 → 判断 → 保存
 
-1. 計測する場合、最初のツール呼出し冒頭で呼出元の開始時刻を保持し、その後に手順/一覧を取得する。時計取得だけのMac往復は追加しない。
+1. 保存までの処理時間を毎回回答に表示する。最初のツール呼出し冒頭で呼出元の開始時刻と経過時間用の時計を保持し、その後に手順/一覧を取得する。同じ持続する呼出元の時計を使い、時計取得だけのMac往復は追加しない。
 2. 旅行名・日程からTrip IDを選ぶ。複数一致は推測せず確認する。一覧にない/古い場合だけMacのtrips/travelsで確認する。通常予定/Todoは旅行の旅程と分ける。
-   項目単位の依頼でIDが不明なら、日付既知はchat-indexのitem-index/by-date/YYYY-MM-DD.jsonを読む（手順・旅行一覧とまとめて取得可能）。日付不明は旅行特定後にitem-index/by-trip/<Trip ID>.jsonを読む。名称・時刻から正しい旅行内の項目IDを選ぶ。ID既知、日全体の依頼では項目索引を読まない。この選択は依頼の解釈と同時に行い、別の判定呼出しを増やさない。
 3. 対象MacはusMac-miniM4Pro.local。接続済みMacの標準実行を優先し、利用できなければ既存RDCを使う。Cloud shellでMacのCLIを探さない。接続確認と下表の取得を一つの実行にまとめる。
 4. 返った現在値と未処理指示を読み、対象項目を選んで変更するfieldだけを準備する。同じ応答のrevisionを使い、次のMac実行で正式保存する。
-5. 最終exit 0・committed receiptの要求ID/対象/内容一致を確認して保存完了を先に報告する。保存確定結果を受け取った直後の呼出元時刻を終了として保持し、後続チェックの時間は含めない。
+5. 保存応答を受け取った直後に同じ呼出元時計の終了時刻を保持する。完全なstatus=committedとreceiptの要求ID・対象・操作・変更内容・revisionが今回の要求に対応することを確認し、保存完了と「保存までの処理時間：XX.XXX秒」を先に報告する。exit 0の回収は待たず、後続確認へ分離する。受付・途中出力・欠落したreceipt・競合は保存成功としない。
 
 | 分かっている範囲 | 取得 |
 | --- | --- |
 | Trip IDと項目ID | trip-get --id <Trip ID> --item-id <項目ID> |
-| 日全体の依頼、または項目を特定できない場合でTrip IDと日付が既知 | trip-get --id <Trip ID> --date YYYY-MM-DD |
+| 通常の入口：Trip IDと日付 | trip-get --id <Trip ID> --date YYYY-MM-DD |
 | 旅行全体の前後関係が必要 | trip-get --id <Trip ID> |
 | 通常予定/Todo | read --start YYYY-MM-DD --end YYYY-MM-DD。既知IDはget --kind event またはtodo --id <ID> |
 
-索引は検索の手掛かりであり、保存用の現在値/revisionではない。項目IDを選んだ場合も、Macの--item-id取得結果で依頼の名称・日付・時刻との対応を確認する。索引なし・複数候補・古いID・不一致なら日付限定等の既存readへ戻し、推測で保存しない。
+項目索引は取得しない。通常は日付限定取得から日時・名称で対象を選び、判明した項目IDを保存要求と後続照合に使う。依頼で項目IDが明示されている場合の既存--item-id機能は保持する。
 
 日付限定はその日のday（予定を含む）・transports・関連places/bookingsと、全未処理instructions・Trip全体revisionを返す。項目限定と日付限定はcomplete Tripではないので全体saveへ渡さない。--dateと--item-idは併用しない。日付不在/不正/曖昧は拒否され、全文を自動取得しない。必要な文脈が足りなければ取得範囲を広げる。
+
+処理時間は手順取得・接続確認・対象取得・変更準備・保存確定receipt受信までを含み、報告文の作成・終了確認・後続照合は含めない。開始/終了時刻（JST）も同じ時計から示す。呼出元で時刻を保持できない場合は「処理時間：計測不可」とし、Macのcommitted_atや異なる時計で補わない。失敗・競合・未保存では成功所要時間を表示せず、その状態を報告する。
 
 ## 最初のMac実行
 
@@ -57,10 +58,10 @@ CAL_REQUEST
 
 ## 結果回収・後続確認
 
-session/PIDが返ったら同じハンドルから出力と最終終了コードを回収する。受付/途中出力/timeoutを保存完了としない。再接続しても要求ID/内容を保持する。
+完全な保存確定receiptを先に受け取れた場合、session/PIDが残っていても報告を待たない。報告後も同じturnで同じハンドルの最終出力・終了コードを回収し、lookupと再取得を続ける。保存確定receiptをまだ受け取れていない受付/途中出力/timeoutは結果不明として回収・照合を先に行う。再接続しても要求ID/内容を保持する。
 
 revision_conflict（exit 3）は保存拒否。同じ応答のcurrentで最新内容を確認し直し、再判断した操作には新しい要求IDを使う。current_unavailableなら追加readする。無条件上書きしない。
 
 応答不明は同じ要求IDをlookupし、同じ内容だけ再送する。同じID/内容は元receiptを返し、異なる内容は拒否される。not_foundだけで未実行と断定しない。
 
-保存完了報告後、lookupと対象再取得をまとめて照合する。対象項目IDが分かった後は--item-idで取得する。receipt/revision・変更値・保持fieldを確認し、画面/API/実機の未確認を保存結果と混同しない。[詳細契約](chat-schedule.md)は必要時だけ参照する。
+保存完了報告後、lookupと対象再取得をまとめて照合する。対象項目IDが分かった後は--item-idで取得する。receipt/revision・変更値・保持fieldを確認する。全て正常なら追加メッセージ・正常一覧・「後続チェック完了」の追記は出さない。不一致・非0終了・確認不能など問題がある場合だけ、保存済みの事実と区別して問題と必要な対応を追加報告する。画面/API/実機の確認は要求された場合だけ行う。[詳細契約](chat-schedule.md)は必要時だけ参照する。
