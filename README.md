@@ -8,7 +8,7 @@ CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb�
 
 ## 現在の利用経路
 
-- Chatの新規・既存Trip更新は既存RDCから[CAL専用コマンド](docs/chat-schedule.md)を呼び、CALで検証・正式保存してreceiptを受け取る。Frameの手動JSON取込も保持する。
+- Chatの新規・既存Trip更新は接続済みMacの標準実行経路を優先し（利用できない場合は既存RDCから）[CAL専用コマンド](docs/chat-schedule.md)を呼び、CALで検証・正式保存してreceiptを受け取る。Frameの手動JSON取込も保持する。
 - 既存TripはFrameで[版照合・receipt付き](docs/direct-schedule.md#画面の正式要求calendar-238)の直接編集・予定追加／削除／並び替え・候補選択・位置保存・指示保存ができる。CALの編集を微修正には限定しない。
 - 継続編集は専用コマンドからeffective Trip・revision・未処理指示を取得して更新する。context自動共有・candidate自動採用は停止し、残存ファイルを削除しない。
 - 候補探索・比較・大きな旅程編集・調査コメントはChatで行う。旅程AI編集は[承認付き更新契約](docs/trip-detail-model.md#承認付き旅程ai更新265)で変更案を確認してから正式保存する。旧Working／候補検索／AFM推薦・コメントAIは通常UIへ戻さない。Place補完と天気はCALの意味境界を使う。
@@ -17,7 +17,7 @@ CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb�
 
 ## 予定画面の直接操作
 
-Frame #177 Phase 2の月間・一覧・複数月と通常Event/Todo操作は[期間表示・保存契約](docs/schedule.md)を使う。Eventの任意TripリンクとTodoメモを追加し、既存DBには明示した追加migrationを適用する。通常予定・Todoは既存RDCから[正式Chatコマンド](docs/chat-schedule.md)でも保存・結果照合できる。定期予定・タスクの条件は同CLIから設定し、各回を期間表示・単回操作できる。Google反映は[専用一方向連携](docs/google-calendar.md)を使う。
+Frame #177 Phase 2の月間・一覧・複数月と通常Event/Todo操作は[期間表示・保存契約](docs/schedule.md)を使う。Eventの任意TripリンクとTodoメモを追加し、既存DBには明示した追加migrationを適用する。通常予定・Todoも同じ接続経路の[正式Chatコマンド](docs/chat-schedule.md)で保存・結果照合できる。定期予定・タスクの条件は同CLIから設定し、各回を期間表示・単回操作できる。Google反映は[専用一方向連携](docs/google-calendar.md)を使う。
 
 独立した旅行の先行管理・旅程接続・Event/Todoのcategory/旅行関連/メール参照は[日程契約](docs/schedule.md#独立した旅行管理221)を使います。既存DBは明示したtravel migrationが必要です。
 

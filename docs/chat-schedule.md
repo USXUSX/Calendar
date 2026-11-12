@@ -1,20 +1,35 @@
 # Chatからの日程保存（Frame #177 Phase 3 Step 1・2）
 
-既存Remote Desktop Commander（RDC）でMacのCAL専用CLIを呼ぶ。CALの既存SQLiteと正式Trip JSONが正本。Frameを開く／再読込することは保存条件ではない。旅程も本書の専用コマンドで正式保存する。通常予定・タスクの定期日程も扱う。保存後は[専用Google一方向連携](google-calendar.md)を使い、CAL receiptとGoogle反映結果を区別する。
+CALのChat更新は接続済みMacの標準実行経路（`exec_command`、継続は同じsessionへの`write_stdin`）を優先して、既存のCAL専用CLIを呼ぶ。利用できない場合は既存Remote Desktop Commander（RDC）へ戻せる。CALの既存SQLiteと正式Trip JSONが正本。Frameを開く／再読込することは保存条件ではない。旅程も本書の専用コマンドで正式保存する。通常予定・タスクの定期日程も扱う。保存後は[専用Google一方向連携](google-calendar.md)を使い、CAL receiptとGoogle反映結果を区別する。
 
 ## Chatで使う
 
-ChatでRDCを選択し、対象Mac `usMac-miniM4Pro.local` を選ぶ。次の入口を最初に伝える（またはこの文書を読ませる）。
+対象Mac `usMac-miniM4Pro.local` の稼働と、ChatGPT側でそのMacへの標準実行経路が利用できることを確認する。Cloudのshellを対象Macと取り違えない。作業位置は `/Users/us/Tools/Development/Calendar_Dev`、Pythonは `/usr/bin/python3`、CLIは同checkoutの `scripts/cal_schedule.py`。`hostname`、`pwd`、Python・CLIの所在を読み取り確認し、以下の専用コマンドを使う。次の入口を最初に伝える（またはこの文書を読ませる）。
 
-> 日程・タスクの操作は既存機能の範囲でRDCから `/usr/bin/python3 -B /Users/us/Tools/Development/Calendar_Dev/scripts/cal_schedule.py` を使ってください。変更前に対象IDと最新revisionを取得し、要求IDと送信内容をチャットに残してください。応答不明時は同じ要求IDを照合し、別IDで追加し直さないでください。CALのcommitted receiptを受け取ってから保存済みと報告してください。未対応の依頼は未対応と伝えて追加案を提示し、登録依頼だけを根拠に機能開発へ進まないでください。
+> 日程・タスクの操作は既存機能の範囲で接続済みMacの標準実行経路を優先し、利用できなければ既存RDCから `/usr/bin/python3 -B /Users/us/Tools/Development/Calendar_Dev/scripts/cal_schedule.py` を使ってください。変更前に対象IDと最新revisionを取得し、要求IDと送信内容をチャットに残してください。応答不明時は同じ要求IDを照合し、別IDで追加し直さないでください。CALのcommitted receiptを受け取ってから保存済みと報告してください。未対応の依頼は未対応と伝えて追加案を提示し、登録依頼だけを根拠に機能開発へ進まないでください。
 
 その後は「10月8日9時に打合せを追加」「このタスクを完了」「開始を10時へ変更」等を依頼する。対象が曖昧ならread結果から特定してから操作する。候補の複数一致を勝手に1件へ絞らない。ChatはCALへ直接SQLを書いたり、別の即席更新スクリプトを作ったりしない。既存RDCの汎用実行権限は残る。専用CLIを使うことは運用規約でありRDCの技術的な権限制限ではない。
+
+### 接続条件・継続・RDCへ戻す手順（#283）
+
+標準経路には対象Macの稼働とChatGPT側のMac接続が必要。すべてのChat環境やアプリ終了中の利用を保証しない。「標準接続」は既存のRDC以外の実行経路を指し、インターネット中継なしや別の保存サービスを意味しない。Frameのブラウザ表示の条件とは別である。
+
+| 経路 | 呼出し・継続・結果回収 |
+| --- | --- |
+| 標準Mac接続 | `exec_command`へ作業位置と上記Python・CLIを指定する。`session_id`が返れば同じIDの`write_stdin`で続きの出力を回収し、最終`exit_code`まで確認する。各回の出力をつなぎ、先頭だけ・最終chunkだけで判定しない |
+| 既存RDC | RDCで同じ対象Macを選び、`start_process`から同じ作業位置・Python・CLIを呼ぶ。PIDが返れば、そのPIDの`read_process_output`で未回収出力と終了コードを取得する。出力のoffset・lengthと残りを確認する |
+
+標準の`session_id`とRDCのPIDは交換できない。受付成功、途中出力、timeout、出力欠落・打切りを完了としない。出力上限を確認し、JSONの解析成功や末尾・exit 0だけで全文の一致を判断しない。#281の隔離比較では、大きい日本語出力のRDC受信に文字置換があった（保存値は健全、原因は未確定）。不一致があれば保存成功と推測せず、同一要求のlookupと再取得で確認する。
+
+標準経路が使えなければ既存RDCを選び直す。送信済み・送信した可能性がある操作は、経路を変える前後で要求ID・送信内容・expected_revisionを保持し、まず同じIDでlookupする。結果不明の操作を新しいIDで並行実行しない。再送時も同一ID・同内容を使う。接続不可やアクセス拒否を設定変更・別権限で迂回しない。RDC本体や設定を変更・停止せず、経路を戻すための自動fallbackやmigrationは追加しない。
+
+専用CLIの使用は両経路の運用規約であり、汎用実行権限の技術的な制限ではない。他ツールの経路は今回変更しない。
 
 ### 通常操作と機能開発の境界
 
 通常の日程・タスク・旅程の登録／変更は、現行の専用CLIが提供する機能内で行う。既存機能で実行でき、対象と内容が明確な依頼には、毎回の追加確認を要求しない。
 
-未対応の条件・操作なら、未対応であることと必要な機能追加案をusへ提示する。既存機能で可能な代案があれば、依頼との差分も示し、意図を変えた登録を勝手に行わない。日程登録依頼だけを根拠にコード変更・開発Issue／PR作成・merge・本番反映へ進まない。機能追加への明示指示がある場合に、現行TDSの通常開発手順で進める。RDCの汎用実行権限は機能開発の許可を意味しない。
+未対応の条件・操作なら、未対応であることと必要な機能追加案をusへ提示する。既存機能で可能な代案があれば、依頼との差分も示し、意図を変えた登録を勝手に行わない。日程登録依頼だけを根拠にコード変更・開発Issue／PR作成・merge・本番反映へ進まない。機能追加への明示指示がある場合に、現行TDSの通常開発手順で進める。各経路の汎用実行権限は機能開発の許可を意味しない。
 
 ### 読み取り・照合
 
@@ -58,8 +73,8 @@ CAL_SCHEDULE_REQUEST
 ### 保存確定の判定と応答不明
 
 - exit 0と`status=committed`、かつreceiptの要求ID・対象・操作・内容が一致して初めて保存確定。`receipt_id`、`entity_id`、`revision`（単発削除後はnull、定期は更新後のシリーズrevision）、`committed_at`を結果として会話へ残す。単発の削除receiptは削除前の内容とprevious_revisionを保持する。
-- 例：「CAL保存済み。対象ID …、要求ID …、receipt …、revision …」。保存内容も短く示す。RDCの「Process started」やFrame画面の表示だけで成功扱いにしない。
-- RDCがPIDを返したらread_process_outputで終了・出力を取得する。通信断・出力なし・timeout・`status=unknown`は結果不明。`lookup --request-id`で照合する。
+- 例：「CAL保存済み。対象ID …、要求ID …、receipt …、revision …」。保存内容も短く示す。標準execのsession返却やRDCの「Process started」、Frame画面の表示だけで成功扱いにしない。保存確定を確認した時点で先に知らせ、続けてlookup・再取得と必要な反映確認の結果を返す。保存後照合が済む前に照合完了とは報告しない。
+- 各経路の継続ハンドルから最終出力・終了コードを回収する。通信断・出力なし・timeout・`status=unknown`は結果不明。`lookup --request-id`で照合する。
 - lookupがcommittedなら元の確定receipt。`not_found`（exit 4）は現時点で確定receiptが見つからないだけで、未実行の証明ではない。同じ要求ID・同じ内容で再送できる。別IDで再作成しない。
 - 同一ID・同一内容の再送は`resolution=replayed`で元receiptを返し、二重更新しない。削除後や後続変更後でも元の操作結果を返す。**receiptはその操作時点の結果**であり、現在値が必要ならgetで読み直す。
 - 同一ID・異なる内容は`request_id_payload_conflict`（exit 3）で拒否。revision不一致は`revision_conflict`（exit 3）。最新内容を取得し、依頼と照らして内容を再確認した別操作には新しい要求IDを使う。staleを無条件上書きしない。
@@ -97,7 +112,7 @@ receiptは既存CAL DBの`schedule_receipts`に保持し、自動削除しない
 /usr/bin/python3 -B /Users/us/Tools/Development/Calendar_Dev/scripts/migrate_schedule_receipts.py /Users/us/Tools/LocalData/Calendar_Local/db/calendar.sqlite3
 ```
 
-通常のChatからmigrationやinitを実行しない。導入後はdoctorでreadyを確認する。切戻し時はCLI利用を止め、receipt表を削除せず保持する。追加の常駐・RDC設定変更・認証変更は不要。
+通常のChatからmigrationやinitを実行しない。導入後はdoctorでreadyを確認する。CLI導入自体の切戻し時はCLI利用を止め、receipt表を削除せず保持する。#283の接続経路だけの切戻しでは同じCLI・DB・receiptを使い続ける。追加の常駐・RDC設定変更・認証変更は不要。
 
 ## 旅程の正式更新（#205）
 
@@ -133,7 +148,7 @@ CALの共通Schema・semantic・Todo参照検証と、既存の`.adoption` stagi
 
 旅程receiptは保存したcomplete Trip、revision、対応指示、座標補完件数も含む。正式JSON＋SQLite＋`.adoption`は従来どおり同じCAL LocalDataの管理対象で、別DBは作らない。receiptと保存データは非公開扱いでGit/Issueへ転記しない。
 
-通常Chatのcontext/candidate授受、context自動共有、Frame load/reloadのcandidate自動採用は停止した。残存ファイルは削除しない。Frameの手動新規JSON取込、直接編集、Chat指示入力は維持する。旧Envelopeのdomain処理は保守・既存中断復旧用に保持するが、通常のChatから呼ばない。RDC利用には既存Macの稼働・接続が必要。iPhoneでの動作・実通信断の確認範囲はIssueの実測記録を参照する。
+通常Chatのcontext/candidate授受、context自動共有、Frame load/reloadのcandidate自動採用は停止した。残存ファイルは削除しない。Frameの手動新規JSON取込、直接編集、Chat指示入力は維持する。旧Envelopeのdomain処理は保守・既存中断復旧用に保持するが、通常のChatから呼ばない。各経路の接続条件は本書の接続手順に従う。確認済み範囲と未観測は後述の#281 / #283の記録を参照する。
 
 ## 定期予定・タスク（#207 / Phase 3 Step 2）
 
@@ -227,7 +242,7 @@ CAL正式保存→旅行関連付け→Google反映の順。旅行が既知な�
 | post_commit_google_status / lookup | replay時のGoogle状態取得、今回のreceipt照合。元保存時間ではない |
 | response_prepare / response_write | stdout JSONの準備と書出し |
 
-`total_ms` は引数解析後からstdout書出しまで。Python起動・import・引数解析、診断自身の出力、RDC起動／通信／poll、Chat調査・AI推論・確認待ちは含まない。`committed_at`は確定日時であり所要時間ではない。計測中の例外でも取得済み区間を返すが、強制終了・電源断で最終診断を返せない場合はある。応答不明時は従来どおり同じrequest_idでlookup／再送し、今回の診断と元保存を区別する。
+`total_ms` は引数解析後からstdout書出しまで。Python起動・import・引数解析、診断自身の出力、標準接続／RDCの起動・通信・結果回収、Chat調査・AI推論・確認待ちは含まない。`committed_at`は確定日時であり所要時間ではない。計測中の例外でも取得済み区間を返すが、強制終了・電源断で最終診断を返せない場合はある。応答不明時は従来どおり同じrequest_idでlookup／再送し、今回の診断と元保存を区別する。
 
 ### 合成測定の再実行
 
@@ -243,16 +258,24 @@ python3 -B scripts/measure_chat_timing.py --output /tmp/calendar-synthetic-timin
 
 ## Chat実行開始から反映までの経路計測（#281）
 
-CAL内部計測だけでChat全体を完了扱いにしない。正式保存・Google反映・Frame API・利用端末の表示は別の到達点である。ブラウザAI生成はこのChat→RDC→CLI経路と混ぜない。
+CAL内部計測だけでChat全体を完了扱いにしない。正式保存・Google反映・Frame API・利用端末の表示は別の到達点である。ブラウザAI生成はこのChat→標準Mac接続またはRDC→CLI経路と混ぜない。
 
-### 次の通常Chat操作で採る最小記録
+### 既存の確認結果と残る観測（#283）
+
+[#281の隔離比較結果](https://github.com/USXUSX/Calendar/issues/281#issuecomment-6800633876)を再利用する。同じMac・Python・CLIで保存、receipt照合、同一ID再送、競合拒否、中断模擬からの回復、長い日本語入出力を確認済み。実通信断や機器・アプリ停止を確認したものではない。
+
+[#283](https://github.com/USXUSX/Calendar/issues/283)には、2026-11-12のiPhone発の通常会話で標準接続から実旅程のコメント・列車情報を更新し、正式保存・指定箇所の差分・再取得・Frame API反映を確認、usのiPhone表示確認も得たことが記録されている。この実更新を未確認扱いにしない。隔離試験とは到達点を分け、試験や完了済み更新を繰り返さない。
+
+次に不足するのはCodex＋標準接続の通常実更新の全体計測。具体的な変更依頼が来たときだけ下記を行い、測定目的の本番変更はしない。#281は親記録としてOpenを維持する。アプリ不安定動作の報告と標準経路の因果関係・長期安定性は未確定で、今回の文書整備では調査・更新しない。既存の異条件の所要時間から経路やAIの優劣・速度保証を導かない。
+
+### 次の具体的な実更新依頼で採る最小記録
 
 1. 対象の通常更新／新規作成を始める直前を開始境界とし、観測元と時計を記す。Chatクライアントの単調時計や操作記録が使えなければ、その境界は未観測とする。手動ストップウォッチなら精度と開始／終了操作を併記し、ツール内時間とは別指標にする。
-2. 一連の操作にUUIDを1つ発行し、既存専用CLIへ `--timing --timing-group <UUID>` を付ける。必要時だけ `--timing-file /tmp/<診断用ファイル>.jsonl` を使う。RDCは `verbose_timing=true`。正式request_id、revision、receiptの照合は従来どおり行い、診断には転記しない。
-3. 既存更新は取得→案の準備→trip-resolve→apply→lookup→trip-get、新規は既存旅行の確認→complete Trip作成→trip-resolve→apply→lookup→trip-get。送受信境界を採れる場合は、各start_processの直前／受取直後と、PID返却後の各read_process_outputの直前／受取直後を同じ持続する時計で記録する。poll間の空白も残す。通常のtimeout指定を記録し、poll確認用に短縮した試行は別条件として報告する。取得できなければnull／未観測にし、RDCのTotal Durationを外側往復の代用にしない。
+2. 一連の操作にUUIDを1つ発行し、既存専用CLIへ `--timing --timing-group <UUID>` を付ける。必要時だけ `--timing-file /tmp/<診断用ファイル>.jsonl` を使う。選んだ経路を記し、RDCの場合は `verbose_timing=true`。正式request_id、revision、receiptの照合は従来どおり行い、診断には転記しない。
+3. 既存更新は取得→案の準備→trip-resolve→apply→lookup→trip-get、新規は既存旅行の確認→complete Trip作成→trip-resolve→apply→lookup→trip-get。送受信境界を採れる場合は、各exec_command／write_stdin（RDCならstart_process／read_process_output）の直前／受取直後を同じ持続する時計で記録する。呼出間の空白も残す。session_id／PIDを区別し、yield・timeout・出力上限の条件を記録し、poll確認用に短縮した試行は別条件として報告する。取得できなければnull／未観測にし、RDCのTotal Durationを外側往復の代用にしない。
 4. 取得結果の受取→案の送出は観測できても「Chat側処理・準備等」の区間である。ツール選択・入力準備・待機を含み得る。AI推論テレメトリがなければAI内部時間は未観測のままとする。ユーザー確認待ちには別の開始／終了を記し、未取得なら0としない。
-5. CAL応答のtotal／内部区間、RDCのtotal／time-to-first-output／exit detection／runtimeを別欄へ記す。入れ子のCAL区間は単純合算しない。再送・lookupの今回の時間を元の保存時間へ付け替えない。地図接続・実検索、通知・Google同期は、実行／既存座標利用／未設定／未観測を区別する。
-6. 保存のreceipt照合と再取得後、既存Frameの `GET /api/calendar/trips/<id>/effective` で現在revisionと意図した変更を確認し、その受取境界を記す。画面は実際の再読込・描画確認の終了を別に記す。API応答だけで端末表示済みとしない。本番旅程やGoogle予定を測定のためだけに作成／変更しない。
+5. CAL応答のtotal／内部区間、外側の各ツール時間と呼出間時間を別欄へ記す。RDCでは取得できたtotal／time-to-first-output／exit detection／runtimeも分ける。入れ子のCAL区間は単純合算しない。再送・lookupの今回の時間を元の保存時間へ付け替えない。地図接続・実検索、通知・Google同期は、実行／既存座標利用／未設定／未観測を区別する。
+6. 保存確定応答の受取とreceipt照合の境界を記し、保存確定を先に知らせる。続けてlookup・再取得を照合し、その後、既存Frameの `GET /api/calendar/trips/<id>/effective` で現在revisionと意図した変更を確認し、その受取境界を記す。画面は実際の再読込・描画確認の終了を別に記す。API応答だけで端末表示済みとしない。本番旅程やGoogle予定を測定のためだけに作成／変更しない。
 7. 最初の開始境界から最後に観測した到達点までを全体時間として示す。異なる時計のtimestampを差し引かず、同一時計の各durationと相関IDを照合する。各段階の時計・精度・未観測の隙間、初回／後続、成否、入力件数を併記する。Chat開始や画面確認が欠ければ全体時間は未観測であり、観測済み部分経路の時間だけを示す。
 
 記録は固定の段階名・数値・状態・ランダム診断IDだけとし、本文・住所・query・credential・原文receiptをログ／Gitへ残さない。診断のために新規常駐・監視DB・外部ログを作らず、RDC設定やモデルを変更しない。外側のツール呼出時間は純粋な回線伝送時間ではなく、transport・queue・tool処理・結果検出等を含み得る。外側とCALの差を全てAI時間にしない。
