@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish the travel lookup index; fetch current data from Mac."""
+"""Publish lightweight travel/item lookup indexes; fetch current data from Mac."""
 import sys
 sys.dont_write_bytecode = True
 import argparse
@@ -16,7 +16,7 @@ from Sources.calendar_domain.trip_index import CONFIG
 REPOSITORY = 'USXUSX/Calendar'
 BRANCH = 'chat-index'
 INDEX_PATH = 'trip-index.json'
-DATA_PREFIX = 'chat-data/'
+DATA_PREFIX = 'item-index/'
 
 
 def canonical(value):
@@ -24,11 +24,46 @@ def canonical(value):
 
 
 def build_files(cal):
-    # Current values and revision are fetched from Mac, not Git copies.
-    travels = [dict(id=t['id'], title=t['title'], dateRange=t['dateRange'],
-                    has_itinerary=t['has_itinerary']) for t in cal.list_travel()]
-    return {INDEX_PATH: dict(schema='cal-trip-index-v1',
-                             travels=sorted(travels, key=lambda t: t['id']))}
+    files, travels, by_date = {}, [], {}
+    # Read index metadata from one CAL state, including direct overrides.
+    with cal._command() as c:
+        c.execute('BEGIN IMMEDIATE')
+        cal._trip_write_state.connection = c
+        try:
+            for travel in cal.list_travel():
+                tid = travel['id']
+                travels.append({k: travel[k] for k in ('id', 'title', 'dateRange', 'has_itinerary')})
+                if not travel['has_itinerary']:
+                    continue
+                if cal._journal_path(tid).exists():
+                    raise ValueError('pending Trip adoption; defer index publication')
+                trip = cal.get_effective_trip(tid)
+                names = {p['id']: p['name'] for p in trip['places']}
+                days = []
+                for day in sorted(trip['days'], key=lambda d: d['date']):
+                    items = []
+                    for item in day['scheduleItems']:
+                        items.append(dict(source_type='scheduleItem', source_item_id=item['id'],
+                                          start=(item.get('time') or {}).get('start'), title=item['action']))
+                    for item in trip['transports']:
+                        if item['dayId'] != day['id']:
+                            continue
+                        origin = names.get(item.get('fromPlaceId'), item.get('fromPlaceId') or '未定')
+                        destination = names.get(item.get('toPlaceId'), item.get('toPlaceId') or '未定')
+                        items.append(dict(source_type='transport', source_item_id=item['id'],
+                                          start=(item.get('time') or {}).get('start'),
+                                          title=item['mode'] + ': ' + origin + '→' + destination))
+                    days.append(dict(date=day['date'], items=items))
+                    by_date.setdefault(day['date'], []).append(dict(trip_id=tid, items=items))
+                files[DATA_PREFIX + 'by-trip/' + tid + '.json'] = dict(
+                    schema='cal-item-index-v1', trip_id=tid, days=days)
+        finally:
+            cal._trip_write_state.connection = None
+    files[INDEX_PATH] = dict(schema='cal-trip-index-v1', travels=sorted(travels, key=lambda t: t['id']))
+    for day_date, trips in by_date.items():
+        files[DATA_PREFIX + 'by-date/' + day_date + '.json'] = dict(
+            schema='cal-item-index-v1', date=day_date, trips=sorted(trips, key=lambda t: t['trip_id']))
+    return files
 
 
 def build_index(cal):
@@ -52,7 +87,7 @@ def blob_sha(content):
 
 
 def publish_files(gh, files):
-    """Update the travel index and remove obsolete detail copies in one Git commit."""
+    """Update lookup indexes and remove obsolete index files in one Git commit."""
     endpoint = 'repos/' + REPOSITORY + '/git/'
     ref = github(gh, 'GET', endpoint + 'ref/heads/' + BRANCH)
     parent = ref['object']['sha']
@@ -73,7 +108,7 @@ def publish_files(gh, files):
         return dict(status='unchanged', commit_sha=parent)
     tree = github(gh, 'POST', endpoint + 'trees', dict(base_tree=tree_sha, tree=edits))
     commit = github(gh, 'POST', endpoint + 'commits', dict(
-        message='Update CAL travel lookup index', tree=tree['sha'], parents=[parent]))
+        message='Update CAL travel and item lookup indexes', tree=tree['sha'], parents=[parent]))
     # Do not overwrite a concurrent branch update.
     github(gh, 'PATCH', endpoint + 'refs/heads/' + BRANCH, dict(sha=commit['sha'], force=False))
     return dict(status='published', commit_sha=commit['sha'])
