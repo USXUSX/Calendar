@@ -9,14 +9,14 @@ CALのChat更新は接続済みMacの標準実行経路（`exec_command`、継�
 1. 計測する依頼では、**最初のツール呼出し内で、手順取得・接続先探索より先に呼出元の時刻を記録**する。[計測境界](#新規チャットでの短縮確認285)に従い、計測準備後へ開始点を移さない。
 2. 対象Macは `usMac-miniM4Pro.local`。そのMacへの標準実行経路が利用できれば使い、Cloudのshellしか使えない場合などは既存RDCでそのMacを選ぶ。Cloud shellでMacのCLIを探さない。RDCのdevice IDが未解決なら一覧から選び、複数端末を推測しない。
 3. [一括の読取り確認](#接続確認を一度に行う285)を行い、対象Mac・作業場所・Python・CLIを確認する。確認済みの同じ接続・パスを通常操作の途中で繰り返し調べない。
-4. 下表で操作を選ぶ。Trip IDが不明なら `trips`、判明したら最新の `trip-get` で対象項目・revision・未処理指示を確認する。既知IDでも保存値・revisionは使い回さない。対象の複数一致は確認する。
+4. 下表で操作を選ぶ。Trip IDが不明なら `trips`、判明したら最新の `trip-get` で対象項目・revision・未処理指示を確認する。局所更新で対象項目IDも既知なら `trip-get --id <Trip ID> --item-id <項目ID>` で必要な情報だけを取得する。既知IDでも保存値・revisionは使い回さない。対象の複数一致は確認する。
 5. 要求IDと送信内容を短く会話へ残し、専用CLIで保存する。最終exit 0と `status=committed`、receiptの要求ID・対象・操作・内容の一致を確認する。保存確定結果を回収したら計測を止め、**保存完了を先に報告**する。
 6. 続けてlookup・再取得・必要なFrame反映を照合する。これは後続確認として報告し、保存確定までの時間へ加えない。応答不明時は同じ要求IDをlookupし、同内容だけを再送する。
 
 | 依頼 | 読む節・使う操作 |
 | --- | --- |
 | 通常予定・Todoの追加／変更／完了 | [正式更新](#正式更新)：read/get → apply |
-| 既存Tripの名称・時刻・コメント等の対応済み局所変更 | [局所変更](#旅程の局所変更)：trip-get → trip-operation。complete Tripの再生成・trip-resolveは不要 |
+| 既存Tripの名称・時刻・コメント等の対応済み局所変更 | [局所変更](#旅程の局所変更)：trip-get（対象ID既知なら--item-id）→ trip-operation。complete Tripの再生成・trip-resolveは不要 |
 | 既存Tripの大きな組み直し・局所操作にない変更 | [全体保存](#旅程の正式更新205)と[生成ガイド](trip-json-generation.md)：最新trip-getを基にcomplete Tripをsave |
 | 新規Tripの生成・登録 | [全体保存](#旅程の正式更新205)と[生成ガイド](trip-json-generation.md)：travels確認 → complete Trip生成 → resolve → create |
 | 鉄道経路・地点変更、定期予定、旅行管理 | 本書の該当節とそこから参照する所有契約だけを読む |
@@ -169,7 +169,7 @@ receiptは既存CAL DBの`schedule_receipts`に保持し、自動削除しない
 
 ## 旅程の局所変更
 
-名称・時刻・コメントなど、既存の意味操作で表せる変更は `trip-operation` を使う。最新 `trip-get` のTrip ID・対象stable ID・revisionオブジェクト全体をそのまま用いる。要求形式と対応fieldは[直接編集の正式要求](direct-schedule.md#画面の正式要求calendar-238)が正本で、CLIも同じCAL入口を呼ぶ。
+名称・時刻・コメントなど、既存の意味操作で表せる変更は `trip-operation` を使う。最新 `trip-get` のTrip ID・対象stable ID・revisionオブジェクト全体をそのまま用いる。対象stable IDが分かる局所更新は、保存前・後続再取得とも `--item-id` で出力を絞る。Trip IDが既知ならtripsを重ねて実行しない。要求形式と対応fieldは[直接編集の正式要求](direct-schedule.md#画面の正式要求calendar-238)が正本で、CLIも同じCAL入口を呼ぶ。
 
 予定の表示名変更なら `operation=item`、`source_type=scheduleItem`、`changes.title` を使う。complete Tripの `action` をそのままchangesのキーにしない。具体例・コメントの保持は[Chatからの局所変更](direct-schedule.md#chatからの局所変更)を参照する。対応済みのfieldだけを指定し、未知fieldを推測して送らない。
 
@@ -183,6 +183,7 @@ receiptは既存CAL DBの`schedule_receipts`に保持し、自動削除しない
 
 - `trips`：登録済み旅程の一覧。対象IDを特定する。
 - `trip-get --id <Trip ID>`：effective complete Trip、未処理instructions、revisionを取得する。Direct Overrideと固定自宅を含む。revisionはtrip_version/effective_hash/instructions_hashの組で、指示の追加・変更も競合判定に含める。
+- `trip-get --id <Trip ID> --item-id <予定／移動のstable ID>`：同じ最新contextからMac上で対象1項目を抽出する。返すのは `trip_id / context_scope=item / trip_summary / day / source_type / source_item_id / item / places / bookings / instructions / revision`。`trip_summary` はID・名称・期間、dayはその日の概要で、他項目は返さない。placesは候補・選択・地図表示先・移動端点と関連予約の地点、bookingsは対象の予約ID・地点・移動に関係する予約。未処理instructionsは全件、revisionはTrip全体の元の値を保持する。対象不在・重複はexit 2で拒否する。無指定の出力は従来どおり。
 - `trip-plan`：標準入力の `{"trip":<complete Trip>,"existing_trip_id":<更新対象ID>}` から既存の地図補完planを取得する。新規時はexisting_trip_idを省略する。検索内容の確認用で、保存はしない。
 - `trip-resolve`：`trip-plan`と同じ入力から不足地点を既存FrameのGoogle Maps接続で1回ずつ検索し、`coordinate_results`とattempted / filled / missing / existing件数を返す。Frame画面を開く必要はないが、既存loopback Frameサービスと地図接続設定が利用できる必要がある。Secretは出力しない。
 - `apply`：下記の旅程要求を標準入力（またはrequest-base64）で渡す。
@@ -198,6 +199,8 @@ receiptは既存CAL DBの`schedule_receipts`に保持し、自動削除しない
   "trip": {}
 }
 ```
+
+`--item-id` の応答はcomplete Tripではなく、全体save・trip-resolveの入力には使わない。対象IDが不明なら無指定trip-getで特定する。前後の行動や他日の構成を判断する依頼も無指定で取得する。全件照合が必要な後続確認は、Mac上で無指定の応答を比較して判定結果だけ返すなど、全文をAIへ再送する必要はない。
 
 create / saveを送る前に[共通生成ガイドの登録前チェック](trip-json-generation.md#登録前チェック)を行う。
 
