@@ -21,7 +21,11 @@ Never copy private local data into this repository or the shared-reference folde
 - Official synchronization to `Calendar_GD`, `Calendar_Local` and real Trip operations, Mac production updates, and physical-device checks are Local work. Do not copy these resources or credentials into Cloud.
 - Keep the existing Mac operation in place and report Cloud validation separately from any remaining Local work. Common procedures continue to follow the current GitHub TDS.
 
-## Start every task here
+## Existing-data operations
+
+For ordinary Event/Todo/Trip operations through existing features, start with the [short Chat operation entry](docs/chat-schedule.md#通常操作の短い入口). Keep applicable higher-level instructions, but do not expand an ordinary update into development/source/Issue investigation. The development workflow below applies when changing code, specifications, or diagnosing an unsupported operation.
+
+## Start development tasks here
 
 1. Fetch and read `CODEX_START.md` and its linked rules from the current GitHub `main` of `USXUSX/ToolDevelopmentStandard`, then read `README.md`.
 2. Read only the documents linked from `README.md` that are relevant to the task.

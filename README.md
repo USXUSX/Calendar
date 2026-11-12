@@ -8,6 +8,8 @@ CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb�
 
 ## 現在の利用経路
 
+日常の登録・変更は[通常操作の短い入口](docs/chat-schedule.md#通常操作の短い入口)から始める。対応済みの局所変更は部分更新、新規・全体構成の変更はcomplete Trip生成を使い分け、必要な操作の文書だけを読む。
+
 - Chatの新規・既存Trip更新は接続済みMacの標準実行経路を優先し（利用できない場合は既存RDCから）[CAL専用コマンド](docs/chat-schedule.md)を呼び、CALで検証・正式保存してreceiptを受け取る。Frameの手動JSON取込も保持する。
 - 既存TripはFrameで[版照合・receipt付き](docs/direct-schedule.md#画面の正式要求calendar-238)の直接編集・予定追加／削除／並び替え・候補選択・位置保存・指示保存ができる。CALの編集を微修正には限定しない。
 - 継続編集は専用コマンドからeffective Trip・revision・未処理指示を取得して更新する。context自動共有・candidate自動採用は停止し、残存ファイルを削除しない。
