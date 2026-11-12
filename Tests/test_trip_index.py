@@ -102,4 +102,3 @@ class TripIndexTest(unittest.TestCase):
         with patch('Sources.calendar_domain.trip_index.subprocess.Popen') as spawn:
             queue_publication(self.root/'other.sqlite3', self.root)
             spawn.assert_not_called()
-
