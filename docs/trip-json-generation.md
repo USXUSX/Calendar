@@ -6,7 +6,7 @@
 
 ## 現行正本を読む
 
-CAL用JSON作成を依頼されたChatは、毎回GitHub現行mainの次の2文書を読む。会話に残った旧Schemaや記憶だけで生成しない。
+新規Tripまたは全体save用のcomplete JSONを作成するChatは、毎回GitHub現行mainの次の2文書を読む。既存項目の対応済み局所変更は[Chatの短い操作入口](chat-schedule.md#通常操作の短い入口)からtrip-operationを選び、本書・Schemaの全文取得やcomplete JSON生成を追加しない。会話に残った旧Schemaや記憶だけで生成しない。
 
 - [formal Schema](https://github.com/USXUSX/Calendar/blob/main/Schemas/trip.schema.json)
 - [このgeneration guide](https://github.com/USXUSX/Calendar/blob/main/docs/trip-json-generation.md)
@@ -167,7 +167,7 @@ Schemaで今回必要な情報を表現できるため変更は不要。Validati
 | 状態・変更 | 使う経路 |
 | --- | --- |
 | 登録前 | complete JSONを生成し、CAL専用コマンドのcreateで新規登録する |
-| 登録後の局所変更 | 時刻・予定・コメント等はCALの直接編集、または最新trip-getを基にしたsave要求で変更する。Chatへ局所変更を頼む場合も返すtripはcomplete JSON |
+| 登録後の局所変更 | 対応済み項目は最新trip-getを基にtrip-operationで部分更新する。complete JSON・変更しない地点のtrip-resolveは不要。未対応項目や未処理指示の消込みを含む場合は全体saveを使い、その場合だけcomplete Tripを返す |
 | 登録後の全体再生成 | 宿泊地・日数・日別構成等を大きく組み直す場合も最新trip-getのeffective Tripを出発点に、変更範囲を指示してsave要求のcomplete Tripを再生成する。既存対象のID・予約事実・変更対象外の内容を保持する。同じTripの更新に新規Importを使わない |
 | 開始日入りTrip IDで日程変更 | 開始日が変わりIDも新日程に合わせる運用では、新しいTrip IDのcomplete JSON本体を作り、createで新規登録する。旧TripのIDやフォルダだけを変更して更新扱いにしない。旧Tripの整理・削除は別途usの指示で扱う |
 

@@ -57,3 +57,17 @@ commit後に`status=committed / resolution=new|replayed / receipt`を返す。re
 指示commitは保存確定であり、pendingは未処理である。AI処理済み・旅程適用済みとは扱わない。
 Googleとcommit後通知は新規commitのみ。再送/lookupで再実行せず、表示・Google・DSPの後段失敗で正式保存を繰り返さない。
 既存receipt表を使うためschema追加・正式データ移行は不要。切戻しでもreceipt/journal/Overrideを保持し、旧無条件writeへ戻さず画面保存を止める。
+
+### Chatからの局所変更
+
+Chatの局所更新も `cal_schedule.py trip-operation` から上記の正式要求へ渡せる。最新trip-getのrevision全体とstable IDを使い、操作可能な項目だけを送る。表示名・時刻・通常コメントの編集は、変更しない地点の補完やcomplete Tripの再生成を必要としない。接続と保存後の扱いは[Chat操作入口](chat-schedule.md#通常操作の短い入口)に従う。
+
+予定の表示名だけを変える形式例（実データのID/revisionを入れるまで実行しない）：
+
+```json
+{"request_id":"example-new-uuid","trip_id":"取得済みTrip ID","operation":"item","expected_revision":{"trip_version":1,"effective_hash":"取得値","instructions_hash":"取得値"},"values":{"source_type":"scheduleItem","source_item_id":"取得済み予定ID","changes":{"title":"変更後の表示名"}}}
+```
+
+`changes.title` はScheduleItem.actionへ反映され、Place.nameは変更しない。通常コメントを全文編集する場合は `normal_comment` と `supporting_details` を合わせて指定する。対象がTransportなら `source_type=transport` とし、対応する移動fieldを使う。時刻・地点・候補等の意味制約は[閲覧・編集モデル](trip-detail-model.md#閲覧編集の意味境界116)が正本で、未知fieldは推測しない。
+
+局所要求は未処理指示の消込みを提供しない。`ai_instruction` を保存しても実行したことにはならない。消込みを含む更新や未対応の項目は[全体保存](chat-schedule.md#旅程の正式更新205)で扱う。
