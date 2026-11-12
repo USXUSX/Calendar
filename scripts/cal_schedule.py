@@ -34,7 +34,9 @@ def main(argv=None):
     travel = sub.add_parser('travel-get');travel.add_argument('--id', required=True);travel.add_argument('--start');travel.add_argument('--end')
     series=sub.add_parser('series');series.add_argument('--id')
     trip = sub.add_parser('trip-get');trip.add_argument('--id', required=True)
-    trip.add_argument('--item-id', help='return one schedule item or transport and its related context instead of the complete Trip')
+    scope = trip.add_mutually_exclusive_group()
+    scope.add_argument('--item-id', help='return one schedule item or transport and its related context instead of the complete Trip')
+    scope.add_argument('--date', help='return one day (YYYY-MM-DD), its items and related context')
     sub.add_parser('trip-plan')
     resolve = sub.add_parser('trip-resolve');resolve.add_argument('--map-config-url', default='http://127.0.0.1:8080/api/calendar/map-config')
     read = sub.add_parser('read');read.add_argument('--start', required=True);read.add_argument('--end', required=True)
@@ -64,6 +66,50 @@ def main(argv=None):
 
 
 
+def trip_related_context(trip, entries, *, day_date=None):
+    place_ids, booking_ids, transport_ids = set(), set(), set()
+    for source_type, item in entries:
+        selection = item.get('placeSelection', {})
+        place_ids.update(selection.get('candidatePlaceIds', []))
+        place_ids.update(selection.get('selection', []))
+        place_ids.update(item.get(key) for key in ('fromPlaceId', 'toPlaceId', 'mapPlaceId'))
+        booking_ids.add(item.get('bookingId'))
+        if source_type == 'transport':
+            transport_ids.add(item['id'])
+    place_ids.discard(None)
+    booking_ids.discard(None)
+    bookings = [b for b in trip.get('bookings', [])
+                if b['id'] in booking_ids or b.get('transportId') in transport_ids
+                or (day_date is not None and b.get('targetDate') == day_date)
+                or (b.get('placeId') in place_ids and
+                    (day_date is None or b.get('targetDate') is None))]
+    place_ids.update(b.get('placeId') for b in bookings)
+    return [p for p in trip['places'] if p['id'] in place_ids], bookings
+
+
+def trip_day_context(context, day_date):
+    """Return one day's current data with the original whole-Trip revision."""
+    from datetime import date
+    try:
+        if date.fromisoformat(day_date).isoformat() != day_date:
+            raise ValueError()
+    except (TypeError, ValueError):
+        raise ValueError('trip_day_date_invalid')
+    trip = context['trip']
+    matches = [day for day in trip['days'] if day['date'] == day_date]
+    if len(matches) != 1:
+        raise ValueError('trip_day_not_found_or_ambiguous')
+    day = matches[0]
+    transports = [t for t in trip['transports'] if t['dayId'] == day['id']]
+    entries = [('scheduleItem', item) for item in day['scheduleItems']]
+    entries.extend(('transport', item) for item in transports)
+    places, bookings = trip_related_context(trip, entries, day_date=day_date)
+    return dict(trip_id=context['trip_id'], context_scope='day',
+                trip_summary={k: trip[k] for k in ('id', 'title', 'dateRange')},
+                day=day, transports=transports, places=places, bookings=bookings,
+                instructions=context['instructions'], revision=context['revision'])
+
+
 def trip_item_context(context, item_id):
     """Project one existing snapshot; never return a partial object as a Trip."""
     trip = context['trip']
@@ -78,21 +124,13 @@ def trip_item_context(context, item_id):
     if len(matches) != 1:
         raise ValueError('trip_item_not_found_or_ambiguous')
     day, source_type, item = matches[0]
-    selection = item.get('placeSelection', {})
-    place_ids = set(selection.get('candidatePlaceIds', [])) | set(selection.get('selection', []))
-    place_ids.update(item.get(key) for key in ('fromPlaceId', 'toPlaceId', 'mapPlaceId'))
-    place_ids.discard(None)
-    bookings = [booking for booking in trip.get('bookings', [])
-                if booking['id'] == item.get('bookingId')
-                or booking.get('placeId') in place_ids
-                or (source_type == 'transport' and booking.get('transportId') == item_id)]
-    place_ids.update(booking.get('placeId') for booking in bookings)
+    places, bookings = trip_related_context(trip, [(source_type, item)])
     return dict(
         trip_id=context['trip_id'], context_scope='item',
         trip_summary={key: trip[key] for key in ('id', 'title', 'dateRange')},
         day={key: value for key, value in day.items() if key not in {'scheduleItems', 'transportIds'}},
         source_type=source_type, source_item_id=item_id, item=item,
-        places=[place for place in trip['places'] if place['id'] in place_ids],
+        places=places,
         bookings=bookings, instructions=context['instructions'], revision=context['revision'],
     )
 
@@ -154,6 +192,8 @@ def execute(args):
             count_trip(result['trip'])
             if args.item_id is not None:
                 result = dict(status='ok', **trip_item_context(result, args.item_id))
+            elif args.date is not None:
+                result = dict(status='ok', **trip_day_context(result, args.date))
         elif args.action in ('trip-plan','trip-resolve'):
             with span('input'):
                 value = json.load(sys.stdin)

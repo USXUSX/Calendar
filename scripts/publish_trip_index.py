@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish CAL read copies for Chat preparation; Mac remains authoritative."""
+"""Publish the travel lookup index; fetch current data from Mac."""
 import sys
 sys.dont_write_bytecode = True
 import argparse
@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import subprocess
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from Sources.calendar_domain import CalendarDomain, ConflictError
+from Sources.calendar_domain import CalendarDomain
 from Sources.calendar_domain.trip_index import CONFIG
 
 REPOSITORY = 'USXUSX/Calendar'
@@ -24,54 +24,11 @@ def canonical(value):
 
 
 def build_files(cal):
-    """Read one locked CAL state; never export DB files, settings or credentials."""
-    files, travels = {}, []
-    # The reservation also protects formal Trip files from CAL writers while read.
-    with cal._command() as c:
-        c.execute('BEGIN IMMEDIATE')
-        cal._trip_write_state.connection = c
-        try:
-            for row in c.execute('SELECT id FROM trips ORDER BY id').fetchall():
-                tid = row['id']
-                if cal._journal_path(tid).exists():
-                    raise ConflictError('pending Trip adoption; defer publication')
-                basic = cal._travel_basic(c, tid)
-                path = DATA_PREFIX + 'trips/' + tid
-                summary = dict(id=tid, title=basic['title'], dateRange=basic['dateRange'],
-                               has_itinerary=basic['has_itinerary'], travel_path=path + '/travel.json')
-                files[summary['travel_path']] = dict(status='ok', travel=basic)
-                if basic['has_itinerary']:
-                    context = cal._trip_command_context(c, tid)
-                    summary.update(items_path=path + '/items.json', context_path=path + '/context.json')
-                    files[summary['context_path']] = dict(status='ok', **context)
-                    trip = context['trip']
-                    items = []
-                    for day in trip['days']:
-                        for item in day['scheduleItems']:
-                            items.append(dict(source_type='scheduleItem', source_item_id=item['id'],
-                                              day_id=day['id'], date=day['date'], item=item))
-                    dates = {day['id']: day['date'] for day in trip['days']}
-                    for item in trip['transports']:
-                        items.append(dict(source_type='transport', source_item_id=item['id'],
-                                          day_id=item['dayId'], date=dates[item['dayId']], item=item))
-                    files[summary['items_path']] = dict(
-                        status='ok', context_scope='items', trip_id=tid,
-                        trip_summary={k: trip[k] for k in ('id', 'title', 'dateRange')},
-                        items=items, places=[dict(id=p['id'], name=p['name']) for p in trip['places']],
-                        instructions=context['instructions'], revision=context['revision'])
-                travels.append(summary)
-            ordinary = []
-            for kind, table in [('event', 'events'), ('todo', 'todos')]:
-                for row in c.execute('SELECT id FROM ' + table + ' ORDER BY id').fetchall():
-                    ordinary.append(cal.get_schedule_item(kind, row['id']))
-            series = [cal.get_series(row['id']) for row in c.execute(
-                'SELECT id FROM schedule_series ORDER BY id').fetchall()]
-            schedule_path = DATA_PREFIX + 'schedule.json'
-            files[schedule_path] = dict(status='ok', items=ordinary, series=series)
-        finally:
-            cal._trip_write_state.connection = None
-    files[INDEX_PATH] = dict(schema='cal-chat-copy-v2', travels=travels, schedule_path=schedule_path)
-    return files
+    # Current values and revision are fetched from Mac, not Git copies.
+    travels = [dict(id=t['id'], title=t['title'], dateRange=t['dateRange'],
+                    has_itinerary=t['has_itinerary']) for t in cal.list_travel()]
+    return {INDEX_PATH: dict(schema='cal-trip-index-v1',
+                             travels=sorted(travels, key=lambda t: t['id']))}
 
 
 def build_index(cal):
@@ -95,7 +52,7 @@ def blob_sha(content):
 
 
 def publish_files(gh, files):
-    """One non-forced ref update makes all copies visible in the same Git commit."""
+    """Update the travel index and remove obsolete detail copies in one Git commit."""
     endpoint = 'repos/' + REPOSITORY + '/git/'
     ref = github(gh, 'GET', endpoint + 'ref/heads/' + BRANCH)
     parent = ref['object']['sha']
@@ -116,7 +73,7 @@ def publish_files(gh, files):
         return dict(status='unchanged', commit_sha=parent)
     tree = github(gh, 'POST', endpoint + 'trees', dict(base_tree=tree_sha, tree=edits))
     commit = github(gh, 'POST', endpoint + 'commits', dict(
-        message='Update CAL read copies for Chat', tree=tree['sha'], parents=[parent]))
+        message='Update CAL travel lookup index', tree=tree['sha'], parents=[parent]))
     # Do not overwrite a concurrent branch update.
     github(gh, 'PATCH', endpoint + 'refs/heads/' + BRANCH, dict(sha=commit['sha'], force=False))
     return dict(status='published', commit_sha=commit['sha'])
