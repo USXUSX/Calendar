@@ -122,6 +122,9 @@ class CalendarDomain(TripAIMixin, TripRequestMixin, TravelMixin, GoogleCalendarM
             from .change_notification import notify_committed
             with span('post_commit_notification'):
                 notify_committed(self.db_path, self.trip_root)
+            if changed & {'trips', 'travel_basics', 'direct_overrides'}:
+                from .trip_index import queue_publication
+                queue_publication(self.db_path, self.trip_root)
 
     @contextmanager
     def _read(self) -> Iterator[sqlite3.Connection]:
