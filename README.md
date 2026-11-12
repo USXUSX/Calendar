@@ -8,7 +8,7 @@ CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb�
 
 ## 現在の利用経路
 
-通常Chatは[短い操作手順](docs/chat-quick.md)と[旅行一覧](https://github.com/USXUSX/Calendar/blob/chat-index/trip-index.json)を読む。GitでTrip IDを選び、Macで接続確認＋最新データ取得を一括実行する。項目単位の依頼でID不明ならGitの軽量項目索引（日付別、日付不明時は旅行別）からIDを選び、Macで--item-idを使う。日全体の依頼は索引を追加取得せず--date、全体の文脈が必要なときだけ全体取得。AIが変更を準備し、Macへ正式保存する。[一覧の更新契約](docs/trip-index.md)。
+通常Chatは[短い操作手順](docs/chat-quick.md)と[旅行一覧](https://github.com/USXUSX/Calendar/blob/chat-index/trip-index.json)を読む。GitでTrip IDを選び、Macで接続確認＋最新データ取得を一括実行する。項目索引は使わず、通常は--dateで対象日を取得し、全体の文脈が必要なときだけ全体取得。明示ID付き依頼と後続照合用の--item-idは保持する。AIが変更を準備し、Macへ正式保存する。正式receipt受信で保存完了と保存までの処理時間を報告し、終了確認・照合は後続へ回す。後続は問題がある場合だけ報告する。[一覧の更新契約](docs/trip-index.md)。
 
 日常の登録・変更は[通常操作の短い入口](docs/chat-quick.md)から始める。対応済みの局所変更は部分更新、新規・全体構成の変更はcomplete Trip生成を使い分け、必要な操作の文書だけを読む。
 

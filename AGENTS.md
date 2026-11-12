@@ -13,7 +13,7 @@ These are Local placements on Mac. Cloud tasks use the GitHub repository checkou
 - Chat exchange (separate from reference sync): `/Users/us/マイドライブ/Tools/Calendar_Chat`
 - Private local data: `/Users/us/Tools/LocalData/Calendar_Local`
 
-Secret, credentials and explicitly non-public information must not be copied into Git or shared references. Other tool data may be published under us's standing permission. The `chat-index` branch holds the [travel and lightweight item lookup indexes](docs/trip-index.md); detailed read-copy publication is discontinued. Use item lookup only for item-scoped requests; day-wide requests keep date-limited reads. Fetch current values/revisions/instructions from Mac: one item if its ID is known, one day if the date is known, the whole Trip only when needed. Keep Mac as the formal authority and use its dedicated CLI for updates. Do not copy DB files, settings or receipt history into source main.
+Secret, credentials and explicitly non-public information must not be copied into Git or shared references. Other tool data may be published under us's standing permission. The `chat-index` branch holds only the [travel lookup index](docs/trip-index.md); item lookup and detailed copy publication are suspended. Default to date-limited Mac reads; retain item IDs for writes, follow-up checks and explicit-ID requests. Fetch current values/revisions/instructions from Mac: one item if its ID is known, one day if the date is known, the whole Trip only when needed. Keep Mac as the formal authority and use its dedicated CLI for updates. Do not copy DB files, settings or receipt history into source main.
 
 ## Cloud / Local boundary
 
@@ -23,7 +23,7 @@ Secret, credentials and explicitly non-public information must not be copied int
 
 ## Existing-data operations
 
-For ordinary Event/Todo/Trip operations through existing features, start with the [short Chat operation entry](docs/chat-quick.md). Keep applicable higher-level instructions, but do not expand an ordinary update into development/source/Issue investigation. The development workflow below applies when changing code, specifications, or diagnosing an unsupported operation.
+For ordinary Event/Todo/Trip operations through existing features, start with the [short Chat operation entry](docs/chat-quick.md). Report saving and caller elapsed time upon receiving the matching committed receipt; collect exit status and reconcile afterward in the same turn, reporting follow-up only on problems. Keep applicable higher-level instructions, but do not expand an ordinary update into development/source/Issue investigation. The development workflow below applies when changing code, specifications, or diagnosing an unsupported operation.
 
 ## Start development tasks here
 
