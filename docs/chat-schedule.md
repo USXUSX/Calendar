@@ -8,8 +8,8 @@ CALのChat更新は接続済みMacの標準実行経路（`exec_command`、継�
 
 1. 計測する依頼では、**最初のツール呼出し内で、手順取得・接続先探索より先に呼出元の時刻を記録**する。[計測境界](#新規チャットでの短縮確認285)に従い、計測準備後へ開始点を移さない。
 2. 対象Macは `usMac-miniM4Pro.local`。そのMacへの標準実行経路が利用できれば使い、Cloudのshellしか使えない場合などは既存RDCでそのMacを選ぶ。Cloud shellでMacのCLIを探さない。RDCのdevice IDが未解決なら一覧から選び、複数端末を推測しない。
-3. [一括の読取り確認](#接続確認を一度に行う285)を行い、対象Mac・作業場所・Python・CLIを確認する。確認済みの同じ接続・パスを通常操作の途中で繰り返し調べない。
-4. 下表で操作を選ぶ。Trip IDが不明なら `trips`、判明したら最新の `trip-get` で対象項目・revision・未処理指示を確認する。局所更新で対象項目IDも既知なら `trip-get --id <Trip ID> --item-id <項目ID>` で必要な情報だけを取得する。既知IDでも保存値・revisionは使い回さない。対象の複数一致は確認する。
+3. 下表で操作と必要なreadを選ぶ。Trip IDが不明なら `trips`、既知なら `trip-get`、局所更新で項目IDも既知なら `trip-get --id <Trip ID> --item-id <項目ID>`。既知IDでも保存値・revisionは使い回さない。対象の複数一致は確認する。
+4. [接続確認と必要なread](#接続確認を一度に行う285)を**最初のMac実行の同じ呼出し**で順に行う。確認だけを返してから別の呼出しでreadし直さない。対象Mac・作業場所・Python・CLIの確認後、同じ実行内で専用CLIから最新対象・revision・未処理指示を取得する。確認済みの同じ接続・パスを通常操作中に重複確認しない。
 5. 要求IDと送信内容を短く会話へ残し、専用CLIで保存する。最終exit 0と `status=committed`、receiptの要求ID・対象・操作・内容の一致を確認する。保存確定結果を回収したら計測を止め、**保存完了を先に報告**する。
 6. 続けてlookup・再取得・必要なFrame反映を照合する。これは後続確認として報告し、保存確定までの時間へ加えない。応答不明時は同じ要求IDをlookupし、同内容だけを再送する。
 
@@ -31,7 +31,7 @@ CALのChat更新は接続済みMacの標準実行経路（`exec_command`、継�
 
 ### 接続確認を一度に行う（#285）
 
-選んだ接続経路で、以下の読取りを**一つの呼出し**として実行する。作業場所を指定できる経路ではその指定も使う。対象Macへの到達と必要ファイルを同時に確認し、正常ならdoctorや所在検索を追加しない。CLI自身も通常呼出しごとに既存DB・receipt表等を検証する。失敗・経路切替・所在変更時だけ必要な再確認を行う。
+選んだ接続経路で、**接続確認と必要なデータ取得を一つの呼出し**として実行する（#289）。下の例は対象Trip・項目IDが既知の局所更新用。引用した2つのIDを取得済みの値へ置き換える。標準接続なら1つのexec_command、RDCなら1つのstart_processへ、コードブロック全体を渡す。作業場所を指定できる経路ではその指定も使う。確認結果の受取待ちを挟まずreadまで行い、正常ならdoctorや所在検索を追加しない。CLI自身も既存DB・receipt表等を検証する。
 
 ```sh
 set -e
@@ -42,18 +42,26 @@ import socket
 from pathlib import Path
 root = Path('/Users/us/Tools/Development/Calendar_Dev')
 cli = root / 'scripts/cal_schedule.py'
+host = socket.gethostname()
+if host.split('.')[0].casefold() != 'usmac-minim4pro':
+    raise SystemExit('Unexpected Mac; CAL read not started')
 if Path.cwd().resolve() != root.resolve() or not cli.is_file():
     raise SystemExit('CAL checkout or CLI unavailable')
 print(json.dumps({
-    'host': socket.gethostname(),
+    'host': host,
     'cwd': str(Path.cwd()),
     'python': '/usr/bin/python3',
     'cli': str(cli)
 }, ensure_ascii=False))
 CAL_CONNECTION_CHECK
+/usr/bin/python3 -B scripts/cal_schedule.py trip-get --id '取得済みTrip ID' --item-id '取得済み項目ID'
 ```
 
-選択済みデバイス情報と返されたhostを照合し、対象Macと分かるまでwriteしない。host名が想定と異なる場合に自動許可しない。これは接続・所在の確認であり保存成功ではない。RDCのdevice IDや標準session IDを文書へ固定しない。継続出力の回収は[接続手順](#接続条件継続rdcへ戻す手順283)に従う。
+Trip IDが不明なら最後のCLI行をtripsへ、Trip IDだけ既知なら--item-idなしのtrip-getへ、通常予定なら対象期間のreadまたは既知IDのgetへ置き換える。これらを全て実行するのではなく、必要なreadを一つ選ぶ。未知IDを推測して絞らない。
+
+前半の確認が失敗するとset -eで停止し、データ取得へ進まない。選択済みデバイス情報と返されたhostも照合する。想定と異なるhostや所在を自動許可しない。返る接続確認JSONとCLIの読取りJSONは別の結果であり、どちらも保存成功ではない。取得結果を受け取って変更内容を判断した後、**別の正式保存呼出し**へ進む。対象ID既知なら保存前のMac実行は基本2回（確認＋取得、正式保存）となる。保存やAI判断までこの読取りへ混ぜない。
+
+失敗・経路切替・所在変更時だけ必要な再確認を行う。RDCのdevice IDや標準session IDを文書へ固定しない。途中出力やtimeoutを完了とせず、同じsession/PIDから出力と終了コードを回収する。[接続手順](#接続条件継続rdcへ戻す手順283)に従う。
 
 ## Chatで使う
 
