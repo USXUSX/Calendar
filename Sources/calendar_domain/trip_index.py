@@ -1,4 +1,4 @@
-"""Opt-in, detached publication of the explicitly approved public travel index."""
+"""Opt-in, detached publication of the approved CAL read copies."""
 import json
 from pathlib import Path
 import subprocess

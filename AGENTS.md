@@ -13,9 +13,7 @@ These are Local placements on Mac. Cloud tasks use the GitHub repository checkou
 - Chat exchange (separate from reference sync): `/Users/us/マイドライブ/Tools/Calendar_Chat`
 - Private local data: `/Users/us/Tools/LocalData/Calendar_Local`
 
-Never copy private local data into this repository or the shared-reference folder.
-
-Exception explicitly approved by us: the public travel routing index on the separate `chat-index` branch contains only travel title, dates, ID and itinerary availability. Follow [the index contract](docs/trip-index.md); do not publish other LocalData. Fetch its current branch together with the Chat operation entry for travel requests. It is a lookup hint, never the source of current values or revisions.
+Secret, credentials and explicitly non-public information must not be copied into Git or shared references. Other tool data may be published under us's standing permission. The approved CAL read copies live only on the separate `chat-index` branch; [the copy contract](docs/trip-index.md) defines their contents. Mac remains the formal authority. Prepare updates from these copies and let the existing Mac command compare revisions before saving; a preliminary Mac read is not mandatory when the copy is sufficient. Do not copy DB files, settings or receipt history into the source repository.
 
 ## Cloud / Local boundary
 
@@ -32,7 +30,7 @@ For ordinary Event/Todo/Trip operations through existing features, start with th
 1. Fetch and read `CODEX_START.md` and its linked rules from the current GitHub `main` of `USXUSX/ToolDevelopmentStandard`, then read `README.md`.
 2. Read only the documents linked from `README.md` that are relevant to the task.
 3. Treat `/Users/us/マイドライブ/Tools/Calendar_GD` as the one-way reference copy of committed Git source; do not edit it directly or reverse-sync it.
-4. Inspect `/Users/us/Tools/LocalData/Calendar_Local` only when the task needs non-shared runtime or sample-input data. Treat its contents as private and do not quote, commit, upload, or log them unless the user explicitly authorizes it.
+4. Inspect `/Users/us/Tools/LocalData/Calendar_Local` only when the task needs non-shared runtime or sample-input data. Preserve Secret and explicit non-public restrictions. Use the approved read-copy contract for ordinary operational data; do not export LocalData indiscriminately.
 5. Check `git status` before editing. Preserve unrelated user changes.
 
 Do not scan either external folder broadly without a task-specific reason. Prefer filenames, indexes, and targeted searches.
@@ -52,7 +50,7 @@ When sources conflict, stop and identify the conflict. Do not silently overwrite
 - Keep changes small, reversible, and limited to the requested scope.
 - Do not modify or migrate the legacy Calendar prototype at `/Users/us/CommonTool/Calendar`.
 - Do not publish, deploy, enable external delivery, or change sharing without explicit user approval.
-- Do not introduce credentials, personal data, generated caches, or machine-specific runtime files into Git.
+- Do not introduce credentials, explicitly non-public data, or machine-specific runtime/configuration files into Git. Keep approved operational read copies separate from source main.
 - Do not choose an application framework or production architecture until that decision is recorded in `docs/decisions.md`.
 - Update tests and confirmed documentation when behavior changes.
 

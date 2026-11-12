@@ -8,13 +8,13 @@ CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb�
 
 ## 現在の利用経路
 
-旅行名から対象を探すChatは、手順と[公開旅行索引](https://github.com/USXUSX/Calendar/blob/chat-index/trip-index.json)をまとめて取得する。一意に特定したIDでMacの最新旅程を直接取得し、一覧取得の往復を省く。[索引契約・更新](docs/trip-index.md)。
+Chatは手順と[Git参照コピーの索引](https://github.com/USXUSX/Calendar/blob/chat-index/trip-index.json)を取得し、必要な旅行・日程の現在値とrevisionから更新要求を準備する。最初のMac実行で接続確認と版照合付き正式保存を行い、事前readの往復を省く。Macを正本に維持し、コピーが古ければ保存せず最新contextを返す。[参照コピーの契約・更新](docs/trip-index.md)。
 
 日常の登録・変更は[通常操作の短い入口](docs/chat-schedule.md#通常操作の短い入口)から始める。対応済みの局所変更は部分更新、新規・全体構成の変更はcomplete Trip生成を使い分け、必要な操作の文書だけを読む。
 
 - Chatの新規・既存Trip更新は接続済みMacの標準実行経路を優先し（利用できない場合は既存RDCから）[CAL専用コマンド](docs/chat-schedule.md)を呼び、CALで検証・正式保存してreceiptを受け取る。Frameの手動JSON取込も保持する。
 - 既存TripはFrameで[版照合・receipt付き](docs/direct-schedule.md#画面の正式要求calendar-238)の直接編集・予定追加／削除／並び替え・候補選択・位置保存・指示保存ができる。CALの編集を微修正には限定しない。
-- 継続編集は専用コマンドからeffective Trip・revision・未処理指示を取得して更新する。context自動共有・candidate自動採用は停止し、残存ファイルを削除しない。
+- 継続編集はGit参照コピーまたは専用コマンドからeffective Trip・revision・未処理指示を取得して更新する。context自動共有・candidate自動採用は停止し、残存ファイルを削除しない。
 - 候補探索・比較・大きな旅程編集・調査コメントはChatで行う。旅程AI編集は[承認付き更新契約](docs/trip-detail-model.md#承認付き旅程ai更新265)で変更案を確認してから正式保存する。旧Working／候補検索／AFM推薦・コメントAIは通常UIへ戻さない。Place補完と天気はCALの意味境界を使う。
 
 新規登録と既存Trip更新を区別し、通常予定と旅程のデータ形式は別に保ちます。別プロジェクト・別担当も旅程作成ルールと登録前チェックの共通正本を参照します。生成・受渡しは[生成ガイド](docs/trip-json-generation.md)、新規採用は[JSON取込契約](docs/trip-json-import.md)、日常操作は[運用入口](docs/operation.md)を参照してください。

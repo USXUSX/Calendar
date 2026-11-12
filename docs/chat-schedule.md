@@ -4,22 +4,38 @@ CALのChat更新は接続済みMacの標準実行経路（`exec_command`、継�
 
 ## 通常操作の短い入口
 
-新規チャットではこの節から始め、下表の該当節だけを追加で読む。旅行の操作なら最初のGit取得で本書と公開旅行索引をまとめて読む。取得ツールが行範囲を指定できるなら、まずこの入口の範囲だけを取得する。既存機能による日程・旅程の更新を、開発・障害調査として始めない。適用済みの上位指示は守るが、通常操作だけを理由にTDS・Issue履歴・ソース・Schemaを探索し直さない。新規・全体Trip生成には生成ガイドを使う。
+新規チャットではこの節から始め、下表の該当節だけを追加で読む。最初のGit取得で本書とGit参照コピーの索引をまとめて読み、必要な旅行・日程のcontextだけ追加取得する。取得ツールが行範囲を指定できるなら、まずこの入口の範囲だけを取得する。既存機能による日程・旅程の更新を、開発・障害調査として始めない。適用済みの上位指示は守るが、通常操作だけを理由にTDS・Issue履歴・ソース・Schemaを探索し直さない。新規・全体Trip生成には生成ガイドを使う。
 
 1. 計測する依頼では、**最初のツール呼出し内で、手順取得・接続先探索より先に呼出元の時刻を記録**する。[計測境界](#新規チャットでの短縮確認285)に従い、計測準備後へ開始点を移さない。
 2. 対象Macは `usMac-miniM4Pro.local`。そのMacへの標準実行経路が利用できれば使い、Cloudのshellしか使えない場合などは既存RDCでそのMacを選ぶ。Cloud shellでMacのCLIを探さない。RDCのdevice IDが未解決なら一覧から選び、複数端末を推測しない。
-3. 旅行の依頼では、Gitの[公開旅行索引](https://github.com/USXUSX/Calendar/blob/chat-index/trip-index.json)（path=trip-index.json、ref=chat-index）を本書とまとめて取得し、旅行名・日付からTrip IDを選ぶ。一意に選べればMacの一覧取得は不要。項目ID不明なら `trip-get --id <Trip ID>`、項目IDも既知なら `--item-id <項目ID>`を付ける。索引はID探索用で、最新値・revisionはMacから取得する。索引欠落・不一致・曖昧時は既存のtrips/travelsで探索する。[索引の契約](trip-index.md)参照。
-4. [接続確認と必要なread](#接続確認を一度に行う285)を**最初のMac実行の同じ呼出し**で順に行う。確認だけを返してから別の呼出しでreadし直さない。対象Mac・作業場所・Python・CLIの確認後、同じ実行内で専用CLIから最新対象・revision・未処理指示を取得する。確認済みの同じ接続・パスを通常操作中に重複確認しない。
+3. Gitの[参照コピー索引](https://github.com/USXUSX/Calendar/blob/chat-index/trip-index.json)（path=trip-index.json、ref=chat-index）から対象を選ぶ。旅行はitems_pathで項目ID・現在値・未処理指示・revisionを、通常予定/Todoはschedule_pathで現在値・revisionを取得し、変更要求を準備する。大きな旅程編集はcontext_pathを読む。対象が曖昧なら確認し、コピー不足時だけ既存Mac readへ進む。[コピー契約](trip-index.md)。
+4. Gitで準備できた要求は、**最初のMac実行で接続確認と正式保存を同じ呼出しで行う**。確認だけの往復や同じ対象の事前getを標準手順として挟まない。[接続確認ブロック](#接続確認を一度に行う285)の末尾へ、準備済みの正式要求を入れる。Macはコピーのexpected_revisionを正本と照合し、一致時だけ保存する。
 5. 要求IDと送信内容を短く会話へ残し、専用CLIで保存する。最終exit 0と `status=committed`、receiptの要求ID・対象・操作・内容の一致を確認する。保存確定結果を回収したら計測を止め、**保存完了を先に報告**する。
 6. 続けてlookup・再取得・必要なFrame反映を照合する。これは後続確認として報告し、保存確定までの時間へ加えない。応答不明時は同じ要求IDをlookupし、同内容だけを再送する。
 
 | 依頼 | 読む節・使う操作 |
 | --- | --- |
-| 通常予定・Todoの追加／変更／完了 | [正式更新](#正式更新)：read/get → apply |
-| 既存Tripの名称・時刻・コメント等の対応済み局所変更 | [局所変更](#旅程の局所変更)：trip-get（対象ID既知なら--item-id）→ trip-operation。complete Tripの再生成・trip-resolveは不要 |
-| 既存Tripの大きな組み直し・局所操作にない変更 | [全体保存](#旅程の正式更新205)と[生成ガイド](trip-json-generation.md)：最新trip-getを基にcomplete Tripをsave |
+| 通常予定・Todoの追加／変更／完了 | [正式更新](#正式更新)：Git context（不足時read/get）→ apply |
+| 既存Tripの名称・時刻・コメント等の対応済み局所変更 | [局所変更](#旅程の局所変更)：Git items context（不足時trip-get）→ trip-operation。complete Tripの再生成・trip-resolveは不要 |
+| 既存Tripの大きな組み直し・局所操作にない変更 | [全体保存](#旅程の正式更新205)と[生成ガイド](trip-json-generation.md)：Git complete contextまたはtrip-getを基にcomplete Tripをsave |
 | 新規Tripの生成・登録 | [全体保存](#旅程の正式更新205)と[生成ガイド](trip-json-generation.md)：travels確認 → complete Trip生成 → resolve → create |
 | 鉄道経路・地点変更、定期予定、旅行管理 | 本書の該当節とそこから参照する所有契約だけを読む |
+
+### Gitコピーから作る保存要求（#293）
+
+変更前の値とrevisionは同じcontextから取得し、変更するfieldだけ送る。旅程の名称だけなら次の形式をtrip-operationへ渡す。ScheduleItem.actionの名称はchanges.title、Place.nameではない。コピーの未処理指示も確認し、局所要求では指示を消し込まない。
+
+```json
+{"request_id":"新しい要求ID","trip_id":"コピーのTrip ID","operation":"item","expected_revision":{"trip_version":1,"effective_hash":"コピーの値","instructions_hash":"コピーの値"},"values":{"source_type":"scheduleItem","source_item_id":"コピーの項目ID","changes":{"title":"変更後の名称"}}}
+```
+
+通常予定の時刻変更なら次の形式をapplyへ渡す。Todoや定期条件は下記の該当節を使う。
+
+```json
+{"request_id":"新しい要求ID","kind":"event","action":"save","id":"コピーの項目ID","expected_revision":"コピーのrevision","values":{"start_time":"10:00"}}
+```
+
+接続確認と同じshell実行内で、/usr/bin/python3 -B scripts/cal_schedule.py trip-operation（通常日程はapply）のstdinへ準備済みJSONを渡す。形式例の仮ID/版は実行しない。expected_revisionを省略したりMacで無条件に最新版へ差し替えたりしない。exit 3 / revision_conflictでは保存されず、同じ応答のcurrentに最新contextが返る。依頼と照合し直し、新しい要求ID・そのrevisionで再送する。current_unavailableの場合だけ追加readを行う。応答不明時はこの競合処理ではなく同一要求IDのlookupを使う。
 
 新しい地点・候補の追加や場所の差替えは、名称文字列だけの編集とは分ける。局所変更で扱えるかと地点取得・座標の契約を確認し、全体保存を使う場合は従来のtrip-resolveを省略しない。対応項目・未処理指示の消込みなどが局所操作で表せなければ全体保存へ進む。
 
@@ -31,7 +47,7 @@ CALのChat更新は接続済みMacの標準実行経路（`exec_command`、継�
 
 ### 接続確認を一度に行う（#285）
 
-選んだ接続経路で、**接続確認と必要なデータ取得を一つの呼出し**として実行する（#289）。下の例は対象Trip・項目IDが既知の局所更新用。引用した2つのIDを取得済みの値へ置き換える。標準接続なら1つのexec_command、RDCなら1つのstart_processへ、コードブロック全体を渡す。作業場所を指定できる経路ではその指定も使う。確認結果の受取待ちを挟まずreadまで行い、正常ならdoctorや所在検索を追加しない。CLI自身も既存DB・receipt表等を検証する。
+Gitで変更準備ができたら、選んだ接続経路で**接続確認と正式保存を一つの呼出し**として実行する（#293）。下の例は旅程項目の名称変更。末尾の要求JSON全体を、Gitの値から準備した実際の要求に置き換える。標準接続なら1つのexec_command、RDCなら1つのstart_processへ、コードブロック全体を渡す。確認結果の受取待ちを挟まず保存まで行い、正常ならdoctorや所在検索を追加しない。CLI自身も既存DB・receipt表等を検証する。
 
 ```sh
 set -e
@@ -44,7 +60,7 @@ root = Path('/Users/us/Tools/Development/Calendar_Dev')
 cli = root / 'scripts/cal_schedule.py'
 host = socket.gethostname()
 if host.split('.')[0].casefold() != 'usmac-minim4pro':
-    raise SystemExit('Unexpected Mac; CAL read not started')
+    raise SystemExit('Unexpected Mac; CAL operation not started')
 if Path.cwd().resolve() != root.resolve() or not cli.is_file():
     raise SystemExit('CAL checkout or CLI unavailable')
 print(json.dumps({
@@ -54,12 +70,14 @@ print(json.dumps({
     'cli': str(cli)
 }, ensure_ascii=False))
 CAL_CONNECTION_CHECK
-/usr/bin/python3 -B scripts/cal_schedule.py trip-get --id '取得済みTrip ID' --item-id '取得済み項目ID'
+/usr/bin/python3 -B scripts/cal_schedule.py trip-operation <<'CAL_REQUEST'
+{"request_id":"新しい要求ID","trip_id":"コピーのTrip ID","operation":"item","expected_revision":{"trip_version":1,"effective_hash":"コピーの値","instructions_hash":"コピーの値"},"values":{"source_type":"scheduleItem","source_item_id":"コピーの項目ID","changes":{"title":"変更後の名称"}}}
+CAL_REQUEST
 ```
 
-Trip IDが不明なら最後のCLI行をtripsへ、Trip IDだけ既知なら--item-idなしのtrip-getへ、通常予定なら対象期間のreadまたは既知IDのgetへ置き換える。これらを全て実行するのではなく、必要なreadを一つ選ぶ。未知IDを推測して絞らない。
+通常予定/Todoなら最後のtrip-operationをapplyへ置き換え、その正式要求を渡す。Gitコピー不足でreadが必要な場合だけ、最後の保存コマンドとstdinを必要なtrips/travels/trip-get/read/getへ置き換える。全種類を実行せず、必要な操作だけ選ぶ。未知IDを推測しない。
 
-前半の確認が失敗するとset -eで停止し、データ取得へ進まない。選択済みデバイス情報と返されたhostも照合する。想定と異なるhostや所在を自動許可しない。返る接続確認JSONとCLIの読取りJSONは別の結果であり、どちらも保存成功ではない。取得結果を受け取って変更内容を判断した後、**別の正式保存呼出し**へ進む。対象ID既知なら保存前のMac実行は基本2回（確認＋取得、正式保存）となる。保存やAI判断までこの読取りへ混ぜない。
+前半の確認が失敗するとset -eで停止し、保存やデータ取得へ進まない。選択済みデバイス情報と返されたhostも照合する。想定と異なるhostや所在を自動許可しない。返る接続確認JSONとCLI応答は別の結果で、確認JSONは保存成功ではない。Gitで判断済みなら同じ実行内で正式保存し、基本1回のMac実行とする。コピー不足でreadした場合だけ、結果を判断して別の正式保存呼出しへ進む。
 
 失敗・経路切替・所在変更時だけ必要な再確認を行う。RDCのdevice IDや標準session IDを文書へ固定しない。途中出力やtimeoutを完了とせず、同じsession/PIDから出力と終了コードを回収する。[接続手順](#接続条件継続rdcへ戻す手順283)に従う。
 
@@ -125,7 +143,7 @@ CAL_SCHEDULE_REQUEST
 | 削除 | eventまたはtodo / delete / `{}` |
 | 完了・未完了 | todo / complete / `{"completed":true}` またはfalse |
 
-追加以外では、同じJSONに`id`と`expected_revision`を必ず付ける。両方とも直前のread/get結果を使う。件名や日付をIDの代わりにしない。既存共通処理により空の件名・不正日時・終了が開始より前・未対応field等を拒否する。旅程は後述の専用形式で更新する。
+追加以外では、同じJSONに`id`と`expected_revision`を必ず付ける。両方とも同じGit参照contextまたはread/get結果を使う。Macの保存時に版を照合する。件名や日付をIDの代わりにしない。既存共通処理により空の件名・不正日時・終了が開始より前・未対応field等を拒否する。旅程は後述の専用形式で更新する。
 
 ```json
 {"request_id":"example-replace-with-new-uuid","kind":"todo","action":"complete","id":"取得済みID","expected_revision":"sha256:取得した値","values":{"completed":true}}
@@ -138,7 +156,7 @@ CAL_SCHEDULE_REQUEST
 - 各経路の継続ハンドルから最終出力・終了コードを回収する。通信断・出力なし・timeout・`status=unknown`は結果不明。`lookup --request-id`で照合する。
 - lookupがcommittedなら元の確定receipt。`not_found`（exit 4）は現時点で確定receiptが見つからないだけで、未実行の証明ではない。同じ要求ID・同じ内容で再送できる。別IDで再作成しない。
 - 同一ID・同一内容の再送は`resolution=replayed`で元receiptを返し、二重更新しない。削除後や後続変更後でも元の操作結果を返す。**receiptはその操作時点の結果**であり、現在値が必要ならgetで読み直す。
-- 同一ID・異なる内容は`request_id_payload_conflict`（exit 3）で拒否。revision不一致は`revision_conflict`（exit 3）。最新内容を取得し、依頼と照らして内容を再確認した別操作には新しい要求IDを使う。staleを無条件上書きしない。
+- 同一ID・異なる内容は`request_id_payload_conflict`（exit 3）で拒否。revision不一致は`revision_conflict`（exit 3）。同じ拒否応答のcurrentで最新内容を確認し（取得不能時のみ追加read）、依頼と照らして再確認した別操作には新しい要求IDを使う。staleを無条件上書きしない。
 - 入力拒否はexit 2。ストレージ利用不能等はexit 5/result unknown。保存できたと推測せず照合する。拒否された操作のreceiptは作らない。
 
 ### 完了報告の確認範囲
@@ -208,11 +226,11 @@ receiptは既存CAL DBの`schedule_receipts`に保持し、自動削除しない
 }
 ```
 
-`--item-id` の応答はcomplete Tripではなく、全体save・trip-resolveの入力には使わない。対象IDが不明なら無指定trip-getで特定する。前後の行動や他日の構成を判断する依頼も無指定で取得する。全件照合が必要な後続確認は、Mac上で無指定の応答を比較して判定結果だけ返すなど、全文をAIへ再送する必要はない。
+`--item-id` の応答はcomplete Tripではなく、全体save・trip-resolveの入力には使わない。対象項目IDが不明ならGitのitems_pathまたは無指定trip-getで特定する。前後の行動や他日の構成を判断する依頼も無指定で取得する。全件照合が必要な後続確認は、Mac上で無指定の応答を比較して判定結果だけ返すなど、全文をAIへ再送する必要はない。
 
 create / saveを送る前に[共通生成ガイドの登録前チェック](trip-json-generation.md#登録前チェック)を行う。
 
-これは形状例であり空tripは無効。新規登録はaction=create、expected_revision省略、handled_instruction_idsは空。更新はaction=saveと最新trip-getのrevisionを指定する。getのtripを出発点に意図した変更だけを適用し、既存ID・予約・選択済み地点・変更対象外の値を保持する。対応した指示IDだけを列挙する。新規createは既存ID・未登録の同名正式ファイルを上書きしない。
+これは形状例であり空tripは無効。新規登録はaction=create、expected_revision省略、handled_instruction_idsは空。更新はaction=saveと同じGit complete contextまたはtrip-getのrevisionを指定する。そのtripを出発点に意図した変更だけを適用し、既存ID・予約・選択済み地点・変更対象外の値を保持する。対応した指示IDだけを列挙する。新規createは既存ID・未登録の同名正式ファイルを上書きしない。
 
 座標補完は既存CALのplan/result契約を再利用する。既存座標・手動補正・固定自宅設定を保持し、同一点をまとめて補完する。通常Chatは保存前に`trip-resolve`を実行し、その`coordinate_results`をそのまま`apply`へ渡す。検索対象ごとに結果キーが必要で、検索自体を省略した空`{}`や一部欠落は`coordinate_results_incomplete`で拒否する。検索を実行して結果がなかった地点は値nullとして明示し、その地点だけ未取得のまま保存できる。receiptのcoordinates（filled/missing/existing）と未取得の有無を報告する。必要な位置補正は既存Frame地図編集で行える。座標を推測して埋めない。
 
@@ -220,7 +238,7 @@ create / saveを送る前に[共通生成ガイドの登録前チェック](trip
 
 CALの共通Schema・semantic・Todo参照検証と、既存の`.adoption` staging/journal・SQLite transactionを使う。正式JSON置換前の中断は未採用へ、置換後はSQLiteのversion・指示・Overrideとreceiptを確定させて収束する。lookupは該当要求の未完journalを回復してからreceiptを返す。反映後の応答喪失でも元receiptを取得できる。復旧不能な不一致は確定済みと返さず、journalや正式ファイルを手編集しない。
 
-旅程receiptは保存したcomplete Trip、revision、対応指示、座標補完件数も含む。正式JSON＋SQLite＋`.adoption`は従来どおり同じCAL LocalDataの管理対象で、別DBは作らない。receiptと保存データは非公開扱いでGit/Issueへ転記しない。
+旅程receiptは保存したcomplete Trip、revision、対応指示、座標補完件数も含む。正式JSON＋SQLite＋`.adoption`は従来どおり同じCAL LocalDataの管理対象で、別DBは作らない。receipt履歴はMacに保持し、保存データのGit参照コピーは承諾済みの[コピー契約](trip-index.md)に従う。Secretや明示非公開指定は含めない。
 
 通常Chatのcontext/candidate授受、context自動共有、Frame load/reloadのcandidate自動採用は停止した。残存ファイルは削除しない。Frameの手動新規JSON取込、直接編集、Chat指示入力は維持する。旧Envelopeのdomain処理は保守・既存中断復旧用に保持するが、通常のChatから呼ばない。各経路の接続条件は本書の接続手順に従う。確認済み範囲と未観測は後述の#281 / #283の記録を参照する。
 
@@ -231,7 +249,7 @@ CALの共通Schema・semantic・Todo参照検証と、既存の`.adoption` stagi
 - `series` はシリーズ一覧、`series --id <series_id>` は条件・期間別テンプレート・単回例外と最新revisionを返す。
 - `read` は指定期間と重なる各回を通常項目形式で返す。`get --kind event|todo --id <回ID>` は各回の現在値を返す。
 - 回IDは `rec:<series UUID>:<元の発生日>`。単回の日付移動後も同じIDで、`occurrence_date`が元の発生日。`series_id`も返す。
-- シリーズと各回は `series:<UUID>:<連番>` のrevisionを共有する。別の回の変更でも連番が進むため、操作前に対象を再取得する。古いシリーズ／回の上書きは拒否する。
+- シリーズと各回は `series:<UUID>:<連番>` のrevisionを共有する。別の回の変更でも連番が進むため、同じGit series contextまたは取得応答のrevisionを指定し保存時に照合する。古いシリーズ／回の上書きは拒否する。
 
 `apply` に `scope` を指定する。新規シリーズは `scope=series`、`action=save`、id・expected_revisionなし。以下は形式例（依頼なしに実行しない）。
 

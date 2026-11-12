@@ -103,7 +103,7 @@ class CalendarDomain(TripAIMixin, TripRequestMixin, TravelMixin, GoogleCalendarM
         changed = set()
         projection_tables = {"events", "todos", "trips", "travel_basics", "schedule_series", "direct_overrides"}
         def authorize(action, table, column, database, source):
-            if action in (sqlite3.SQLITE_INSERT, sqlite3.SQLITE_UPDATE, sqlite3.SQLITE_DELETE) and table in projection_tables:
+            if action in (sqlite3.SQLITE_INSERT, sqlite3.SQLITE_UPDATE, sqlite3.SQLITE_DELETE) and table in projection_tables | {"ai_instructions"}:
                 changed.add(table)
             return sqlite3.SQLITE_OK
         connection.set_authorizer(authorize)
@@ -119,10 +119,11 @@ class CalendarDomain(TripAIMixin, TripRequestMixin, TravelMixin, GoogleCalendarM
         finally:
             connection.close()
         if committed:
-            from .change_notification import notify_committed
-            with span('post_commit_notification'):
-                notify_committed(self.db_path, self.trip_root)
-            if changed & {'trips', 'travel_basics', 'direct_overrides'}:
+            if changed & projection_tables:
+                from .change_notification import notify_committed
+                with span('post_commit_notification'):
+                    notify_committed(self.db_path, self.trip_root)
+            if changed & (projection_tables | {'ai_instructions'}):
                 from .trip_index import queue_publication
                 queue_publication(self.db_path, self.trip_root)
 
