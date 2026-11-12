@@ -13,7 +13,7 @@ These are Local placements on Mac. Cloud tasks use the GitHub repository checkou
 - Chat exchange (separate from reference sync): `/Users/us/マイドライブ/Tools/Calendar_Chat`
 - Private local data: `/Users/us/Tools/LocalData/Calendar_Local`
 
-Secret, credentials and explicitly non-public information must not be copied into Git or shared references. Other tool data may be published under us's standing permission. The approved CAL read copies live only on the separate `chat-index` branch; [the copy contract](docs/trip-index.md) defines their contents. Mac remains the formal authority. Prepare updates from these copies and let the existing Mac command compare revisions before saving; a preliminary Mac read is not mandatory when the copy is sufficient. Do not copy DB files, settings or receipt history into the source repository.
+Secret, credentials and explicitly non-public information must not be copied into Git or shared references. Other tool data may be published under us's standing permission. The `chat-index` branch now holds only the [travel lookup index](docs/trip-index.md); detailed read-copy publication is discontinued. Fetch current values/revisions/instructions from Mac: one item if its ID is known, one day if the date is known, the whole Trip only when needed. Keep Mac as the formal authority and use its dedicated CLI for updates. Do not copy DB files, settings or receipt history into source main.
 
 ## Cloud / Local boundary
 
@@ -23,7 +23,7 @@ Secret, credentials and explicitly non-public information must not be copied int
 
 ## Existing-data operations
 
-For ordinary Event/Todo/Trip operations through existing features, start with the [short Chat operation entry](docs/chat-schedule.md#通常操作の短い入口). Keep applicable higher-level instructions, but do not expand an ordinary update into development/source/Issue investigation. The development workflow below applies when changing code, specifications, or diagnosing an unsupported operation.
+For ordinary Event/Todo/Trip operations through existing features, start with the [short Chat operation entry](docs/chat-quick.md). Keep applicable higher-level instructions, but do not expand an ordinary update into development/source/Issue investigation. The development workflow below applies when changing code, specifications, or diagnosing an unsupported operation.
 
 ## Start development tasks here
 
