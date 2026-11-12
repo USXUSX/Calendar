@@ -8,6 +8,8 @@ CALは個人の予定・Todo・旅程を扱うdomain基盤です。通常のWeb�
 
 ## 現在の利用経路
 
+旅行名から対象を探すChatは、手順と[公開旅行索引](https://github.com/USXUSX/Calendar/blob/chat-index/trip-index.json)をまとめて取得する。一意に特定したIDでMacの最新旅程を直接取得し、一覧取得の往復を省く。[索引契約・更新](docs/trip-index.md)。
+
 日常の登録・変更は[通常操作の短い入口](docs/chat-schedule.md#通常操作の短い入口)から始める。対応済みの局所変更は部分更新、新規・全体構成の変更はcomplete Trip生成を使い分け、必要な操作の文書だけを読む。
 
 - Chatの新規・既存Trip更新は接続済みMacの標準実行経路を優先し（利用できない場合は既存RDCから）[CAL専用コマンド](docs/chat-schedule.md)を呼び、CALで検証・正式保存してreceiptを受け取る。Frameの手動JSON取込も保持する。

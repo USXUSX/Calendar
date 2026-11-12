@@ -15,6 +15,8 @@ These are Local placements on Mac. Cloud tasks use the GitHub repository checkou
 
 Never copy private local data into this repository or the shared-reference folder.
 
+Exception explicitly approved by us: the public travel routing index on the separate `chat-index` branch contains only travel title, dates, ID and itinerary availability. Follow [the index contract](docs/trip-index.md); do not publish other LocalData. Fetch its current branch together with the Chat operation entry for travel requests. It is a lookup hint, never the source of current values or revisions.
+
 ## Cloud / Local boundary
 
 - Work on GitHub-managed code, confirmed specifications, and ordinary tests using synthetic data can be completed in Cloud with access to the required repositories and tools.
