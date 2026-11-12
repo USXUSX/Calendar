@@ -97,7 +97,28 @@ def trip_item_context(context, item_id):
     )
 
 
+def conflict_context(cal, args, request):
+    if not isinstance(request, dict):
+        return None
+    if args.action == 'trip-operation' or request.get('kind') == 'trip':
+        tid = request.get('trip_id') if args.action == 'trip-operation' else request.get('trip', {}).get('id')
+        context = cal.get_trip_command_context(tid)
+        values = request.get('values', {})
+        if args.action == 'trip-operation' and request.get('operation') == 'item' and values.get('source_item_id'):
+            try:
+                context = trip_item_context(context, values['source_item_id'])
+            except ValueError:
+                pass  # A deleted target still returns the latest complete context.
+        return dict(status='ok', **context)
+    if request.get('kind') == 'travel':
+        return dict(status='ok', **cal.get_travel(request['id']))
+    if 'scope' in request and not str(request.get('id', '')).startswith('rec:'):
+        return dict(status='ok', series=cal.get_series(request['id']))
+    return dict(status='ok', **cal.get_schedule_item(request['kind'], request['id']))
+
+
 def execute(args):
+    request = None
     try:
         if not args.database.is_file():
             raise ValueError('database_unavailable')
@@ -153,7 +174,8 @@ def execute(args):
         elif args.action == 'lookup':
             result = cal.lookup_chat_request(args.request_id)
         elif args.action == 'trip-operation':
-            result = cal.apply_trip_operation(json.load(sys.stdin))
+            request = json.load(sys.stdin)
+            result = cal.apply_trip_operation(request)
         else:
             with span('input'):
                 raw = base64.b64decode(args.request_base64, validate=True).decode('utf-8') if args.request_base64 else sys.stdin.read()
@@ -186,6 +208,11 @@ def execute(args):
         return result, 0 if result['status'] != 'not_found' else 4
     except ConflictError as e:
         result = dict(status='rejected', reason=str(e));code=3
+        if str(e) == 'revision_conflict':
+            try:
+                result['current'] = conflict_context(cal, args, request)
+            except (DomainError, ValueError, TypeError, KeyError, OSError, sqlite3.Error):
+                result['current_unavailable'] = True
     except (DomainError, ValueError, TypeError, UnicodeError) as e:
         unknown = str(e).startswith('Calendar database')
         result = dict(status='unknown' if unknown else 'rejected', reason=str(e));code=5 if unknown else 2
