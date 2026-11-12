@@ -23,7 +23,7 @@ Secret, credentials and explicitly non-public information must not be copied int
 
 ## Existing-data operations
 
-For ordinary Event/Todo/Trip operations through existing features, start with the [short Chat operation entry](docs/chat-quick.md). Report saving and caller elapsed time upon receiving the matching committed receipt; collect exit status and reconcile afterward in the same turn, reporting follow-up only on problems. Keep applicable higher-level instructions, but do not expand an ordinary update into development/source/Issue investigation. The development workflow below applies when changing code, specifications, or diagnosing an unsupported operation.
+For ordinary Event/Todo/Trip operations through existing features, start with the [short Chat operation entry](docs/chat-quick.md). Report saving and caller elapsed time upon receiving the matching committed receipt; collect exit status and reconcile afterward in the same turn, reporting follow-up only on problems. Append caller timing via the [timing logger](docs/chat-timing.md) in that existing follow-up Mac execution; add no logging-only round trip. Keep applicable higher-level instructions, but do not expand an ordinary update into development/source/Issue investigation. The development workflow below applies when changing code, specifications, or diagnosing an unsupported operation.
 
 ## Start development tasks here
 
