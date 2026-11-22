@@ -45,6 +45,12 @@ CAL_CONNECTION_CHECK
 
 ## 次のMac実行：保存
 
+Googleへの通信を実行環境が遮断する場合は、通常予定/Todo/旅行/Tripの `apply --defer-google-sync`、
+局所変更の `trip-operation --defer-google-sync` でCALだけを正式保存する。
+確定receiptと `google.sync=deferred`（Google同期保留）を分けて報告する。
+省略時は従来の自動同期。要求IDと内容は保持し、Google反映は許可済み経路から別操作 `google-retry` で行う。
+認証拒否と通信遮断を区別し、権限・セキュリティ設定を変更しない。[Google同期契約](google-calendar.md)
+
 項目の名称変更はtrip-operationのstdinへ次の形式を送る。仮値は使わず、今回のMac取得値から作る。source_typeはscheduleItemまたはtransport、source_item_idは対象のstable ID。名称はchanges.title（ScheduleItem.actionに対応）で、Place.nameは変えない。
 
 ```sh

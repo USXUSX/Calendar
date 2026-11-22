@@ -88,6 +88,24 @@ class ChatTimingTest(unittest.TestCase):
         self.assertEqual(json.loads(stored[1]), saved['receipt'])
         self.assertNotIn('diagnostic_id', stored[1])
 
+    def test_deferred_trip_create_and_operation(self):
+        with patch.object(CalendarDomain, 'sync_google', side_effect=AssertionError('sync forbidden')) as sync:
+            request = self.request()
+            code, created, timing = self.cli(['apply', '--defer-google-sync'], request)
+            self.assertEqual((code, created['google']['sync']), (0, 'deferred'))
+            self.assertNotIn('post_commit_google_sync', [s['stage'] for s in timing['spans']])
+            _, context, _ = self.cli(['trip-get', '--id', self.trip['id']])
+            item = next(item for day in context['trip']['days'] for item in day['scheduleItems'])
+            operation = dict(request_id='deferred-item', trip_id=self.trip['id'], operation='item',
+                             expected_revision=context['revision'], values=dict(source_type='scheduleItem',
+                             source_item_id=item['id'], changes=dict(title='合成変更')))
+            code, saved, _ = self.cli(['trip-operation', '--defer-google-sync'], operation)
+            self.assertEqual((code, saved['status'], saved['google']['sync']), (0, 'committed', 'deferred'))
+            self.assertEqual(self.cli(['trip-operation', '--defer-google-sync'], operation)[1]['receipt'], saved['receipt'])
+            self.assertEqual(self.cli(['lookup', '--request-id', 'deferred-item'])[1]['receipt'], saved['receipt'])
+            self.assertEqual(self.cli(['trip-get', '--id', self.trip['id'], '--item-id', item['id']])[1]['item']['action'], '合成変更')
+            sync.assert_not_called()
+
     def test_rejection_and_unknown_recovery(self):
         request = self.request()
         self.cli(['apply'], request)

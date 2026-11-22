@@ -54,6 +54,12 @@ Gitで旅行を特定し、最初のMac実行で接続確認＋必要範囲の�
 
 ### 正式更新
 
+Googleへ接続できない実行環境では、`apply --defer-google-sync`（通常予定/Todo/旅行/Trip）または
+`trip-operation --defer-google-sync` を使う。CALの正式保存とreceiptは通常どおりで、
+応答の `google.sync=deferred` を「Google同期保留」として別に伝える。
+フラグは要求JSONの外に置き、再送の要求ID・内容を変えない。省略時は従来の自動同期。
+ローカルGoogle状態と実反映の意味、許可済み経路の別操作による再試行は[Google同期契約](google-calendar.md)を参照。
+
 要求IDは操作ごとに新しいUUID等を生成する（1〜128文字、英数字・`.`・`_`・`:`・`-`）。送信前に要求IDと変更内容を会話へ残す。一度送信したIDと内容を、結果不明だからと作り直さない。
 
 CLI `apply`の標準入力へJSONを渡す。シェルの変数展開を防ぐ引用付きhere-documentを使い、JSONは正しくシリアライズする。JSON内の改行は`\n`として渡す。UTF-8 JSONをbase64化した`--request-base64`も利用可能。

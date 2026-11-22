@@ -18,8 +18,8 @@ from .weather import JmaAdapter, build_weather_by_day
 class CalendarDomain(PlaceImagesMixin, PlacesMixin, CastlesMixin, _CalendarDomain):
     """Calendar domain with transient Goal 1 weather context on ordinary detail views."""
 
-    def __init__(self, db_path, trip_root, *, chat_root=None, weather_adapter=None, weather_today=None):
-        super().__init__(db_path, trip_root, chat_root=chat_root)
+    def __init__(self, db_path, trip_root, *, chat_root=None, weather_adapter=None, weather_today=None, defer_google_sync=False):
+        super().__init__(db_path, trip_root, chat_root=chat_root, defer_google_sync=defer_google_sync)
         self._weather_adapter = weather_adapter or JmaAdapter()
         self._weather_today = weather_today
 

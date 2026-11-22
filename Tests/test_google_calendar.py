@@ -103,6 +103,20 @@ class GoogleTest(unittest.TestCase):
             result=self.cal.apply_schedule_request(dict(request_id='receipt',kind='event',action='save',values=dict(title='saved',start_date='2026-10-05')))
         self.assertEqual(result['status'],'committed');self.assertEqual(result['google']['status'],'unreflected');self.assertNotIn('google',result['receipt'])
         self.assertEqual(self.cal.lookup_schedule_request('receipt')['receipt'],result['receipt'])
+
+    def test_deferred_save_then_explicit_retry(self):
+        deferred = CalendarDomain(self.db, self.root, defer_google_sync=True)
+        request = dict(request_id='deferred-retry', kind='event', action='save',
+                       values=dict(title='synthetic', start_date='2026-10-05'))
+        with patch('socket.socket.connect', side_effect=PermissionError('network blocked')), \
+             patch('Sources.calendar_domain.google_calendar.GoogleClient', side_effect=PermissionError('network blocked')) as client:
+            saved = deferred.apply_schedule_request(request)
+            self.assertEqual(saved['google'], dict(status='unreflected', pending=1, reason=None, sync='deferred'))
+            client.assert_not_called()
+        self.assertEqual(self.cal.sync_google()['status'], 'synced')
+        self.assertEqual(len(self.api.events), 1)
+        self.assertEqual(self.cal.apply_schedule_request(request)['receipt'], saved['receipt'])
+        self.assertEqual(len(self.api.events), 1)
     def test_google_http_runs_after_cal_commit(self):
         original=self.api.request
         def request(method,path,body=None):

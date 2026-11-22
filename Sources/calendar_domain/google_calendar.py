@@ -140,9 +140,12 @@ def after_save(method):
             state.depth = depth
         if depth==0 and getattr(self._trip_write_state, 'connection', None) is None:
             try:
-                with span('post_commit_google_status' if isinstance(result, dict) and result.get('resolution') == 'replayed' else 'post_commit_google_sync'):
-                    google = self.google_status() if isinstance(result, dict) and result.get('resolution') == 'replayed' else self.sync_google()
+                status_only = self._defer_google_sync or (isinstance(result, dict) and result.get('resolution') == 'replayed')
+                with span('post_commit_google_status' if status_only else 'post_commit_google_sync'):
+                    google = self.google_status() if status_only else self.sync_google()
             except Exception:google = dict(status='unreflected',reason='delivery_failed',pending=0)
+            if self._defer_google_sync:
+                google = dict(google, sync='deferred')
             if isinstance(result,dict):
                 result = dict(result,google=google)
         return result

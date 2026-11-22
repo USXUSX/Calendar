@@ -1,4 +1,5 @@
 import base64
+import io
 from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
@@ -7,6 +8,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+from scripts import cal_schedule
 from Sources.calendar_domain import CalendarDomain, ConflictError, NotFoundError, ValidationError
 from scripts.init_calendar_db import initialize
 from scripts.migrate_schedule_receipts import migrate
@@ -23,6 +26,46 @@ class ScheduleChatTest(unittest.TestCase):
     def create(self, kind='event', identity='create'):
         values=dict(title='合成予定',start_date='2099-01-02',notes='一行\n二行') if kind=='event' else dict(label='合成タスク',due_date='2099-01-02')
         return dict(request_id=identity,kind=kind,action='save',values=values)
+
+    def test_cli_deferred_saves_under_network_block(self):
+        def cli(action, request=None):
+            stdout = io.StringIO()
+            with patch('sys.stdin', io.StringIO(json.dumps(request))), patch('sys.stdout', stdout):
+                code = cal_schedule.main(['--database', str(self.db), '--local-root', str(self.root)]+action)
+            return code, json.loads(stdout.getvalue())
+
+        # Both transport and sync entry are guarded: even a swallowed network error
+        # must not make a deferred save appear to pass.
+        with patch('socket.socket.connect', side_effect=PermissionError('network blocked')) as network, \
+             patch.object(CalendarDomain, 'sync_google', side_effect=PermissionError('network blocked')) as sync:
+            requests = [self.create(identity='blocked-'+str(i)) for i in range(2)]
+            receipts = []
+            for request in requests:
+                code, saved = cli(['apply', '--defer-google-sync'], request)
+                self.assertEqual((code, saved['status'], saved['google']['sync']), (0, 'committed', 'deferred'))
+                self.assertEqual(saved['google']['status'], 'unreflected')
+                self.assertNotIn('google', saved['receipt'])
+                receipts.append(saved['receipt'])
+            self.assertEqual(saved['google']['pending'], 2)
+            for request, receipt in zip(requests, receipts):
+                self.assertEqual(cli(['lookup', '--request-id', request['request_id']])[1]['receipt'], receipt)
+                self.assertEqual(cli(['get', '--kind', 'event', '--id', receipt['entity_id']])[1]['item'], receipt['item'])
+                replay = cli(['apply', '--defer-google-sync'], request)[1]
+                self.assertEqual(replay['resolution'], 'replayed')
+                self.assertEqual(replay['receipt'], receipt)
+                # Delivery choice is outside the persisted request identity.
+                self.assertEqual(cli(['apply'], request)[1]['receipt'], receipt)
+                changed = dict(request, values=dict(request['values'], title='合成変更'))
+                self.assertEqual(cli(['apply', '--defer-google-sync'], changed)[0], 3)
+            self.assertEqual(len(cli(['read', '--start', '2099-01-02', '--end', '2099-01-02'])[1]['items']), 2)
+            stale = dict(requests[0], request_id='stale-deferred', id=receipts[0]['entity_id'], expected_revision='sha256:stale')
+            self.assertEqual(cli(['apply', '--defer-google-sync'], stale)[0], 3)
+            sync.assert_not_called()
+            network.assert_not_called()
+            # Default saves still attempt automatic sync; retry remains separate.
+            code, saved = cli(['apply'], self.create(identity='default-sync'))
+            self.assertEqual((code, saved['status']), (0, 'committed'))
+            self.assertEqual(sync.call_count, 1)
 
     def apply_to(self, receipt, identity, action, values):
         return self.cal.apply_schedule_request(dict(request_id=identity,kind=receipt['kind'],action=action,
