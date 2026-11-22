@@ -47,6 +47,14 @@ python3 scripts/cal_schedule.py google-reconcile
 ```
 
 自動反映は通常画面/Chatの保存完了後。読み込みだけでは送信しない。
+専用CLIの `apply --defer-google-sync` / `trip-operation --defer-google-sync` は、
+Googleへの接続を一切試みずCALだけを正式保存する。通常の `status=committed` とreceiptを返し、
+receipt外の `google.sync=deferred` が今回のGoogle同期保留を示す。
+`google.status/pending/reason` は通信しないローカル状態確認であり、Googleでの現物確認ではない。
+要求JSON・payload hash・receiptにこの実行オプションを含めず、同一要求ID・同一内容の再送と重複防止は維持する。
+フラグ省略時の自動同期とFrameの動作は変更しない。環境による通信遮断とGoogleの認証拒否を混同せず、
+セキュリティ設定・OAuth scopeを広げない。許可済み経路での反映は別操作 `google-retry` を使う。
+保存の再送やlookupは同期再試行の代わりにならない。
 送信中に別の保存があれば差分は状態へ残り、次の保存または再試行で反映する。
 Google側の手編集は手動照合または次のCAL変更時にCALの値で戻る。
 

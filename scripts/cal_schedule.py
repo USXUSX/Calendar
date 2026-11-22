@@ -42,8 +42,10 @@ def main(argv=None):
     read = sub.add_parser('read');read.add_argument('--start', required=True);read.add_argument('--end', required=True)
     get = sub.add_parser('get');get.add_argument('--kind', choices=['event','todo'], required=True);get.add_argument('--id', required=True)
     lookup = sub.add_parser('lookup');lookup.add_argument('--request-id', required=True)
-    sub.add_parser('trip-operation')
+    operation = sub.add_parser('trip-operation')
+    operation.add_argument('--defer-google-sync', action='store_true', help='commit CAL only; report local Google status without connecting to Google')
     apply = sub.add_parser('apply');apply.add_argument('--request-base64', help='UTF-8 JSON encoded as base64; otherwise read JSON from stdin')
+    apply.add_argument('--defer-google-sync', action='store_true', help='commit CAL only; report local Google status without connecting to Google')
     args = p.parse_args(argv)
     try:
         timing = Timing(args.action, args.timing_group) if args.timing or args.timing_file else None
@@ -167,7 +169,8 @@ def execute(args):
             if c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='schedule_series'").fetchone() is None:
                 raise ValueError('recurrence_migration_required')
         with span('domain_init'):
-            cal = CalendarDomain(args.database, args.local_root, chat_root=args.local_root/'chat-unused')
+            cal = CalendarDomain(args.database, args.local_root, chat_root=args.local_root/'chat-unused',
+                                 defer_google_sync=getattr(args, 'defer_google_sync', False))
         if args.action == 'google-status':
             result = cal.google_status()
         elif args.action in ('google-retry','google-reconcile'):

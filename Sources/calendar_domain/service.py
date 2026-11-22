@@ -66,10 +66,11 @@ from .travel import TravelMixin
 class CalendarDomain(TripAIMixin, TripRequestMixin, TravelMixin, GoogleCalendarMixin, RecurrenceMixin, TripChatMixin, ScheduleChatMixin, ScheduleMixin, ChatExchangeMixin):
     """Semantic CAL interface; formal storage paths are explicit, Chat root is separate."""
 
-    def __init__(self, db_path: str | Path, trip_root: str | Path, *, chat_root: str | Path | None = None):
+    def __init__(self, db_path: str | Path, trip_root: str | Path, *, chat_root: str | Path | None = None, defer_google_sync=False):
         if db_path is None or trip_root is None:
             raise ValidationError("db_path and trip_root are required")
         self._google_save_state = threading.local()
+        self._defer_google_sync = defer_google_sync
         self._trip_write_state = threading.local()
         self.db_path = Path(db_path)
         self.trip_root = Path(trip_root)
