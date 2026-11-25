@@ -56,10 +56,28 @@ class GoogleTest(unittest.TestCase):
         self.assertEqual(self.cal.sync_google()['status'],'synced');self.assertEqual(len(self.api.events),1)
         identity=next(iter(self.api.events));self.cal.change_schedule('event','save',saved['id'],{'title':'changed'}, expected_revision=self.cal.get_schedule_item('event',saved['id'])['revision'])
         self.assertEqual(self.api.events[identity]['summary'],'changed')
+        self.assertEqual(self.api.events[identity]['colorId'], '6')
         self.api.fail=True;self.cal.change_schedule('event','delete',saved['id'],{}, expected_revision=self.cal.get_schedule_item('event',saved['id'])['revision'])
         self.assertEqual(self.cal.google_status()['pending'],1)
         self.api.fail=False;self.assertEqual(self.cal.sync_google()['status'],'synced');self.assertFalse(self.api.events)
         self.assertEqual(self.cal.sync_google()['status'],'synced')
+    def test_retry_adds_color_to_existing_projection(self):
+        saved = self.create()
+        identity = next(iter(self.api.events))
+        old_body = dict(self.api.events[identity])
+        old_body.pop('id')
+        self.assertEqual(old_body.pop('colorId'), '6')
+        self.api.events[identity].pop('colorId')
+        with sqlite3.connect(self.db) as conn:
+            conn.execute('UPDATE google_events SET applied_hash=? WHERE cal_key=?',
+                         (self.cal._google_hash(old_body), 'event:' + saved['id']))
+        self.api.calls.clear()
+        self.assertEqual(self.cal.google_status()['pending'], 1)
+        self.assertEqual(self.cal.sync_google()['status'], 'synced')
+        self.assertEqual(list(self.api.events), [identity])
+        self.assertEqual(self.api.events[identity]['colorId'], '6')
+        self.assertEqual([method for method, _ in self.api.calls], ['GET', 'PUT'])
+
     def test_scope_ownership_and_past_updates(self):
         self.cal.change_schedule('event','save',values=dict(title='past',start_date='2026-10-04'))
         self.assertFalse(self.api.events)
@@ -74,6 +92,7 @@ class GoogleTest(unittest.TestCase):
     def test_tasks_marker_and_completion(self):
         item=self.cal.change_schedule('todo','save',values=dict(label='task',due_date='2026-10-05',due_time='12:00'))
         body=next(iter(self.api.events.values()));self.assertIn('終了不明',body['description'])
+        self.assertEqual(body['colorId'], '5')
         a=datetime.fromisoformat(body['start']['dateTime']);b=datetime.fromisoformat(body['end']['dateTime']);self.assertEqual((b-a).seconds,60)
         self.cal.change_schedule('todo','complete',item['id'],dict(completed=True), expected_revision=self.cal.get_schedule_item('todo',item['id'])['revision']);self.assertTrue(next(iter(self.api.events.values()))['summary'].startswith('✓ '))
         self.cal.change_schedule('todo','complete',item['id'],dict(completed=False), expected_revision=self.cal.get_schedule_item('todo',item['id'])['revision']);self.assertFalse(next(iter(self.api.events.values()))['summary'].startswith('✓'))
@@ -85,6 +104,7 @@ class GoogleTest(unittest.TestCase):
 
     def test_recurring_rules_exceptions_following(self):
         for r in [dict(frequency='monthly',month_day=31),dict(frequency='month_end'),dict(frequency='yearly',start='2024-02-29'),dict(frequency='weekly',weekdays=[0,3])]:self.series(**r)
+        self.assertEqual({body['colorId'] for body in self.api.events.values()}, {'6'})
         lines=[b['recurrence'][0] for b in self.api.events.values()]
         self.assertTrue(any('BYMONTHDAY=-1' in s for s in lines));self.assertTrue(any('BYMONTH=2;BYMONTHDAY=29' in s for s in lines));self.assertTrue(any('BYDAY=SU,WE' in s for s in lines))
         receipt=self.series(kind='todo',until='2026-10-10');sid=receipt['series_id']
@@ -93,7 +113,10 @@ class GoogleTest(unittest.TestCase):
         self.assertTrue(any('EXDATE;VALUE=DATE:20261006' in b.get('recurrence',[]) for b in self.api.events.values()))
         item=self.cal.get_occurrence(item['id']);self.serial+=1
         self.cal.apply_recurrence_request(dict(request_id='d'+str(self.serial),kind='todo',action='complete',scope='this',id=item['id'],expected_revision=item['revision'],values={'completed':True}))
-        self.assertTrue(any(b['summary']=='✓ rec' for b in self.api.events.values()))
+        todo_bodies = [body for body in self.api.events.values() if body['colorId'] == '5']
+        self.assertEqual(len(todo_bodies), 2)
+        self.assertTrue(any('recurrence' in body for body in todo_bodies))
+        self.assertTrue(any(body['summary'] == '✓ rec' for body in todo_bodies))
         item=self.cal.get_occurrence('rec:'+sid+':2026-10-08');self.serial+=1
         self.cal.apply_recurrence_request(dict(request_id='f'+str(self.serial),kind='todo',action='delete',scope='following',id=item['id'],expected_revision=item['revision'],values={}))
         self.assertTrue(any('UNTIL=20261007' in b.get('recurrence',[''])[0] for b in self.api.events.values()))
@@ -132,6 +155,7 @@ class GoogleTest(unittest.TestCase):
             self.cal.sync_google();identity=next(iter(self.api.events))
             trip['dateRange']['end']='2026-10-08';self.cal.sync_google()
             self.assertEqual(self.api.events[identity]['end'],{'date':'2026-10-09'})
+            self.assertEqual(self.api.events[identity]['colorId'], '3')
         with patch.object(self.cal,'list_travel',return_value=[]):self.cal.sync_google()
         self.assertFalse(self.api.events)
         receipt=self.series();item=self.cal.get_occurrence('rec:'+receipt['series_id']+':2026-10-08')
@@ -147,7 +171,7 @@ class GoogleTest(unittest.TestCase):
         migrate(self.db);migrate(self.db)
         with sqlite3.connect(self.db) as c:self.assertEqual(before,c.execute('SELECT * FROM events').fetchall())
     def test_trip_period_payload(self):
-        body=event_body(dict(title='trip',start_date='2026-10-04',end_date='2026-10-06',trip_id='synthetic-trip'),'trip:synthetic-trip')
+        body=event_body(dict(title='trip',start_date='2026-10-04',end_date='2026-10-06',trip_id='synthetic-trip'),'trip:synthetic-trip',kind='trip')
         self.assertEqual(body['end'],{'date':'2026-10-07'});self.assertTrue(body['source']['url'].endswith('/synthetic-trip'))
 
 
