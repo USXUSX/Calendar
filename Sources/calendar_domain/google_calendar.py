@@ -72,7 +72,11 @@ class GoogleClient:
             raise GoogleError('communication_failed') from None
 
 
-def event_body(item, key):
+# Google Calendar event palette: Tangerine, Grape, Banana.
+EVENT_COLOR_IDS = {'event': '6', 'trip': '3', 'todo': '5'}
+
+
+def event_body(item, key, *, kind='event'):
     begin = item['start_date']; finish = item.get('end_date') or begin
     notes = item.get('notes') or ''
     body = dict(summary=('✓ ' if item.get('completed_at') else '')+item['title'],
@@ -82,6 +86,8 @@ def event_body(item, key):
         body['description']=(notes+'\n'+item['gmail_url']).strip()
     if item.get('google_event_id') and item.get('google_calendar_id'):
         body['_external_reference']=dict(calendar_id=item['google_calendar_id'],event_id=item['google_event_id'])
+    else:
+        body['colorId'] = EVENT_COLOR_IDS[kind]
     if item.get('trip_id'):
         link = 'https://frame.usxtools.com/calendar/travels/'+quote(item['trip_id'], safe='')
         body['description'] = (body['description']+'\n'+link).strip()
@@ -169,13 +175,13 @@ class GoogleCalendarMixin:
             for raw in c.execute('SELECT * FROM todos WHERE due_date IS NOT NULL'):
                 item=dict(raw);key='todo:'+item['id']
                 item.update(title=item['label'],start_date=item['due_date'],start_time=item['due_time'])
-                if item['due_date']>=current or key in known: desired[key]=event_body(item,key)
+                if item['due_date']>=current or key in known: desired[key]=event_body(item,key,kind='todo')
             series=[dict(r) for r in c.execute('SELECT * FROM schedule_series')]
         for t in self.list_travel():
             key='trip:'+t['trip_id']
             if t['dateRange']['end'] and (t['dateRange']['end']>=current or key in known):
                 item=dict(title=t['title'],start_date=t['dateRange']['start'],end_date=t['dateRange']['end'],trip_id=t['trip_id'])
-                desired[key]=event_body(item,key)
+                desired[key]=event_body(item,key,kind='trip')
         for row in series:
             data=json.loads(row['data_json'])
             for s in data['segments']:
@@ -192,7 +198,7 @@ class GoogleCalendarMixin:
                     if matches(s,anchor):
                         item=template(s,anchor,row['kind'])
                         if row['kind']=='todo':item.update(title=item['label'],start_date=item['due_date'],start_time=item.get('due_time'))
-                        body=event_body(item,key);body['recurrence']=recurrence_lines(s,item,data['exceptions']);desired[key]=body
+                        body=event_body(item,key,kind=row['kind']);body['recurrence']=recurrence_lines(s,item,data['exceptions']);desired[key]=body
                         break
             for anchor,exception in data['exceptions'].items():
                 key='rec:'+row['id']+':'+anchor
@@ -200,7 +206,7 @@ class GoogleCalendarMixin:
                 item=self._occurrence(row,data,anchor)
                 # A tracked series keeps past exceptions in scope, even if the round is moved backwards.
                 tracked=any(k.startswith('series:'+row['id']+':') and anchor>=v['lower_date'] for k,v in known.items())
-                if item['start_date']>=current or key in known or tracked:desired[key]=event_body(item,key)
+                if item['start_date']>=current or key in known or tracked:desired[key]=event_body(item,key,kind=row['kind'])
         return desired
 
     @staticmethod
