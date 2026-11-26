@@ -23,6 +23,10 @@ def today():
 
 def extend_google(c):
     c.execute('CREATE TABLE IF NOT EXISTS google_events (cal_key TEXT PRIMARY KEY, event_id TEXT NOT NULL, lower_date TEXT NOT NULL, applied_hash TEXT, error TEXT)')
+    columns = {row[1] for row in c.execute('PRAGMA table_info(google_events)')}
+    for column in ('calendar_id', 'moving_to'):
+        if column not in columns:
+            c.execute(f'ALTER TABLE google_events ADD COLUMN {column} TEXT')
     c.execute('CREATE TABLE IF NOT EXISTS google_calendar_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
 
 
@@ -74,6 +78,38 @@ class GoogleClient:
 
 # Google Calendar event palette: Tangerine, Grape, Banana.
 EVENT_COLOR_IDS = {'event': '6', 'trip': '3', 'todo': '5'}
+CALENDAR_KEYS = {'event': 'calendar_id', 'trip': 'trip_calendar_id', 'todo': 'todo_calendar_id'}
+
+
+def calendar_routes(config):
+    main = config.get('calendar_id')
+    trip = config.get('trip_calendar_id')
+    todo = config.get('todo_calendar_id')
+    if not main or main == 'primary':
+        raise GoogleError('calendar_required')
+    if not trip and not todo:
+        return dict.fromkeys(CALENDAR_KEYS, main)
+    if not trip or not todo or 'primary' in (trip, todo) or len({main, trip, todo}) != 3:
+        raise GoogleError('calendar_routes_invalid')
+    return dict(event=main, trip=trip, todo=todo)
+
+
+def event_base(calendar_id):
+    return 'calendars/' + quote(calendar_id, safe='') + '/events'
+
+
+def owned_event(client, path, key):
+    try:
+        event = client.request('GET', path)
+    except GoogleError as exc:
+        if str(exc) not in ('http_404', 'http_410'):
+            raise
+        return None
+    if event and event.get('status') != 'cancelled':
+        owner = event.get('extendedProperties', {}).get('private', {})
+        if owner.get('calOwner') != 'cal-v1' or owner.get('calKey') != hashlib.sha256(key.encode()).hexdigest():
+            raise GoogleError('ownership_conflict')
+    return event
 
 
 def event_body(item, key, *, kind='event'):
@@ -88,6 +124,7 @@ def event_body(item, key, *, kind='event'):
         body['_external_reference']=dict(calendar_id=item['google_calendar_id'],event_id=item['google_event_id'])
     else:
         body['colorId'] = EVENT_COLOR_IDS[kind]
+        body['_calendar_kind'] = kind
     if item.get('trip_id'):
         link = 'https://frame.usxtools.com/calendar/travels/'+quote(item['trip_id'], safe='')
         body['description'] = (body['description']+'\n'+link).strip()
@@ -211,21 +248,34 @@ class GoogleCalendarMixin:
 
     @staticmethod
     def _google_hash(body):
+        if body is not None:
+            body = {key: value for key, value in body.items() if key != '_calendar_kind'}
         return hashlib.sha256(json.dumps(body,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+
+    def _google_pending(self, body, row, routes):
+        kind = body.get('_calendar_kind') if body else None
+        current = row.get('calendar_id') or routes['event']
+        return (bool(row.get('moving_to') or row.get('error'))
+                or self._google_hash(body) != row.get('applied_hash')
+                or bool(kind and current != routes[kind]))
 
     def google_status(self):
         try:
             rows=self._google_rows()
             if rows is None:return dict(status='unreflected',reason='migration_required',pending=0)
             desired=self._google_desired(rows)
-            pending=sum(self._google_hash(desired.get(k))!=rows.get(k,{}).get('applied_hash') or bool(rows.get(k,{}).get('error')) for k in set(desired)|set(rows))
             try:
                 token=json.loads((self.trip_root/'settings/google-token.json').read_text())
                 config=json.loads((self.trip_root/'settings/google-calendar.json').read_text())
                 configured=bool(token.get('refresh_token') and config.get('calendar_id') and config['calendar_id']!='primary')
             except (OSError, ValueError):configured=False
+            routes = calendar_routes(config) if configured else dict.fromkeys(CALENDAR_KEYS)
+            pending = sum(self._google_pending(desired.get(k), rows.get(k, {}), routes)
+                          for k in set(desired) | set(rows))
             return dict(status='unreflected' if pending or not configured else 'synced',pending=pending,
                         reason='authentication_required' if not configured else next((r['error'] for r in rows.values() if r['error']),None))
+        except GoogleError as exc:
+            return dict(status='unreflected', reason=str(exc), pending=0)
         except Exception:
             return dict(status='unreflected',reason='state_unavailable',pending=0)
 
@@ -239,55 +289,85 @@ class GoogleCalendarMixin:
             rows=self._google_rows();desired=self._google_desired(rows)
             try:client=client or GoogleClient(self.trip_root)
             except GoogleError:return self.google_status()
-            calendar_id=client.config.get('calendar_id')
-            if not calendar_id or calendar_id=='primary':return dict(self.google_status(),reason='calendar_required')
+            routes = calendar_routes(client.config)
+            pinned_routes = {'calendar_id': routes['event']}
+            if routes['trip'] != routes['event']:
+                pinned_routes.update(trip_calendar_id=routes['trip'], todo_calendar_id=routes['todo'])
             with sqlite3.connect(self.db_path) as c:
-                pinned=c.execute("SELECT value FROM google_calendar_meta WHERE key='calendar_id'").fetchone()
-                if pinned and pinned[0]!=calendar_id:return dict(self.google_status(),reason='calendar_id_conflict')
-                c.execute("INSERT OR IGNORE INTO google_calendar_meta VALUES ('calendar_id',?)",(calendar_id,))
-            base='calendars/'+quote(calendar_id,safe='')+'/events'
-            for key in sorted(set(rows)|set(desired)):
-                body=desired.get(key);digest=self._google_hash(body);old=rows.get(key)
-                if old and old['applied_hash']==digest and not old.get('error') and not reconcile:continue
-                new_mapping=old is None
-                if old is None:
-                    old=dict(event_id='cal'+uuid4().hex,lower_date=today(),applied_hash=None)
-                    with sqlite3.connect(self.db_path) as c:
-                        c.execute('INSERT INTO google_events VALUES (?,?,?,?,NULL)',(key,old['event_id'],old['lower_date'],None))
-                event_path=base+'/'+old['event_id']
+                pinned = dict(c.execute('SELECT key, value FROM google_calendar_meta'))
+                if any(pinned_routes.get(key) != value for key, value in pinned.items()
+                       if key in CALENDAR_KEYS.values()):
+                    return dict(self.google_status(), reason='calendar_id_conflict', status='unreflected')
+                c.executemany('INSERT OR IGNORE INTO google_calendar_meta VALUES (?,?)', pinned_routes.items())
+            for key in sorted(set(rows) | set(desired)):
+                body = desired.get(key)
+                old = rows.get(key, {})
+                if not reconcile and not self._google_pending(body, old, routes):
+                    continue
                 try:
-                    # Initial references have no CAL projection. Later references must clean
-                    # the persisted CAL mapping, never the externally referenced event.
-                    external=bool(body and body.get('_external_reference'))
-                    reference=body.get('_external_reference',{}) if body else {}
-                    if external and (new_mapping or (reference.get('calendar_id')==calendar_id and reference.get('event_id')==old['event_id'])):
-                        with sqlite3.connect(self.db_path) as c:
-                            c.execute('UPDATE google_events SET applied_hash=?,error=NULL WHERE cal_key=?',(digest,key))
-                        continue
-                    try:remote=client.request('GET',event_path)
-                    except GoogleError as e:
-                        if str(e) not in ('http_404','http_410'):raise
-                        remote=None
-                    if remote and remote.get('status')!='cancelled':
-                        owner=remote.get('extendedProperties',{}).get('private',{})
-                        expected=hashlib.sha256(key.encode()).hexdigest()
-                        if owner.get('calOwner')!='cal-v1' or owner.get('calKey')!=expected:raise GoogleError('ownership_conflict')
-                        if body and not external:client.request('PUT',event_path,dict(body,status='confirmed'))
-                        else:client.request('DELETE',event_path)
-                    elif body and not external:
-                        if (remote and remote.get('status')=='cancelled') or old['applied_hash']==self._google_hash(None):
-                            old['event_id']='cal'+uuid4().hex
-                            with sqlite3.connect(self.db_path) as c:c.execute('UPDATE google_events SET event_id=? WHERE cal_key=?',(old['event_id'],key))
-                        try:client.request('POST',base,dict(body,id=old['event_id']))
-                        except GoogleError as e:
-                            if str(e)!='http_409':raise
-                            # Response loss: same persisted ID, checked ownership on the next retry.
-                            raise GoogleError('reconciliation_required')
-                    with sqlite3.connect(self.db_path) as c:c.execute('UPDATE google_events SET applied_hash=?,error=NULL WHERE cal_key=?',(digest,key))
-                except GoogleError as e:
-                    with sqlite3.connect(self.db_path) as c:c.execute('UPDATE google_events SET error=? WHERE cal_key=?',(str(e),key))
-                    if str(e) in ('authentication_required','http_401','http_403'):break
+                    self._sync_google_event(client, key, body, old, routes)
+                except GoogleError as exc:
+                    with sqlite3.connect(self.db_path) as c:
+                        c.execute('UPDATE google_events SET error=? WHERE cal_key=?', (str(exc), key))
+                    if str(exc) in ('authentication_required', 'http_401', 'http_403'):
+                        break
             return self.google_status()
+        except GoogleError as exc:
+            return dict(status='unreflected', reason=str(exc), pending=0)
         except Exception:
             return dict(status='unreflected',reason='delivery_failed',pending=0)
         finally:os.close(fd)
+
+    def _sync_google_event(self, client, key, body, old, routes):
+        reference = body.get('_external_reference', {}) if body else {}
+        kind = body.get('_calendar_kind') if body else None
+        current = (old.get('calendar_id') or routes['event']) if old else routes.get(kind, routes['event'])
+        target = routes[kind] if kind else (old.get('moving_to') or current)
+        identity = old.get('event_id') or ('cal' + uuid4().hex)
+        source_path = event_base(current) + '/' + identity
+        moving = target != current
+        if not old:
+            with sqlite3.connect(self.db_path) as c:
+                c.execute('INSERT INTO google_events (cal_key,event_id,lower_date,calendar_id) VALUES (?,?,?,?)',
+                          (key, identity, today(), current))
+        elif moving:
+            with sqlite3.connect(self.db_path) as c:
+                c.execute('UPDATE google_events SET moving_to=? WHERE cal_key=?', (target, key))
+
+        def projection(calendar_id, path):
+            if reference.get('calendar_id') == calendar_id and reference.get('event_id') == identity:
+                return None
+            return owned_event(client, path, key)
+
+        if not reference or old:
+            source = projection(current, source_path)
+            source_active = source and source.get('status') != 'cancelled'
+            destination_base = event_base(target)
+            destination_path = destination_base + '/' + identity
+            remote = projection(target, destination_path) if moving else source
+            active = remote and remote.get('status') != 'cancelled'
+            if kind:
+                payload = {field: value for field, value in body.items() if field != '_calendar_kind'}
+                if active:
+                    client.request('PUT', destination_path, dict(payload, status='confirmed'))
+                else:
+                    if moving and remote and remote.get('status') == 'cancelled':
+                        raise GoogleError('destination_cancelled')
+                    if not moving and (remote or old.get('applied_hash') == self._google_hash(None)):
+                        identity = 'cal' + uuid4().hex
+                        with sqlite3.connect(self.db_path) as c:
+                            c.execute('UPDATE google_events SET event_id=? WHERE cal_key=?', (identity, key))
+                    try:
+                        client.request('POST', destination_base, dict(payload, id=identity))
+                    except GoogleError as exc:
+                        if str(exc) != 'http_409':
+                            raise
+                        raise GoogleError('reconciliation_required') from None
+            elif active:
+                client.request('DELETE', destination_path)
+            if moving and source_active:
+                client.request('DELETE', source_path)
+
+        with sqlite3.connect(self.db_path) as c:
+            c.execute('UPDATE google_events SET calendar_id=?,moving_to=NULL,applied_hash=?,error=NULL WHERE cal_key=?',
+                      (target, self._google_hash(body), key))

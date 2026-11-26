@@ -14,20 +14,26 @@ from scripts.migrate_google_calendar import migrate
 
 class FakeGoogle:
     config={'calendar_id':'synthetic-cal'}
-    def __init__(self):self.events={};self.fail=False;self.lose=False;self.calls=[]
+    def __init__(self):self.events={};self.fail=False;self.lose=False;self.calls=[];self.separate=False;self.fail_delete_once=False
     def request(self,method,path,body=None):
         self.calls.append((method,path));identity=path.rsplit('/',1)[1]
         if self.fail:raise GoogleError('communication_failed')
+        if self.separate and method != 'POST':
+            identity = path
         if method=='GET':
             if identity not in self.events:raise GoogleError('http_404')
             return copy.deepcopy(self.events[identity])
         if method=='POST':
-            identity=body['id']
+            identity=path+'/'+body['id'] if self.separate else body['id']
             if identity in self.events:raise GoogleError('http_409')
             self.events[identity]=copy.deepcopy(body)
             if self.lose:self.lose=False;raise GoogleError('communication_failed')
         elif method=='PUT':self.events[identity]=copy.deepcopy(body)
-        elif method=='DELETE':del self.events[identity]
+        elif method=='DELETE':
+            if self.fail_delete_once:
+                self.fail_delete_once = False
+                raise GoogleError('communication_failed')
+            del self.events[identity]
         return copy.deepcopy(body or {})
 
 
@@ -77,6 +83,55 @@ class GoogleTest(unittest.TestCase):
         self.assertEqual(list(self.api.events), [identity])
         self.assertEqual(self.api.events[identity]['colorId'], '6')
         self.assertEqual([method for method, _ in self.api.calls], ['GET', 'PUT'])
+
+    def enable_split(self):
+        self.api.config = dict(self.api.config, trip_calendar_id='synthetic-trip-calendar',
+                               todo_calendar_id='synthetic-todo-calendar')
+        (self.root/'settings/google-calendar.json').write_text(json.dumps(self.api.config))
+
+    def test_split_routes_and_retries_migration(self):
+        self.api.separate = True
+        self.create()
+        task = self.cal.change_schedule('todo','save',values=dict(label='task',due_date='2026-10-05'))
+        series = self.series(kind='todo')
+        item = self.cal.get_occurrence('rec:'+series['series_id']+':2026-10-06')
+        self.change(item, values={'due_date':'2026-10-07'})
+        trip = dict(trip_id='synthetic-trip', title='trip',
+                    dateRange={'start':'2026-10-04','end':'2026-10-06'})
+        unrelated = 'calendars/synthetic-cal/events/unrelated'
+        self.api.events[unrelated] = {'summary':'unrelated'}
+        self.enable_split()
+        self.api.fail_delete_once = True
+        with patch.object(self.cal, 'list_travel', return_value=[trip]):
+            self.assertEqual(self.cal.google_status()['pending'], 4)
+            self.assertEqual(self.cal.sync_google()['pending'], 1)
+            self.assertEqual(self.cal.sync_google()['pending'], 0)
+            by_color = {color: [path for path, body in self.api.events.items() if body.get('colorId') == color]
+                        for color in ('6', '3', '5')}
+            self.assertEqual([len(by_color[color]) for color in ('6', '3', '5')], [1, 1, 3])
+            self.assertTrue(by_color['6'][0].startswith('calendars/synthetic-cal/'))
+            self.assertTrue(by_color['3'][0].startswith('calendars/synthetic-trip-calendar/'))
+            self.assertTrue(all(path.startswith('calendars/synthetic-todo-calendar/') for path in by_color['5']))
+            self.assertEqual(self.api.events[unrelated], {'summary':'unrelated'})
+            self.assertTrue(any('recurrence' in self.api.events[path] for path in by_color['5']))
+            revision = self.cal.get_schedule_item('todo', task['id'])['revision']
+            self.cal.change_schedule('todo', 'delete', task['id'], {}, expected_revision=revision)
+            self.assertEqual(sum(body.get('colorId') == '5' for body in self.api.events.values()), 2)
+            self.api.calls.clear()
+            self.assertEqual(self.cal.sync_google()['status'], 'synced')
+            self.assertFalse(self.api.calls)
+
+    def test_deleted_during_move_clears_both_owned_copies(self):
+        self.api.separate = True
+        task = self.cal.change_schedule('todo','save',values=dict(label='task',due_date='2026-10-05'))
+        self.enable_split()
+        self.api.fail_delete_once = True
+        self.assertEqual(self.cal.sync_google()['pending'], 1)
+        self.assertEqual(len(self.api.events), 2)
+        revision = self.cal.get_schedule_item('todo', task['id'])['revision']
+        result = self.cal.change_schedule('todo', 'delete', task['id'], {}, expected_revision=revision)
+        self.assertEqual(result['google']['pending'], 0)
+        self.assertFalse(self.api.events)
 
     def test_scope_ownership_and_past_updates(self):
         self.cal.change_schedule('event','save',values=dict(title='past',start_date='2026-10-04'))

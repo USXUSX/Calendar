@@ -6,10 +6,10 @@ Google障害・未認証でも保存を取り消さない。新しい常駐、�
 
 ## 表現と範囲
 
-専用「CAL」の確定calendar IDのみ使用。同名の既存カレンダーは採用しない。
+既存の専用「CAL」を通常予定用に残し、アプリが作成した「CAL 旅行」「CAL Todo」へ旅行・Todoを転記する。確定した3つのcalendar IDを固定し、同名の既存カレンダーは採用しない。
 旅行は期間の終日1件とFrame旅程リンク。通常Event/Todoは全件、完了Todoは件名に✓。
-CALが転記する予定色は旅行が紫（Grape）、通常予定がオレンジ（Tangerine）、Todoが黄色（Banana）。
-定期予定・単回変更も元の種別の色を使う。転記済みのCAL管理予定は次回同期で色を反映する。
+カレンダー色は「CAL」がオレンジ、「CAL 旅行」が紫、「CAL Todo」が黄色。iPhone標準カレンダーでは3つを重ねて表示できる。Google側の予定色にも同じ配色を使う。
+定期予定・単回変更も元の種別の転記先を使う。既存のCAL管理予定は新しい転記先への反映が成功してから旧カレンダー内の対応予定を削除する。途中失敗時は同じ予定IDと所有markerで照合して再試行する。
 初回実行日のAsia/Tokyo当日以降の通常予定・タスク、継続中／今後の旅行が対象。
 登録済み対応項目は過去になっても変更・削除へ追随する。Googleだけの項目や既存カレンダーへ触れず、件名だけで同一予定を判定しない。
 
@@ -31,8 +31,8 @@ daily/weekly/monthly/month_end/yearlyはRRULE（BYDAY、BYMONTHDAY、月末=-1�
 
 ## 状態・共通契約
 
-既存SQLiteの`google_events`にCALキー、送信前に確定したランダムevent ID、初回下限日、反映済みhash、秘密を含まない失敗理由を保持。
-`google_calendar_meta`は初回calendar IDを固定し、無断の送り先変更を拒否。
+既存SQLiteの`google_events`にCALキー、送信前に確定したランダムevent ID、初回下限日、反映済みhash、秘密を含まない失敗理由、現在のcalendar IDと移行中の転記先を保持。
+`google_calendar_meta`は専用のcalendar IDを固定し、無断の送り先変更を拒否。
 HTTP前にCAL transactionを終了し、既存DB横のlockでCLI/Frameの送信を直列化。
 応答喪失は同じIDのGETと所有markerで照合。所有markerが違うイベントは変更・削除しない。
 削除の対応付けも保持。Google取得結果は照合用で、CALへ取り込まない。
@@ -86,8 +86,9 @@ PKCE/state/loopback callbackを使い、refresh tokenはprivate localの0600フ�
 ## 既存環境反映
 
 DBをSQLite backupでprivate localへ退避し、`scripts/migrate_google_calendar.py <既存DB>`を実行。
-既存テーブル/値が変わらず2表だけ追加されることを確認する。
+通常の予定・旅行・タスクの保存値は維持する。初期導入で2表、既存の単一カレンダー構成からの更新では `google_events` に転記先を記録する2列を追加する。
 merge済みCAL/Frameを公式同期し、[既存Frame再起動](operation.md#calコード変更のframe反映)と代表APIを確認する。
+単一カレンダーから移行する場合は、既存の設定を残し、同じ権限で `python3 -B scripts/cal_google_setup.py split-calendars` を実行して2カレンダーの作成と3カレンダーの色の照合を行う。その後 `google-retry` で既存分を移す。作成の結果が不明な場合はGoogle側を確認してから再開する。
 認証未完了時も通常保存は使える。初回Google反映・公開画面・物理iPhone受入は別に記録する。
 
 ## Gmail既存予定の重複回避（#221）
