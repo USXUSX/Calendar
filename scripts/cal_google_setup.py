@@ -12,7 +12,7 @@ from pathlib import Path
 from urllib.parse import urlencode, urlparse, parse_qs, quote
 from urllib.request import Request, urlopen
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from Sources.calendar_domain.google_calendar import SCOPE, GoogleClient, GoogleError, private_json, event_body
+from Sources.calendar_domain.google_calendar import SCOPE, GoogleClient, GoogleError, private_json, event_body, calendar_routes
 from uuid import uuid4
 
 ROOT=Path('/Users/us/Tools/LocalData/Calendar_Local')
@@ -60,6 +60,57 @@ def create_calendar(root):
     print('専用CAL calendar IDをprivate localに確定保存しました。')
 
 
+CALENDAR_COLORS = {
+    'event': ('#f4511e', '#000000'),
+    'trip': ('#8e24aa', '#ffffff'),
+    'todo': ('#f6bf26', '#000000'),
+}
+
+
+def split_calendars(root):
+    client = GoogleClient(root)
+    path = root/'settings/google-calendar.json'
+    journal_path = root/'settings/google-calendar-split.json'
+    config = dict(client.config)
+    if not config.get('calendar_id') or config['calendar_id'] == 'primary':
+        raise ValueError('calendar_required')
+    saved = json.loads(journal_path.read_text()) if journal_path.exists() else {}
+    if saved.get('creating'):
+        raise ValueError('calendar_creation_unknown')
+    for key, title in (('trip_calendar_id', 'CAL 旅行'), ('todo_calendar_id', 'CAL Todo')):
+        if key not in config:
+            if key not in saved:
+                private_json(journal_path, dict(saved, creating=key))
+                result = client.request('POST', 'calendars', dict(
+                    summary=title, timeZone='Asia/Tokyo', description='CALを正本とする専用一方向連携'))
+                if not result.get('id'):
+                    raise ValueError('calendar_creation_unknown')
+                saved[key] = result['id']
+                private_json(journal_path, saved)
+            config[key] = saved[key]
+    colors_applied = True
+    for kind, identity in calendar_routes(config).items():
+        background, foreground = CALENDAR_COLORS[kind]
+        resource = 'users/me/calendarList/' + quote(identity, safe='')
+        try:
+            client.request('PATCH', resource + '?colorRgbFormat=true',
+                           dict(backgroundColor=background, foregroundColor=foreground, selected=True))
+            entry = client.request('GET', resource)
+        except GoogleError as exc:
+            if str(exc) not in ('http_401', 'http_403'):
+                raise
+            colors_applied = False
+            break
+        if entry.get('backgroundColor', '').lower() != background or entry.get('selected') is not True:
+            raise ValueError('calendar_color_readback_failed')
+    private_json(path, config)
+    journal_path.unlink(missing_ok=True)
+    if colors_applied:
+        print('Google側の3カレンダーと色を確認しました。')
+    else:
+        print('Google側の3カレンダーを設定しました。カレンダー色はGoogleの画面から設定してください。')
+
+
 def probe(root):
     client=GoogleClient(root);cid=client.config.get('calendar_id')
     if not cid or cid=='primary':raise ValueError('calendar_required')
@@ -68,6 +119,7 @@ def probe(root):
     else:
         identity='cal'+uuid4().hex;private_json(path,dict(event_id=identity))
     body=event_body(dict(title='CAL API接続確認（一時）',start_date='2099-01-01'),'probe:'+identity)
+    body.pop('_calendar_kind')
     try:remote=client.request('GET',base+'/'+identity)
     except GoogleError as e:
         if str(e) not in ('http_404','http_410'):raise
@@ -83,9 +135,12 @@ def probe(root):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--local-root',type=Path,default=ROOT)
-    p.add_argument('action',choices=['authorize','create-calendar','probe']);args=p.parse_args()
+    p.add_argument('action',choices=['authorize','create-calendar','split-calendars','probe']);args=p.parse_args()
     try:
-        {'authorize':authorize,'create-calendar':create_calendar,'probe':probe}[args.action](args.local_root)
-    except Exception:
+        {'authorize':authorize,'create-calendar':create_calendar,'split-calendars':split_calendars,'probe':probe}[args.action](args.local_root)
+    except (GoogleError, ValueError) as exc:
+        reason = str(exc)
+        if reason.isascii() and reason.replace('_', '').isalnum():
+            print(reason, file=sys.stderr)
         print('設定未完了。秘密値を共有せず、設定手順とprivateファイルを確認してください。',file=sys.stderr)
         sys.exit(2)
