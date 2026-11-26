@@ -88,17 +88,27 @@ def split_calendars(root):
                 saved[key] = result['id']
                 private_json(journal_path, saved)
             config[key] = saved[key]
+    colors_applied = True
     for kind, identity in calendar_routes(config).items():
         background, foreground = CALENDAR_COLORS[kind]
         resource = 'users/me/calendarList/' + quote(identity, safe='')
-        client.request('PATCH', resource + '?colorRgbFormat=true',
-                       dict(backgroundColor=background, foregroundColor=foreground, selected=True))
-        entry = client.request('GET', resource)
+        try:
+            client.request('PATCH', resource + '?colorRgbFormat=true',
+                           dict(backgroundColor=background, foregroundColor=foreground, selected=True))
+            entry = client.request('GET', resource)
+        except GoogleError as exc:
+            if str(exc) not in ('http_401', 'http_403'):
+                raise
+            colors_applied = False
+            break
         if entry.get('backgroundColor', '').lower() != background or entry.get('selected') is not True:
             raise ValueError('calendar_color_readback_failed')
     private_json(path, config)
     journal_path.unlink(missing_ok=True)
-    print('Google側の3カレンダーと色を確認しました。')
+    if colors_applied:
+        print('Google側の3カレンダーと色を確認しました。')
+    else:
+        print('Google側の3カレンダーを設定しました。カレンダー色はGoogleの画面から設定してください。')
 
 
 def probe(root):

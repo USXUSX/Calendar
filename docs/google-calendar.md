@@ -88,7 +88,7 @@ PKCE/state/loopback callbackを使い、refresh tokenはprivate localの0600フ�
 DBをSQLite backupでprivate localへ退避し、`scripts/migrate_google_calendar.py <既存DB>`を実行。
 通常の予定・旅行・タスクの保存値は維持する。初期導入で2表、既存の単一カレンダー構成からの更新では `google_events` に転記先を記録する2列を追加する。
 merge済みCAL/Frameを公式同期し、[既存Frame再起動](operation.md#calコード変更のframe反映)と代表APIを確認する。
-単一カレンダーから移行する場合は、既存の設定を残し、同じ権限で `python3 -B scripts/cal_google_setup.py split-calendars` を実行して2カレンダーの作成と3カレンダーの色の照合を行う。その後 `google-retry` で既存分を移す。作成の結果が不明な場合はGoogle側を確認してから再開する。
+単一カレンダーから移行する場合は、既存の設定を残し、同じ権限で `python3 -B scripts/cal_google_setup.py split-calendars` を実行して2カレンダーの作成と3カレンダーの色の照合を行う。Googleの認可で色の設定が拒否される場合は、作成済みカレンダーを使い、Googleカレンダーの画面からカレンダー色を設定する。その後 `google-retry` で既存分を移す。作成の結果が不明な場合はGoogle側を確認してから再開する。
 認証未完了時も通常保存は使える。初回Google反映・公開画面・物理iPhone受入は別に記録する。
 
 ## Gmail既存予定の重複回避（#221）
